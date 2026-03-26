@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Gestión Laboral - Sistema de Control de Tareas Multiempresa SaaS">
+    <title>Gestión Laboral | Sistema SaaS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- PANTALLA DE LOGIN                       -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="pantalla-login" class="pantalla activa">
+        <div class="login-container">
+            <div class="login-brand">
+                <div class="brand-icon">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                        <rect width="48" height="48" rx="12" fill="url(#grad1)"/>
+                        <path d="M14 24h6v10h-6zM20 18h6v16h-6zM28 14h6v20h-6z" fill="white" opacity="0.9"/>
+                        <defs><linearGradient id="grad1" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+                    </svg>
+                </div>
+                <h1 class="brand-title">Gestión Laboral</h1>
+                <p class="brand-subtitle">Sistema de Control de Tareas Multiempresa</p>
+            </div>
+
+            <div class="login-card glass">
+                <div class="form-group">
+                    <label for="input-codigo-acceso">Código de Acceso</label>
+                    <div class="input-wrapper">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                        <input type="text" id="input-codigo-acceso" placeholder="Ingresa tu código" maxlength="10" autocomplete="off">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-block" id="btn-login" onclick="loginUnificado()">
+                    <span>Ingresar</span>
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                </button>
+                <div id="login-error" class="alert alert-error" style="display:none;"></div>
+            </div>
+
+            <p class="login-footer">© 2026 Gestión Laboral · v1.0</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- PANEL ROOT                              -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="pantalla-root" class="pantalla">
+        <header class="header-main">
+            <div class="header-left">
+                <div class="brand-mini">
+                    <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="url(#grad2)"/><path d="M14 24h6v10h-6zM20 18h6v16h-6zM28 14h6v20h-6z" fill="white" opacity="0.9"/><defs><linearGradient id="grad2" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs></svg>
+                    <span>Gestión Laboral</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <h2>🔐 Panel ROOT - Programador</h2>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                    Salir
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Sidebar -->
+            <nav class="sidebar glass">
+                <ul class="sidebar-menu">
+                    <li class="menu-item activo" data-view="empresas" onclick="cambiarVistaRoot('empresas')">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                        <span>Empresas</span>
+                    </li>
+                    <li class="menu-item" data-view="crear-empresa" onclick="cambiarVistaRoot('crear-empresa')">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                        <span>Nueva Empresa</span>
+                    </li>
+                    <li class="menu-item" data-view="configuracion" onclick="cambiarVistaRoot('configuracion')">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                        <span>Configuración</span>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Contenido principal -->
+            <div class="content-area">
+                <!-- Vista: Lista de Empresas -->
+                <div id="vista-empresas" class="vista activa">
+                    <div class="vista-header">
+                        <h3>🏢 Empresas Registradas</h3>
+                        <button class="btn btn-primary btn-sm" onclick="cambiarVistaRoot('crear-empresa')">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                            Nueva Empresa
+                        </button>
+                    </div>
+                    <div id="lista-empresas" class="grid-cards">
+                        <div class="empty-state">
+                            <svg width="64" height="64" fill="currentColor" opacity="0.3" viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10z"/></svg>
+                            <p>No hay empresas registradas</p>
+                            <button class="btn btn-primary btn-sm" onclick="cambiarVistaRoot('crear-empresa')">Crear primera empresa</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vista: Crear Empresa -->
+                <div id="vista-crear-empresa" class="vista">
+                    <div class="vista-header">
+                        <h3>➕ Nueva Empresa + Administrador</h3>
+                    </div>
+                    <div class="form-card glass">
+                        <form id="form-empresa" onsubmit="crearEmpresa(event)">
+                            <div class="form-section">
+                                <h4 class="section-title">
+                                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12z"/></svg>
+                                    Datos de la Empresa
+                                </h4>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="emp-nombre">Nombre de la Empresa *</label>
+                                        <input type="text" id="emp-nombre" required placeholder="Ej: Constructora del Norte">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emp-identificacion">Identificación / RFC / NIT</label>
+                                        <input type="text" id="emp-identificacion" placeholder="Ej: CDN-1234567">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emp-pais">🌎 País *</label>
+                                        <select id="emp-pais" required onchange="actualizarPais()">
+                                            <option value="">Seleccionar país...</option>
+                                            <option value="MX" data-lada="+52" data-moneda="MXN" data-zona="America/Mexico_City">🇲🇽 México</option>
+                                            <option value="GT" data-lada="+502" data-moneda="GTQ" data-zona="America/Guatemala">🇬🇹 Guatemala</option>
+                                            <option value="SV" data-lada="+503" data-moneda="USD" data-zona="America/El_Salvador">🇸🇻 El Salvador</option>
+                                            <option value="HN" data-lada="+504" data-moneda="HNL" data-zona="America/Tegucigalpa">🇭🇳 Honduras</option>
+                                            <option value="NI" data-lada="+505" data-moneda="NIO" data-zona="America/Managua">🇳🇮 Nicaragua</option>
+                                            <option value="CR" data-lada="+506" data-moneda="CRC" data-zona="America/Costa_Rica">🇨🇷 Costa Rica</option>
+                                            <option value="PA" data-lada="+507" data-moneda="PAB" data-zona="America/Panama">🇵🇦 Panamá</option>
+                                            <option value="CO" data-lada="+57" data-moneda="COP" data-zona="America/Bogota">🇨🇴 Colombia</option>
+                                            <option value="VE" data-lada="+58" data-moneda="VES" data-zona="America/Caracas">🇻🇪 Venezuela</option>
+                                            <option value="EC" data-lada="+593" data-moneda="USD" data-zona="America/Guayaquil">🇪🇨 Ecuador</option>
+                                            <option value="PE" data-lada="+51" data-moneda="PEN" data-zona="America/Lima">🇵🇪 Perú</option>
+                                            <option value="BO" data-lada="+591" data-moneda="BOB" data-zona="America/La_Paz">🇧🇴 Bolivia</option>
+                                            <option value="CL" data-lada="+56" data-moneda="CLP" data-zona="America/Santiago">🇨🇱 Chile</option>
+                                            <option value="AR" data-lada="+54" data-moneda="ARS" data-zona="America/Argentina/Buenos_Aires">🇦🇷 Argentina</option>
+                                            <option value="UY" data-lada="+598" data-moneda="UYU" data-zona="America/Montevideo">🇺🇾 Uruguay</option>
+                                            <option value="PY" data-lada="+595" data-moneda="PYG" data-zona="America/Asuncion">🇵🇾 Paraguay</option>
+                                            <option value="BR" data-lada="+55" data-moneda="BRL" data-zona="America/Sao_Paulo">🇧🇷 Brasil</option>
+                                            <option value="DO" data-lada="+1" data-moneda="DOP" data-zona="America/Santo_Domingo">🇩🇴 Rep. Dominicana</option>
+                                            <option value="CU" data-lada="+53" data-moneda="CUP" data-zona="America/Havana">🇨🇺 Cuba</option>
+                                            <option value="PR" data-lada="+1" data-moneda="USD" data-zona="America/Puerto_Rico">🇵🇷 Puerto Rico</option>
+                                            <option value="ES" data-lada="+34" data-moneda="EUR" data-zona="Europe/Madrid">🇪🇸 España</option>
+                                            <option value="US" data-lada="+1" data-moneda="USD" data-zona="America/New_York">🇺🇸 Estados Unidos</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emp-moneda">💰 Moneda</label>
+                                        <select id="emp-moneda">
+                                            <option value="MXN">MXN - Peso Mexicano</option>
+                                            <option value="GTQ">GTQ - Quetzal</option>
+                                            <option value="USD">USD - Dólar USA</option>
+                                            <option value="HNL">HNL - Lempira</option>
+                                            <option value="NIO">NIO - Córdoba</option>
+                                            <option value="CRC">CRC - Colón</option>
+                                            <option value="PAB">PAB - Balboa</option>
+                                            <option value="COP">COP - Peso Colombiano</option>
+                                            <option value="VES">VES - Bolívar</option>
+                                            <option value="PEN">PEN - Sol</option>
+                                            <option value="BOB">BOB - Boliviano</option>
+                                            <option value="CLP">CLP - Peso Chileno</option>
+                                            <option value="ARS">ARS - Peso Argentino</option>
+                                            <option value="UYU">UYU - Peso Uruguayo</option>
+                                            <option value="PYG">PYG - Guaraní</option>
+                                            <option value="BRL">BRL - Real</option>
+                                            <option value="DOP">DOP - Peso Dominicano</option>
+                                            <option value="EUR">EUR - Euro</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emp-telefono">Teléfono</label>
+                                        <div style="display:flex;gap:4px;">
+                                            <input type="text" id="emp-lada" style="width:70px;text-align:center;font-weight:600;" readonly value="+52">
+                                            <input type="tel" id="emp-telefono" placeholder="Número de teléfono" style="flex:1;">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emp-correo">Correo Electrónico</label>
+                                        <input type="email" id="emp-correo" placeholder="empresa@correo.com">
+                                    </div>
+                                    <div class="form-group full-width">
+                                        <label for="emp-direccion">Dirección</label>
+                                        <input type="text" id="emp-direccion" placeholder="Calle, número, ciudad, estado">
+                                    </div>
+                                    <input type="hidden" id="emp-zona-horaria" value="America/Mexico_City">
+                                </div>
+                            </div>
+
+                            <div class="form-divider"></div>
+
+                            <div class="form-section">
+                                <h4 class="section-title">
+                                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                    Datos del Administrador
+                                </h4>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="admin-nombre">Nombre del Administrador *</label>
+                                        <input type="text" id="admin-nombre" required placeholder="Nombre completo">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="admin-identificacion">Identificación</label>
+                                        <input type="text" id="admin-identificacion" placeholder="INE / Cédula">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="admin-telefono">Teléfono</label>
+                                        <div style="display:flex;gap:4px;">
+                                            <input type="text" id="admin-lada" style="width:70px;text-align:center;font-weight:600;" readonly value="+52">
+                                            <input type="tel" id="admin-telefono" placeholder="Número de teléfono" style="flex:1;">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="admin-correo">Correo</label>
+                                        <input type="email" id="admin-correo" placeholder="admin@correo.com">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-ghost" onclick="cambiarVistaRoot('empresas')">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" id="btn-crear-empresa">
+                                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                    Crear Empresa
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Resultado de creación -->
+                        <div id="resultado-empresa" class="resultado-card" style="display:none;">
+                            <div class="resultado-icon">✅</div>
+                            <h4>¡Empresa Creada Exitosamente!</h4>
+                            <div class="resultado-datos">
+                                <div class="dato-row">
+                                    <span class="dato-label">Empresa:</span>
+                                    <span class="dato-value" id="res-empresa-nombre"></span>
+                                </div>
+                                <div class="dato-row">
+                                    <span class="dato-label">Administrador:</span>
+                                    <span class="dato-value" id="res-admin-nombre"></span>
+                                </div>
+                                <div class="dato-row destacado">
+                                    <span class="dato-label">🔑 Código de Acceso del Admin:</span>
+                                    <span class="dato-value codigo-grande" id="res-codigo-admin"></span>
+                                </div>
+                            </div>
+                            <p class="resultado-nota">⚠️ Guarda este código. El administrador lo necesitará para ingresar al sistema.</p>
+                            <button class="btn btn-primary" onclick="verEmpresas()">Ver Empresas</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vista: Configuración -->
+                <div id="vista-configuracion" class="vista">
+                    <div class="vista-header">
+                        <h3>⚙️ Configuración General del Sistema</h3>
+                    </div>
+                    <div class="form-card glass">
+                        <div class="config-section">
+                            <h4 class="section-title">🔐 Seguridad</h4>
+                            <div class="config-item">
+                                <div class="config-info">
+                                    <p class="config-label">Clave de Programador</p>
+                                    <p class="config-desc">Código para acceso ROOT al sistema</p>
+                                </div>
+                                <div class="config-value">
+                                    <span class="badge badge-info">1122</span>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="config-info">
+                                    <p class="config-label">Formato de Código de Acceso</p>
+                                    <p class="config-desc">Inicial empresa + 2 letras + 3 números</p>
+                                </div>
+                                <div class="config-value">
+                                    <span class="badge badge-success">6 caracteres</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="config-section">
+                            <h4 class="section-title">📊 Sistema</h4>
+                            <div class="config-item">
+                                <div class="config-info">
+                                    <p class="config-label">Versión del Sistema</p>
+                                    <p class="config-desc">Gestión Laboral SaaS</p>
+                                </div>
+                                <div class="config-value">
+                                    <span class="badge badge-primary">v1.0.0</span>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="config-info">
+                                    <p class="config-label">Base de Datos</p>
+                                    <p class="config-desc">Motor de almacenamiento</p>
+                                </div>
+                                <div class="config-value">
+                                    <span class="badge badge-info">SQLite / PostgreSQL</span>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="config-info">
+                                    <p class="config-label">Tiempo Real</p>
+                                    <p class="config-desc">Actualizaciones en vivo</p>
+                                </div>
+                                <div class="config-value">
+                                    <span class="badge badge-success">Socket.IO Activo</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- PANEL ADMIN (empresa)                   -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="pantalla-admin" class="pantalla">
+        <header class="header-main">
+            <div class="header-left">
+                <div class="brand-mini">
+                    <img id="admin-logo" src="" alt="" class="logo-mini" style="display:none;">
+                    <span id="admin-empresa-nombre">Empresa</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <nav class="header-nav">
+                    <button class="nav-btn activo" data-panel="dashboard" onclick="cambiarPanelAdmin('dashboard')">📊 Dashboard</button>
+                    <button class="nav-btn" data-panel="supervisores" onclick="cambiarPanelAdmin('supervisores')">👤 Supervisores</button>
+                    <button class="nav-btn" data-panel="empleados" onclick="cambiarPanelAdmin('empleados')">👥 Empleados</button>
+                    <button class="nav-btn" data-panel="tareas" onclick="cambiarPanelAdmin('tareas')">📋 Tareas</button>
+                    <button class="nav-btn" data-panel="ranking" onclick="cambiarPanelAdmin('ranking')">🏆 Ranking</button>
+                    <button class="nav-btn" data-panel="auditoria" onclick="cambiarPanelAdmin('auditoria')">🛡 Auditoría</button>
+                    <button class="nav-btn" data-panel="notificaciones" onclick="cambiarPanelAdmin('notificaciones')">🔔 <span id="notif-badge-header"></span></button>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="admin-user-name" class="user-name"></span>
+                    <span class="user-badge admin">ADMIN</span>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content main-full">
+            <div class="content-area full">
+                <!-- Dashboard Ejecutivo -->
+                <div id="panel-dashboard" class="panel activa">
+                    <div class="vista-header">
+                        <h3>📊 Dashboard Ejecutivo</h3>
+                    </div>
+                    <!-- KPI Cards Row 1 -->
+                    <div class="stats-grid">
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">👤</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-supervisores">0</span><span class="stat-label">Supervisores</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">👥</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-empleados">0</span><span class="stat-label">Empleados</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">📋</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-tareas">0</span><span class="stat-label">Tareas Activas</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">✅</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-eficiencia">0%</span><span class="stat-label">Eficiencia</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#ec4899,#be185d)">📈</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-productividad">0</span><span class="stat-label">Completadas (7d)</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)">⏱</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-tiempo-prom">0m</span><span class="stat-label">Tiempo Promedio</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;">
+                        <!-- Distribución de tareas -->
+                        <div class="glass" style="padding:20px;border-radius:var(--radius-lg);">
+                            <h4 style="margin-bottom:16px;font-size:0.95rem;">📊 Estado de Tareas</h4>
+                            <div id="dash-estado-tareas"></div>
+                        </div>
+                        <!-- Actividad reciente -->
+                        <div class="glass" style="padding:20px;border-radius:var(--radius-lg);">
+                            <h4 style="margin-bottom:16px;font-size:0.95rem;">⚡ Actividad Reciente</h4>
+                            <div id="dash-actividad" style="max-height:250px;overflow-y:auto;"></div>
+                        </div>
+                        <!-- Top Empleados -->
+                        <div class="glass" style="padding:20px;border-radius:var(--radius-lg);">
+                            <h4 style="margin-bottom:16px;font-size:0.95rem;">🏆 Top Empleados</h4>
+                            <div id="dash-top-empleados"></div>
+                        </div>
+                        <!-- Rendimiento por Supervisor -->
+                        <div class="glass" style="padding:20px;border-radius:var(--radius-lg);">
+                            <h4 style="margin-bottom:16px;font-size:0.95rem;">👁 Rendimiento por Supervisor</h4>
+                            <div id="dash-supervisores"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supervisores -->
+                <div id="panel-supervisores" class="panel">
+                    <div class="vista-header">
+                        <h3>👤 Supervisores</h3>
+                        <button class="btn btn-primary btn-sm" onclick="mostrarFormularioUsuario('SUPERVISOR')">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                            Nuevo Supervisor
+                        </button>
+                    </div>
+                    <div id="lista-supervisores" class="tabla-container">
+                        <div class="empty-state"><p>No hay supervisores registrados</p></div>
+                    </div>
+                </div>
+
+                <!-- Empleados -->
+                <div id="panel-empleados" class="panel">
+                    <div class="vista-header">
+                        <h3>👥 Empleados</h3>
+                        <button class="btn btn-primary btn-sm" onclick="mostrarFormularioUsuario('EMPLEADO')">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                            Nuevo Empleado
+                        </button>
+                    </div>
+                    <div id="lista-empleados" class="tabla-container">
+                        <div class="empty-state"><p>No hay empleados registrados</p></div>
+                    </div>
+                </div>
+
+                <!-- Tareas -->
+                <div id="panel-tareas" class="panel">
+                    <div class="vista-header">
+                        <h3>📋 Tareas</h3>
+                        <div style="display:flex;gap:8px;">
+                            <select id="filtro-estado" onchange="cargarTareas()" style="width:auto;padding:8px 12px;font-size:0.82rem;">
+                                <option value="">Todos los estados</option>
+                                <option value="pendiente">🟡 Pendiente</option>
+                                <option value="en_proceso">🔵 En Proceso</option>
+                                <option value="finalizada">🟢 Finalizada</option>
+                                <option value="atrasada">🔴 Atrasada</option>
+                                <option value="finalizada_atrasada">🟠 Finalizada con atraso</option>
+                            </select>
+                            <select id="filtro-prioridad" onchange="cargarTareas()" style="width:auto;padding:8px 12px;font-size:0.82rem;">
+                                <option value="">Todas las prioridades</option>
+                                <option value="urgente">🔴 Urgente</option>
+                                <option value="alta">🟠 Alta</option>
+                                <option value="media">🟡 Media</option>
+                                <option value="baja">🟢 Baja</option>
+                            </select>
+                            <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTarea()">
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                Nueva Tarea
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stats rápidos de tareas -->
+                    <div class="stats-grid" style="margin-bottom:16px;">
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🟡</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-pendientes">0</span><span class="stat-label">Pendientes</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">🔵</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-en-proceso">0</span><span class="stat-label">En Proceso</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">🟢</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-finalizadas">0</span><span class="stat-label">Finalizadas</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">🔴</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-atrasadas">0</span><span class="stat-label">Atrasadas</span></div>
+                        </div>
+                    </div>
+
+                    <div id="lista-tareas" class="grid-cards">
+                        <div class="empty-state"><p>No hay tareas registradas</p></div>
+                    </div>
+                </div>
+
+                <!-- Ranking / Gamificación -->
+                <div id="panel-ranking" class="panel">
+                    <div class="vista-header">
+                        <h3>🏆 Ranking y Gamificación</h3>
+                    </div>
+                    <!-- Podio -->
+                    <div id="ranking-podio" style="display:flex;justify-content:center;gap:24px;margin-bottom:24px;align-items:flex-end;"></div>
+                    <!-- Tabla completa -->
+                    <div class="glass" style="padding:20px;border-radius:var(--radius-lg);">
+                        <h4 style="margin-bottom:16px;font-size:0.95rem;">📊 Tabla de Posiciones</h4>
+                        <div id="ranking-tabla" class="tabla-container"></div>
+                    </div>
+                </div>
+
+                <!-- Notificaciones -->
+                <div id="panel-notificaciones" class="panel">
+                    <div class="vista-header">
+                        <h3>🔔 Notificaciones</h3>
+                        <button class="btn btn-ghost btn-sm" onclick="marcarTodasLeidas()">✓ Marcar todas como leídas</button>
+                    </div>
+                    <div id="lista-notificaciones"></div>
+                </div>
+
+                <!-- Auditoría -->
+                <div id="panel-auditoria" class="panel">
+                    <div class="vista-header">
+                        <h3>🛡 Auditoría y Seguridad</h3>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-ghost btn-sm" onclick="exportarAuditoria()">📄 Exportar Logs CSV</button>
+                            <button class="btn btn-ghost btn-sm" onclick="exportarAccesos()">📄 Exportar Accesos CSV</button>
+                        </div>
+                    </div>
+
+                    <!-- Resumen -->
+                    <div class="stats-grid" style="margin-bottom:16px;">
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">📝</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-audit-total">0</span><span class="stat-label">Acciones Total</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">⚡</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-audit-24h">0</span><span class="stat-label">Últimas 24h</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">📅</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-audit-7d">0</span><span class="stat-label">Últimos 7 días</span></div>
+                        </div>
+                        <div class="stat-card glass">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">🔐</div>
+                            <div class="stat-info"><span class="stat-value" id="stat-audit-accesos">0</span><span class="stat-label">Total Accesos</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="glass" style="padding:16px;border-radius:var(--radius-lg);margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                        <input type="text" id="filtro-audit-accion" placeholder="Filtrar por acción..." style="max-width:200px;">
+                        <input type="text" id="filtro-audit-usuario" placeholder="Filtrar por usuario..." style="max-width:200px;">
+                        <input type="date" id="filtro-audit-desde" style="max-width:160px;">
+                        <input type="date" id="filtro-audit-hasta" style="max-width:160px;">
+                        <button class="btn btn-primary btn-sm" onclick="cargarAuditoria()">🔍 Buscar</button>
+                    </div>
+
+                    <!-- Tabs: Logs / Accesos -->
+                    <div style="display:flex;gap:8px;margin-bottom:12px;">
+                        <button class="btn btn-sm btn-primary" id="tab-logs" onclick="mostrarTabAudit('logs')">Logs de Acción</button>
+                        <button class="btn btn-sm btn-ghost" id="tab-accesos" onclick="mostrarTabAudit('accesos')">Log de Accesos</button>
+                    </div>
+
+                    <div id="audit-logs-container" class="glass" style="padding:16px;border-radius:var(--radius-lg);">
+                        <div id="audit-logs-tabla" class="tabla-container"></div>
+                    </div>
+                    <div id="audit-accesos-container" class="glass" style="padding:16px;border-radius:var(--radius-lg);display:none;">
+                        <div id="audit-accesos-tabla" class="tabla-container"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- PANEL SUPERVISOR                        -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="pantalla-supervisor" class="pantalla">
+        <header class="header-main">
+            <div class="header-left">
+                <div class="brand-mini">
+                    <span id="sup-empresa-nombre">Empresa</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <nav class="header-nav">
+                    <button class="nav-btn activo" data-panel="sup-dashboard" onclick="cambiarPanelSupervisor('sup-dashboard')">📊 Dashboard</button>
+                    <button class="nav-btn" data-panel="sup-empleados" onclick="cambiarPanelSupervisor('sup-empleados')">👥 Mis Empleados</button>
+                    <button class="nav-btn" data-panel="sup-tareas" onclick="cambiarPanelSupervisor('sup-tareas')">📋 Tareas</button>
+                    <button class="nav-btn" data-panel="sup-notificaciones" onclick="cambiarPanelSupervisor('sup-notificaciones')">🔔</button>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="sup-user-name" class="user-name"></span>
+                    <span class="user-badge" style="background:var(--accent-info);">SUPERVISOR</span>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content main-full">
+            <div class="content-area full">
+                <!-- Sup Dashboard -->
+                <div id="panel-sup-dashboard" class="panel activa">
+                    <div class="vista-header"><h3>📊 Mi Dashboard</h3></div>
+                    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-primary);">👥</div><div class="stat-number" id="sup-stat-empleados">0</div><div class="stat-label">Empleados</div></div>
+                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-amber);">📋</div><div class="stat-number" id="sup-stat-tareas">0</div><div class="stat-label">Tareas Activas</div></div>
+                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-success);">✅</div><div class="stat-number" id="sup-stat-completadas">0</div><div class="stat-label">Completadas</div></div>
+                    </div>
+                    <div class="glass" style="padding:20px;border-radius:var(--radius-lg);">
+                        <h4>📋 Tareas Recientes</h4>
+                        <div id="sup-tareas-recientes" style="margin-top:12px;"></div>
+                    </div>
+                </div>
+
+                <!-- Sup Empleados -->
+                <div id="panel-sup-empleados" class="panel">
+                    <div class="vista-header"><h3>👥 Mis Empleados</h3>
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalUsuario('EMPLEADO')">➕ Nuevo Empleado</button>
+                    </div>
+                    <div id="sup-lista-empleados" class="grid-cards"></div>
+                </div>
+
+                <!-- Sup Tareas -->
+                <div id="panel-sup-tareas" class="panel">
+                    <div class="vista-header"><h3>📋 Gestión de Tareas</h3>
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalTarea()">➕ Nueva Tarea</button>
+                    </div>
+                    <div id="sup-estadisticas-tareas" style="margin-bottom:16px;"></div>
+                    <div id="sup-lista-tareas" class="grid-cards"></div>
+                </div>
+
+                <!-- Sup Notificaciones -->
+                <div id="panel-sup-notificaciones" class="panel">
+                    <div class="vista-header"><h3>🔔 Notificaciones</h3></div>
+                    <div id="sup-lista-notificaciones"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- PANEL EMPLEADO                          -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="pantalla-empleado" class="pantalla">
+        <header class="header-main">
+            <div class="header-left">
+                <div class="brand-mini">
+                    <span id="emp-panel-empresa-nombre">Empresa</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <nav class="header-nav">
+                    <button class="nav-btn activo" data-panel="emp-mis-tareas" onclick="cambiarPanelEmpleado('emp-mis-tareas')">📋 Mis Tareas</button>
+                    <button class="nav-btn" data-panel="emp-notificaciones" onclick="cambiarPanelEmpleado('emp-notificaciones')">🔔</button>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="emp-panel-user-name" class="user-name"></span>
+                    <span class="user-badge" style="background:var(--accent-success);">EMPLEADO</span>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content main-full">
+            <div class="content-area full">
+                <!-- Emp Mis Tareas -->
+                <div id="panel-emp-mis-tareas" class="panel activa">
+                    <div class="vista-header"><h3>📋 Mis Tareas</h3></div>
+                    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-amber);">🟡</div><div class="stat-number" id="emp-stat-pendientes">0</div><div class="stat-label">Pendientes</div></div>
+                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-primary);">🔵</div><div class="stat-number" id="emp-stat-proceso">0</div><div class="stat-label">En Proceso</div></div>
+                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-success);">🟢</div><div class="stat-number" id="emp-stat-finalizadas">0</div><div class="stat-label">Finalizadas</div></div>
+                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-danger);">🔴</div><div class="stat-number" id="emp-stat-atrasadas">0</div><div class="stat-label">Atrasadas</div></div>
+                    </div>
+                    <div id="emp-lista-tareas" class="grid-cards"></div>
+                </div>
+
+                <!-- Emp Notificaciones -->
+                <div id="panel-emp-notificaciones" class="panel">
+                    <div class="vista-header"><h3>🔔 Notificaciones</h3></div>
+                    <div id="emp-lista-notificaciones"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Crear/Editar Usuario             -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="modal-usuario" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="cerrarModalUsuario()"></div>
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 id="modal-usuario-titulo">Nuevo Usuario</h3>
+                <button class="btn-close" onclick="cerrarModalUsuario()">&times;</button>
+            </div>
+            <form id="form-usuario" onsubmit="crearUsuario(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="usu-rol" value="">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="usu-nombre">Nombre Completo *</label>
+                            <input type="text" id="usu-nombre" required placeholder="Nombre completo">
+                        </div>
+                        <div class="form-group">
+                            <label for="usu-identificacion">Identificación</label>
+                            <input type="text" id="usu-identificacion" placeholder="INE / Cédula">
+                        </div>
+                        <div class="form-group">
+                            <label for="usu-telefono">Teléfono</label>
+                            <input type="tel" id="usu-telefono" placeholder="+52 1 234 567 8900">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="usu-correo">Correo</label>
+                            <input type="email" id="usu-correo" placeholder="correo@ejemplo.com">
+                        </div>
+                        <div class="form-group full-width" id="grupo-supervisor" style="display:none;">
+                            <label for="usu-supervisor">Asignar a Supervisor</label>
+                            <select id="usu-supervisor">
+                                <option value="">-- Sin supervisor asignado --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="cerrarModalUsuario()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Usuario</button>
+                </div>
+            </form>
+
+            <div id="resultado-usuario" class="resultado-card" style="display:none;">
+                <div class="resultado-icon">✅</div>
+                <h4>¡Usuario Creado!</h4>
+                <div class="resultado-datos">
+                    <div class="dato-row">
+                        <span class="dato-label">Nombre:</span>
+                        <span class="dato-value" id="res-usu-nombre"></span>
+                    </div>
+                    <div class="dato-row">
+                        <span class="dato-label">Rol:</span>
+                        <span class="dato-value" id="res-usu-rol"></span>
+                    </div>
+                    <div class="dato-row destacado">
+                        <span class="dato-label">🔑 Código de Acceso:</span>
+                        <span class="dato-value codigo-grande" id="res-usu-codigo"></span>
+                    </div>
+                </div>
+                <p class="resultado-nota">⚠️ Comparte este código con el usuario.</p>
+                <button class="btn btn-primary" onclick="cerrarModalUsuario()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Crear Tarea                      -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="modal-tarea" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="cerrarModalTarea()"></div>
+        <div class="modal-content glass" style="max-width:600px;">
+            <div class="modal-header">
+                <h3>📋 Nueva Tarea</h3>
+                <button class="btn-close" onclick="cerrarModalTarea()">&times;</button>
+            </div>
+            <form id="form-tarea" onsubmit="crearTarea(event)">
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="tarea-titulo">Título *</label>
+                            <input type="text" id="tarea-titulo" required placeholder="¿Qué se debe hacer?">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="tarea-descripcion">Descripción</label>
+                            <textarea id="tarea-descripcion" rows="3" placeholder="Detalles de la tarea..." style="resize:vertical;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="tarea-empleado">Asignar a Empleado</label>
+                            <select id="tarea-empleado">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tarea-supervisor">Supervisor</label>
+                            <select id="tarea-supervisor">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tarea-tipo">Tipo de Tarea</label>
+                            <select id="tarea-tipo">
+                                <option value="">-- Seleccionar tipo --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tarea-prioridad">Prioridad</label>
+                            <select id="tarea-prioridad">
+                                <option value="baja">🟢 Baja</option>
+                                <option value="media" selected>🟡 Media</option>
+                                <option value="alta">🟠 Alta</option>
+                                <option value="urgente">🔴 Urgente</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="tarea-tiempo">Tiempo Estimado (minutos)</label>
+                            <input type="number" id="tarea-tiempo" placeholder="Ej: 60" min="1">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="cerrarModalTarea()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Tarea</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Detalle de Tarea                 -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="modal-detalle-tarea" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="cerrarDetalleTarea()"></div>
+        <div class="modal-content glass" style="max-width:700px;max-height:85vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3 id="detalle-titulo">Detalle de Tarea</h3>
+                <button class="btn-close" onclick="cerrarDetalleTarea()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Info principal -->
+                <div id="detalle-info" style="margin-bottom:20px;"></div>
+
+                <!-- Acciones del empleado -->
+                <div id="detalle-acciones" style="margin-bottom:20px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+
+                <!-- Cronómetro -->
+                <div id="detalle-cronometro" style="display:none;margin-bottom:20px;" class="glass" style="padding:16px;border-radius:12px;">
+                </div>
+
+                <!-- Tabs: Comentarios | Evidencias | Historial -->
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex;gap:4px;border-bottom:1px solid var(--border-color);padding-bottom:0;">
+                        <button class="nav-btn activo" onclick="cambiarTabDetalle('comentarios',this)">💬 Comentarios</button>
+                        <button class="nav-btn" onclick="cambiarTabDetalle('evidencias',this)">📸 Evidencias</button>
+                        <button class="nav-btn" onclick="cambiarTabDetalle('historial',this)">📜 Historial</button>
+                    </div>
+                </div>
+
+                <div id="tab-comentarios" class="tab-detalle activa">
+                    <div id="lista-comentarios" style="max-height:200px;overflow-y:auto;margin-bottom:12px;"></div>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" id="input-comentario" placeholder="Escribe un comentario..." style="flex:1;">
+                        <button class="btn btn-primary btn-sm" onclick="enviarComentario()">Enviar</button>
+                    </div>
+                </div>
+
+                <div id="tab-evidencias" class="tab-detalle" style="display:none;">
+                    <div id="lista-evidencias" style="max-height:200px;overflow-y:auto;margin-bottom:12px;"></div>
+                    <div style="display:flex;gap:8px;flex-direction:column;">
+                        <textarea id="input-evidencia-texto" rows="2" placeholder="Nota de evidencia..."></textarea>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-primary btn-sm" onclick="enviarEvidencia()">📝 Agregar Nota</button>
+                            <button class="btn btn-accent btn-sm" onclick="subirImagenEvidencia()">📷 Subir Imagen</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-historial" class="tab-detalle" style="display:none;">
+                    <div id="lista-historial"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

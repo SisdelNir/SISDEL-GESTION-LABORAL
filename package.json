@@ -1,0 +1,27 @@
+{
+  "name": "gestion-laboral",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["gestion", "laboral", "saas", "multiempresa"],
+  "author": "Gestión Laboral",
+  "license": "ISC",
+  "description": "Sistema de Control de Tareas Multiempresa - SaaS",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.8.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "socket.io": "^4.8.3",
+    "uuid": "^13.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
