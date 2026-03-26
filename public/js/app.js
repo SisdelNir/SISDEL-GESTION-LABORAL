@@ -140,6 +140,24 @@ function abrirPanelPorRol() {
     }
 }
 
+function formatearTiempo(mins) {
+    if (!mins) return '';
+    if (mins >= 1440 && mins % 1440 === 0) {
+        const d = mins / 1440;
+        return `${d} día${d !== 1 ? 's' : ''}`;
+    }
+    if (mins >= 60 && mins % 60 === 0) {
+        const h = mins / 60;
+        return `${h} h`;
+    }
+    if (mins > 60) {
+        const h = Math.floor(mins/60);
+        const m = Math.round(mins%60);
+        return `${h}h ${m}m`;
+    }
+    return `${mins} min`;
+}
+
 function cerrarSesion() {
     TOKEN = null;
     USUARIO = null;
@@ -565,7 +583,7 @@ async function cargarTareasEmpleado() {
             const esFinalizada = t.estado === 'finalizada' || t.estado === 'finalizada_atrasada';
             const enProcesoActivo = t.estado === 'en_proceso' || t.estado === 'atrasada';
             const esPendiente = t.estado === 'pendiente';
-            const tiempoEst = t.tiempo_estimado_minutos ? `⏱ ${t.tiempo_estimado_minutos} min` : '';
+            const tiempoEst = t.tiempo_estimado_minutos ? `⏱ ${formatearTiempo(t.tiempo_estimado_minutos)}` : '';
 
             // Determinar clase del cronómetro
             let cronoClase = '';
@@ -1185,7 +1203,7 @@ async function cargarTareas() {
                 <div class="empresa-card-body">
                     ${t.nombre_empleado ? `<span class="empresa-stat">👤 ${t.nombre_empleado}</span>` : ''}
                     ${t.nombre_supervisor ? `<span class="empresa-stat">👁 ${t.nombre_supervisor}</span>` : ''}
-                    ${t.tiempo_estimado_minutos ? `<span class="empresa-stat">⏱ ${t.tiempo_estimado_minutos}min</span>` : ''}
+                    ${t.tiempo_estimado_minutos ? `<span class="empresa-stat">⏱ ${formatearTiempo(t.tiempo_estimado_minutos)}</span>` : ''}
                     ${t.total_evidencias > 0 ? `<span class="empresa-stat">📸 ${t.total_evidencias}</span>` : ''}
                     ${t.total_comentarios > 0 ? `<span class="empresa-stat">💬 ${t.total_comentarios}</span>` : ''}
                 </div>
@@ -1230,6 +1248,10 @@ function cerrarModalTarea() {
 
 async function crearTarea(e) {
     e.preventDefault();
+    const tiempoRaw = parseInt(document.getElementById('tarea-tiempo').value);
+    const unidad = parseInt(document.getElementById('tarea-tiempo-unidad').value) || 1;
+    const tiempoEstFinal = tiempoRaw ? (tiempoRaw * unidad) : undefined;
+
     const datos = {
         titulo: document.getElementById('tarea-titulo').value.trim(),
         descripcion: document.getElementById('tarea-descripcion').value.trim(),
@@ -1237,7 +1259,7 @@ async function crearTarea(e) {
         id_supervisor: document.getElementById('tarea-supervisor').value || undefined,
         id_tipo: document.getElementById('tarea-tipo').value || undefined,
         prioridad: document.getElementById('tarea-prioridad').value,
-        tiempo_estimado_minutos: parseInt(document.getElementById('tarea-tiempo').value) || undefined
+        tiempo_estimado_minutos: tiempoEstFinal
     };
     try {
         await fetchAPI('/api/tareas', { method: 'POST', body: JSON.stringify(datos) });
@@ -1265,7 +1287,7 @@ async function verDetalleTarea(id) {
                 ${tarea.descripcion ? `<div class="dato-row"><span class="dato-label">Descripción</span><span class="dato-value">${tarea.descripcion}</span></div>` : ''}
                 ${tarea.nombre_empleado ? `<div class="dato-row"><span class="dato-label">Empleado</span><span class="dato-value">${tarea.nombre_empleado}</span></div>` : ''}
                 ${tarea.nombre_supervisor ? `<div class="dato-row"><span class="dato-label">Supervisor</span><span class="dato-value">${tarea.nombre_supervisor}</span></div>` : ''}
-                ${tarea.tiempo_estimado_minutos ? `<div class="dato-row"><span class="dato-label">Tiempo estimado</span><span class="dato-value">${tarea.tiempo_estimado_minutos} min</span></div>` : ''}
+                ${tarea.tiempo_estimado_minutos ? `<div class="dato-row"><span class="dato-label" style="font-weight:600">Tiempo estimado</span><span class="dato-value" style="color:var(--primary);font-weight:700">${formatearTiempo(tarea.tiempo_estimado_minutos)}</span></div>` : ''}
                 ${tarea.tiempo_real_segundos ? `<div class="dato-row"><span class="dato-label">Tiempo real</span><span class="dato-value">${formatearTiempoHMS(tarea.tiempo_real_segundos)}</span></div>` : ''}
             </div>`;
 

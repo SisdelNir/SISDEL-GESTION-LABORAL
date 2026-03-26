@@ -822,8 +822,15 @@
                             </select>
                         </div>
                         <div class="form-group full-width">
-                            <label for="tarea-tiempo">Tiempo Estimado (minutos)</label>
-                            <input type="number" id="tarea-tiempo" placeholder="Ej: 60" min="1">
+                            <label for="tarea-tiempo">Tiempo Estimado</label>
+                            <div style="display:flex;gap:4px;">
+                                <input type="number" id="tarea-tiempo" placeholder="Ej: 2" min="1" style="flex:1;">
+                                <select id="tarea-tiempo-unidad" style="width:110px;">
+                                    <option value="60" selected>Horas</option>
+                                    <option value="1440">Días</option>
+                                    <option value="1">Minutos</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
