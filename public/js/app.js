@@ -185,22 +185,27 @@ async function cargarEmpresas() {
         }
 
         container.innerHTML = empresas.map(e => `
-            <div class="empresa-card glass" onclick="verDetalleEmpresa('${e.id_empresa}')">
-                <div class="empresa-card-header">
+            <div class="empresa-card glass">
+                <div class="empresa-card-header" style="cursor:pointer" onclick="editarEmpresa('${e.id_empresa}')">
                     <div class="empresa-avatar">${e.nombre.charAt(0)}</div>
-                    <div>
+                    <div style="flex:1">
                         <h4>${e.nombre}</h4>
                         <span class="empresa-id">${e.identificacion_empresa || 'Sin ID'}</span>
                     </div>
+                    <span style="font-size:0.7rem;padding:2px 8px;border-radius:12px;background:${e.estado === 1 ? 'rgba(0,200,83,0.2)' : 'rgba(255,82,82,0.2)'};color:${e.estado === 1 ? '#00c853' : '#ff5252'}">${e.estado === 1 ? '✅ Activa' : '⛔ Inactiva'}</span>
                 </div>
                 <div class="empresa-card-body">
                     <span class="empresa-stat">👤 ${e.total_supervisores || 0} Supervisores</span>
                     <span class="empresa-stat">👥 ${e.total_empleados || 0} Empleados</span>
                     <span class="empresa-stat">📋 ${e.total_usuarios || 0} Total</span>
                 </div>
-                <div class="empresa-card-footer">
+                <div class="empresa-card-footer" style="justify-content:space-between;align-items:center">
                     <span class="empresa-codigo">🔑 ${e.codigo_admin}</span>
-                    <span style="font-size:0.75rem; color:var(--text-muted)">${formatearFecha(e.fecha_creacion)}</span>
+                    <div style="display:flex;gap:6px">
+                        <button style="background:rgba(255,255,255,0.1);border:none;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:0.85rem" onclick="editarEmpresa('${e.id_empresa}')" title="Editar">✏️</button>
+                        <button style="background:rgba(255,255,255,0.1);border:none;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:0.85rem" onclick="toggleEstadoEmpresa('${e.id_empresa}', ${e.estado})" title="${e.estado === 1 ? 'Desactivar' : 'Activar'}">${e.estado === 1 ? '⏸️' : '▶️'}</button>
+                        <button style="background:rgba(255,82,82,0.15);border:none;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:0.85rem" onclick="eliminarEmpresa('${e.id_empresa}', '${e.nombre.replace(/'/g, &quot;\\'&quot;)}')" title="Eliminar">🗑️</button>
+                    </div>
                 </div>
             </div>
         `).join('');
@@ -283,8 +288,89 @@ function verEmpresas() {
 }
 
 function verDetalleEmpresa(id) {
-    // TODO: En siguiente fase, ver detalle completo de empresa
-    mostrarToast('Vista de detalle próximamente', 'info');
+    editarEmpresa(id);
+}
+
+async function editarEmpresa(id) {
+    try {
+        const empresa = await fetchAPI(`/api/empresas/${id}`);
+        if (empresa.error) return mostrarToast(empresa.error, 'error');
+        const m = document.createElement('div');
+        m.id = 'modal-editar-empresa';
+        m.className = 'modal-overlay';
+        m.onclick = function(ev) { if(ev.target===this) this.remove(); };
+        m.innerHTML = `
+            <div class="modal glass" style="max-width:500px;padding:2rem">
+                <h3 style="color:var(--primary);margin-bottom:1rem">✏️ Editar Empresa</h3>
+                <form id="form-editar-empresa">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
+                        <div class="form-group"><label>Nombre *</label><input id="edit-nombre" class="form-input" value="${empresa.nombre||''}" required></div>
+                        <div class="form-group"><label>Identificación</label><input id="edit-identificacion" class="form-input" value="${empresa.identificacion_empresa||''}"></div>
+                        <div class="form-group"><label>Teléfono</label><input id="edit-telefono" class="form-input" value="${empresa.telefono||''}"></div>
+                        <div class="form-group"><label>Correo</label><input id="edit-correo" class="form-input" value="${empresa.correo||''}"></div>
+                        <div class="form-group" style="grid-column:span 2"><label>Dirección</label><input id="edit-direccion" class="form-input" value="${empresa.direccion||''}"></div>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1.2rem">
+                        <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-editar-empresa').remove()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">💾 Guardar</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(m);
+        document.getElementById('form-editar-empresa').onsubmit = async function(ev) {
+            ev.preventDefault();
+            const body = {
+                nombre: document.getElementById('edit-nombre').value,
+                identificacion_empresa: document.getElementById('edit-identificacion').value,
+                telefono: document.getElementById('edit-telefono').value,
+                correo: document.getElementById('edit-correo').value,
+                direccion: document.getElementById('edit-direccion').value
+            };
+            const res = await fetchAPI(`/api/empresas/${id}`, { method:'PUT', body:JSON.stringify(body) });
+            if (res.error) return mostrarToast(res.error, 'error');
+            mostrarToast('✅ Empresa actualizada', 'success');
+            m.remove();
+            cargarEmpresas();
+        };
+    } catch(err) { mostrarToast('Error al cargar empresa', 'error'); }
+}
+
+async function toggleEstadoEmpresa(id, estadoActual) {
+    const accion = estadoActual === 1 ? 'desactivar' : 'activar';
+    if (!confirm(`¿Estás seguro de ${accion} esta empresa?`)) return;
+    try {
+        const res = await fetchAPI(`/api/empresas/${id}`, { method:'PUT', body:JSON.stringify({ estado: estadoActual === 1 ? 0 : 1 }) });
+        if (res.error) return mostrarToast(res.error, 'error');
+        mostrarToast(`✅ Empresa ${accion === 'activar' ? 'activada' : 'desactivada'}`, 'success');
+        cargarEmpresas();
+    } catch(err) { mostrarToast('Error al cambiar estado', 'error'); }
+}
+
+async function eliminarEmpresa(id, nombre) {
+    const m = document.createElement('div');
+    m.id = 'modal-confirmar-eliminar';
+    m.className = 'modal-overlay';
+    m.onclick = function(ev) { if(ev.target===this) this.remove(); };
+    m.innerHTML = `
+        <div class="modal glass" style="max-width:400px;padding:2rem;text-align:center">
+            <h3 style="color:#ff5252">⚠️ Eliminar Empresa</h3>
+            <p style="margin:1rem 0">¿Estás seguro de eliminar <strong>"${nombre}"</strong>?</p>
+            <p style="font-size:0.8rem;color:var(--text-muted)">Se desactivarán todos los usuarios</p>
+            <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1.5rem">
+                <button class="btn btn-ghost" onclick="document.getElementById('modal-confirmar-eliminar').remove()">Cancelar</button>
+                <button class="btn" style="background:#ff5252;color:white" id="btn-confirmar-eliminar">🗑️ Eliminar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(m);
+    document.getElementById('btn-confirmar-eliminar').onclick = async function() {
+        const res = await fetchAPI(`/api/empresas/${id}`, { method:'DELETE' });
+        if (res.error) return mostrarToast(res.error, 'error');
+        mostrarToast('✅ Empresa eliminada', 'success');
+        m.remove();
+        cargarEmpresas();
+    };
 }
 
 // ═══════════════════════════════════════════
