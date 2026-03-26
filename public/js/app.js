@@ -1035,6 +1035,28 @@ async function mostrarFormularioUsuario(rol) {
     document.getElementById('form-usuario').style.display = 'block';
     document.getElementById('resultado-usuario').style.display = 'none';
 
+    document.getElementById('usu-lada').value = '+52'; // Por defecto
+    if (USUARIO && USUARIO.id_empresa) {
+        fetchAPI(`/api/empresas/${USUARIO.id_empresa}`).then(emp => {
+            if (emp) {
+                // Mapeo básico de países a LADAS por si no hay teléfono guardado
+                const ladas = {
+                    'MX': '+52', 'GT': '+502', 'SV': '+503', 'HN': '+504',
+                    'NI': '+505', 'CR': '+506', 'PA': '+507', 'CO': '+57',
+                    'VE': '+58', 'EC': '+593', 'PE': '+51', 'BO': '+591',
+                    'CL': '+56', 'AR': '+54', 'UY': '+598', 'PY': '+595',
+                    'BR': '+55', 'DO': '+1', 'CU': '+53', 'PR': '+1',
+                    'ES': '+34', 'US': '+1'
+                };
+                if (emp.pais && ladas[emp.pais]) {
+                    document.getElementById('usu-lada').value = ladas[emp.pais];
+                } else if (emp.telefono && emp.telefono.includes(' ')) {
+                    document.getElementById('usu-lada').value = emp.telefono.split(' ')[0];
+                }
+            }
+        }).catch(()=>console.log('No se pudo obtener lada'));
+    }
+
     // Si es empleado, mostrar selector de supervisor
     const grupoSupervisor = document.getElementById('grupo-supervisor');
     if (rol === 'EMPLEADO') {
@@ -1072,10 +1094,14 @@ function cerrarModalUsuario() {
 async function crearUsuario(e) {
     e.preventDefault();
 
+    const lada = document.getElementById('usu-lada').value.trim();
+    const tel = document.getElementById('usu-telefono').value.trim();
+    const telefonoCompleto = tel ? `${lada} ${tel}` : '';
+
     const datos = {
         nombre: document.getElementById('usu-nombre').value.trim(),
         identificacion: document.getElementById('usu-identificacion').value.trim(),
-        telefono: document.getElementById('usu-telefono').value.trim(),
+        telefono: telefonoCompleto,
         correo: document.getElementById('usu-correo').value.trim(),
         rol: document.getElementById('usu-rol').value,
         id_supervisor: document.getElementById('usu-supervisor').value || undefined

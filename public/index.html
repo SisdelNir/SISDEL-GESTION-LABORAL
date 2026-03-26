@@ -727,7 +727,10 @@
                         </div>
                         <div class="form-group">
                             <label for="usu-telefono">Teléfono</label>
-                            <input type="tel" id="usu-telefono" placeholder="+52 1 234 567 8900">
+                            <div style="display:flex;gap:4px;">
+                                <input type="text" id="usu-lada" style="width:70px;text-align:center;font-weight:600;" value="+52">
+                                <input type="tel" id="usu-telefono" placeholder="Número de teléfono" style="flex:1;">
+                            </div>
                         </div>
                         <div class="form-group full-width">
                             <label for="usu-correo">Correo</label>
