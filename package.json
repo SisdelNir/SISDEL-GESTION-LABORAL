@@ -6,7 +6,12 @@
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["gestion", "laboral", "saas", "multiempresa"],
+  "keywords": [
+    "gestion",
+    "laboral",
+    "saas",
+    "multiempresa"
+  ],
   "author": "Gestión Laboral",
   "license": "ISC",
   "description": "Sistema de Control de Tareas Multiempresa - SaaS",
@@ -18,6 +23,7 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
+    "pg": "^8.20.0",
     "socket.io": "^4.8.3",
     "uuid": "^13.0.0"
   },

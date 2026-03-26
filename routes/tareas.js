@@ -10,52 +10,36 @@ const { verificarToken, verificarRol, registrarAuditoria } = require('../middlew
 
 /**
  * POST /api/tareas
- * Crear nueva tarea
  */
-router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), (req, res) => {
+router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
     try {
-        const {
-            titulo, descripcion, id_empleado, id_supervisor,
-            id_tipo, prioridad, tiempo_estimado_minutos
-        } = req.body;
-
-        if (!titulo) {
-            return res.status(400).json({ error: 'El título es requerido' });
-        }
+        const { titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos } = req.body;
+        if (!titulo) return res.status(400).json({ error: 'El título es requerido' });
 
         const id_empresa = req.usuario.id_empresa;
         const id_tarea = uuidv4();
         const id_creador = req.usuario.id_usuario;
-
-        // Si es supervisor, asignarse como supervisor
         const supervisorFinal = id_supervisor || (req.usuario.rol === 'SUPERVISOR' ? req.usuario.id_usuario : null);
 
-        db.prepare(`
+        await db.run(`
             INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id_tarea, id_empresa, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null);
+        `, id_tarea, id_empresa, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null);
 
-        // Registrar historial de estado
-        db.prepare(`
+        await db.run(`
             INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)
             VALUES (?, 'pendiente', ?, 'Tarea creada')
-        `).run(id_tarea, id_creador);
+        `, id_tarea, id_creador);
 
-        // Crear seguimiento de tiempo
-        db.prepare(`
-            INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea)
-            VALUES (?, ?)
-        `).run(uuidv4(), id_tarea);
+        await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
 
-        // Crear notificación para el empleado
         if (id_empleado) {
-            db.prepare(`
+            await db.run(`
                 INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
                 VALUES (?, ?, ?, ?, 'nueva_tarea')
-            `).run(uuidv4(), id_empleado, '📋 Nueva tarea asignada', `Se te asignó la tarea: "${titulo}"`, );
+            `, uuidv4(), id_empleado, '📋 Nueva tarea asignada', `Se te asignó la tarea: "${titulo}"`);
         }
 
-        // Notificar por socket
         const io = req.app.get('io');
         if (io) {
             io.to(`empresa_${id_empresa}`).emit('nueva_tarea', {
@@ -65,8 +49,7 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), (req, res)
         }
 
         registrarAuditoria(id_empresa, id_creador, 'CREAR_TAREA', `Tarea "${titulo}" creada`);
-
-        const tareaCreada = db.prepare('SELECT * FROM tareas WHERE id_tarea = ?').get(id_tarea);
+        const tareaCreada = await db.get('SELECT * FROM tareas WHERE id_tarea = ?', id_tarea);
         res.status(201).json({ mensaje: 'Tarea creada exitosamente', tarea: tareaCreada });
     } catch (err) {
         console.error('Error creando tarea:', err);
@@ -76,9 +59,8 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), (req, res)
 
 /**
  * GET /api/tareas
- * Listar tareas (filtradas por rol y empresa)
  */
-router.get('/', verificarToken, (req, res) => {
+router.get('/', verificarToken, async (req, res) => {
     try {
         const id_empresa = req.usuario.id_empresa;
         const { estado, prioridad, id_empleado, id_supervisor } = req.query;
@@ -106,13 +88,11 @@ router.get('/', verificarToken, (req, res) => {
         `;
         const params = [id_empresa];
 
-        // Filtros
         if (estado) { query += ' AND t.estado = ?'; params.push(estado); }
         if (prioridad) { query += ' AND t.prioridad = ?'; params.push(prioridad); }
         if (id_empleado) { query += ' AND t.id_empleado = ?'; params.push(id_empleado); }
         if (id_supervisor) { query += ' AND t.id_supervisor = ?'; params.push(id_supervisor); }
 
-        // Filtro por rol
         if (req.usuario.rol === 'EMPLEADO') {
             query += ' AND t.id_empleado = ?';
             params.push(req.usuario.id_usuario);
@@ -121,9 +101,9 @@ router.get('/', verificarToken, (req, res) => {
             params.push(req.usuario.id_usuario, req.usuario.id_usuario);
         }
 
-        query += ' ORDER BY CASE t.prioridad WHEN \'urgente\' THEN 1 WHEN \'alta\' THEN 2 WHEN \'media\' THEN 3 WHEN \'baja\' THEN 4 END, t.fecha_creacion DESC';
+        query += ` ORDER BY CASE t.prioridad WHEN 'urgente' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 WHEN 'baja' THEN 4 END, t.fecha_creacion DESC`;
 
-        const tareas = db.prepare(query).all(...params);
+        const tareas = await db.all(query, ...params);
         res.json(tareas);
     } catch (err) {
         console.error('Error listando tareas:', err);
@@ -133,29 +113,26 @@ router.get('/', verificarToken, (req, res) => {
 
 /**
  * GET /api/tareas/estadisticas
- * Estadísticas de tareas de la empresa
  */
-router.get('/estadisticas', verificarToken, (req, res) => {
+router.get('/estadisticas', verificarToken, async (req, res) => {
     try {
         const id_empresa = req.usuario.id_empresa;
 
-        const stats = {
-            total: db.prepare('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND eliminado = 0').get(id_empresa).c,
-            pendientes: db.prepare('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0').get(id_empresa, 'pendiente').c,
-            en_proceso: db.prepare('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0').get(id_empresa, 'en_proceso').c,
-            finalizadas: db.prepare('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN (?,?) AND eliminado = 0').get(id_empresa, 'finalizada', 'finalizada_atrasada').c,
-            atrasadas: db.prepare('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0').get(id_empresa, 'atrasada').c
-        };
+        const total = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND eliminado = 0', id_empresa);
+        const pendientes = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'pendiente');
+        const en_proceso = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'en_proceso');
+        const finalizadas = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN (?,?) AND eliminado = 0', id_empresa, 'finalizada', 'finalizada_atrasada');
+        const atrasadas = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'atrasada');
+        const finAtiempo = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'finalizada');
+        const urgentes = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND prioridad = ? AND estado NOT IN (?,?) AND eliminado = 0', id_empresa, 'urgente', 'finalizada', 'finalizada_atrasada');
 
-        // Eficiencia: % finalizadas a tiempo
-        const finAtiempo = db.prepare('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0').get(id_empresa, 'finalizada').c;
-        const totalFin = stats.finalizadas;
-        stats.eficiencia = totalFin > 0 ? Math.round((finAtiempo / totalFin) * 100) : 0;
+        const totalFin = finalizadas.c;
+        const eficiencia = totalFin > 0 ? Math.round((finAtiempo.c / totalFin) * 100) : 0;
 
-        // Por prioridad
-        stats.urgentes = db.prepare('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND prioridad = ? AND estado NOT IN (?,?) AND eliminado = 0').get(id_empresa, 'urgente', 'finalizada', 'finalizada_atrasada').c;
-
-        res.json(stats);
+        res.json({
+            total: total.c, pendientes: pendientes.c, en_proceso: en_proceso.c,
+            finalizadas: totalFin, atrasadas: atrasadas.c, eficiencia, urgentes: urgentes.c
+        });
     } catch (err) {
         res.status(500).json({ error: 'Error al obtener estadísticas' });
     }
@@ -163,11 +140,10 @@ router.get('/estadisticas', verificarToken, (req, res) => {
 
 /**
  * GET /api/tareas/:id
- * Detalle de tarea con historial, evidencias y comentarios
  */
-router.get('/:id', verificarToken, (req, res) => {
+router.get('/:id', verificarToken, async (req, res) => {
     try {
-        const tarea = db.prepare(`
+        const tarea = await db.get(`
             SELECT t.*,
                    emp.nombre as nombre_empleado,
                    sup.nombre as nombre_supervisor,
@@ -185,38 +161,26 @@ router.get('/:id', verificarToken, (req, res) => {
             LEFT JOIN tipos_tarea tt ON t.id_tipo = tt.id_tipo
             LEFT JOIN seguimiento_tiempo st ON t.id_tarea = st.id_tarea
             WHERE t.id_tarea = ? AND t.eliminado = 0
-        `).get(req.params.id);
+        `, req.params.id);
 
-        if (!tarea) {
-            return res.status(404).json({ error: 'Tarea no encontrada' });
-        }
-
+        if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
         if (req.usuario.rol !== 'ROOT' && req.usuario.id_empresa !== tarea.id_empresa) {
             return res.status(403).json({ error: 'Sin acceso' });
         }
 
-        // Historial
-        const historial = db.prepare(`
+        const historial = await db.all(`
             SELECT h.*, u.nombre as nombre_usuario
-            FROM historial_estados_tarea h
-            LEFT JOIN usuarios u ON h.id_usuario = u.id_usuario
-            WHERE h.id_tarea = ?
-            ORDER BY h.fecha DESC
-        `).all(req.params.id);
+            FROM historial_estados_tarea h LEFT JOIN usuarios u ON h.id_usuario = u.id_usuario
+            WHERE h.id_tarea = ? ORDER BY h.fecha DESC
+        `, req.params.id);
 
-        // Evidencias
-        const evidencias = db.prepare(`
-            SELECT * FROM evidencias_tarea WHERE id_tarea = ? ORDER BY fecha_registro DESC
-        `).all(req.params.id);
+        const evidencias = await db.all('SELECT * FROM evidencias_tarea WHERE id_tarea = ? ORDER BY fecha_registro DESC', req.params.id);
 
-        // Comentarios
-        const comentarios = db.prepare(`
+        const comentarios = await db.all(`
             SELECT c.*, u.nombre as nombre_usuario, u.rol as rol_usuario
-            FROM comentarios_tarea c
-            JOIN usuarios u ON c.id_usuario = u.id_usuario
-            WHERE c.id_tarea = ?
-            ORDER BY c.fecha ASC
-        `).all(req.params.id);
+            FROM comentarios_tarea c JOIN usuarios u ON c.id_usuario = u.id_usuario
+            WHERE c.id_tarea = ? ORDER BY c.fecha ASC
+        `, req.params.id);
 
         res.json({ ...tarea, historial, evidencias, comentarios });
     } catch (err) {
@@ -230,33 +194,20 @@ router.get('/:id', verificarToken, (req, res) => {
 
 /**
  * PUT /api/tareas/:id/iniciar
- * Empleado inicia la tarea → en_proceso
  */
-router.put('/:id/iniciar', verificarToken, (req, res) => {
+router.put('/:id/iniciar', verificarToken, async (req, res) => {
     try {
-        const tarea = db.prepare('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0').get(req.params.id);
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
-
-        if (tarea.estado !== 'pendiente') {
-            return res.status(400).json({ error: 'Solo se pueden iniciar tareas pendientes' });
-        }
+        if (tarea.estado !== 'pendiente') return res.status(400).json({ error: 'Solo se pueden iniciar tareas pendientes' });
 
         const ahora = new Date().toISOString();
         const { lat, lng } = req.body || {};
 
-        // Actualizar tarea
-        db.prepare(`UPDATE tareas SET estado = 'en_proceso', fecha_inicio = ? WHERE id_tarea = ?`)
-            .run(ahora, req.params.id);
+        await db.run(`UPDATE tareas SET estado = 'en_proceso', fecha_inicio = ? WHERE id_tarea = ?`, ahora, req.params.id);
+        await db.run(`UPDATE seguimiento_tiempo SET hora_inicio = ?, lat_inicio = ?, lng_inicio = ? WHERE id_tarea = ?`, ahora, lat || null, lng || null, req.params.id);
+        await db.run(`INSERT INTO historial_estados_tarea (id_tarea, estado_anterior, estado_nuevo, id_usuario, comentario) VALUES (?, 'pendiente', 'en_proceso', ?, 'Tarea iniciada')`, req.params.id, req.usuario.id_usuario);
 
-        // Actualizar seguimiento
-        db.prepare(`UPDATE seguimiento_tiempo SET hora_inicio = ?, lat_inicio = ?, lng_inicio = ? WHERE id_tarea = ?`)
-            .run(ahora, lat || null, lng || null, req.params.id);
-
-        // Historial
-        db.prepare(`INSERT INTO historial_estados_tarea (id_tarea, estado_anterior, estado_nuevo, id_usuario, comentario) VALUES (?, 'pendiente', 'en_proceso', ?, 'Tarea iniciada')`)
-            .run(req.params.id, req.usuario.id_usuario);
-
-        // Socket
         const io = req.app.get('io');
         if (io) {
             io.to(`empresa_${tarea.id_empresa}`).emit('tarea_actualizada', {
@@ -273,13 +224,11 @@ router.put('/:id/iniciar', verificarToken, (req, res) => {
 
 /**
  * PUT /api/tareas/:id/finalizar
- * Empleado finaliza la tarea
  */
-router.put('/:id/finalizar', verificarToken, (req, res) => {
+router.put('/:id/finalizar', verificarToken, async (req, res) => {
     try {
-        const tarea = db.prepare('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0').get(req.params.id);
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
-
         if (tarea.estado !== 'en_proceso' && tarea.estado !== 'atrasada') {
             return res.status(400).json({ error: 'Solo se pueden finalizar tareas en proceso o atrasadas' });
         }
@@ -287,62 +236,39 @@ router.put('/:id/finalizar', verificarToken, (req, res) => {
         const ahora = new Date().toISOString();
         const { lat, lng } = req.body || {};
 
-        // Calcular tiempo real
-        const seguimiento = db.prepare('SELECT * FROM seguimiento_tiempo WHERE id_tarea = ?').get(req.params.id);
+        const seguimiento = await db.get('SELECT * FROM seguimiento_tiempo WHERE id_tarea = ?', req.params.id);
         let tiempoRealSegundos = 0;
         if (seguimiento && seguimiento.hora_inicio) {
             tiempoRealSegundos = Math.round((new Date(ahora) - new Date(seguimiento.hora_inicio)) / 1000);
         }
 
-        // Determinar si se completó a tiempo
         let estadoFinal = 'finalizada';
         if (tarea.tiempo_estimado_minutos) {
             const tiempoEstimadoSegundos = tarea.tiempo_estimado_minutos * 60;
-            // Obtener tolerancia de la empresa
-            const config = db.prepare('SELECT tolerancia_tiempo FROM configuraciones_empresa WHERE id_empresa = ?').get(tarea.id_empresa);
+            const config = await db.get('SELECT tolerancia_tiempo FROM configuraciones_empresa WHERE id_empresa = ?', tarea.id_empresa);
             const tolerancia = config ? config.tolerancia_tiempo : 10;
             const limiteSegundos = tiempoEstimadoSegundos * (1 + tolerancia / 100);
-
-            if (tiempoRealSegundos > limiteSegundos) {
-                estadoFinal = 'finalizada_atrasada';
-            }
+            if (tiempoRealSegundos > limiteSegundos) estadoFinal = 'finalizada_atrasada';
         }
 
-        // Actualizar tarea
-        db.prepare(`UPDATE tareas SET estado = ?, fecha_fin = ? WHERE id_tarea = ?`)
-            .run(estadoFinal, ahora, req.params.id);
+        await db.run(`UPDATE tareas SET estado = ?, fecha_fin = ? WHERE id_tarea = ?`, estadoFinal, ahora, req.params.id);
+        await db.run(`UPDATE seguimiento_tiempo SET hora_fin = ?, tiempo_real_segundos = ?, lat_fin = ?, lng_fin = ? WHERE id_tarea = ?`, ahora, tiempoRealSegundos, lat || null, lng || null, req.params.id);
+        await db.run(`INSERT INTO historial_estados_tarea (id_tarea, estado_anterior, estado_nuevo, id_usuario, comentario) VALUES (?, ?, ?, ?, ?)`,
+            req.params.id, tarea.estado, estadoFinal, req.usuario.id_usuario, `Tarea finalizada (${formatearTiempo(tiempoRealSegundos)})`);
 
-        // Actualizar seguimiento
-        db.prepare(`UPDATE seguimiento_tiempo SET hora_fin = ?, tiempo_real_segundos = ?, lat_fin = ?, lng_fin = ? WHERE id_tarea = ?`)
-            .run(ahora, tiempoRealSegundos, lat || null, lng || null, req.params.id);
-
-        // Historial
-        db.prepare(`INSERT INTO historial_estados_tarea (id_tarea, estado_anterior, estado_nuevo, id_usuario, comentario) VALUES (?, ?, ?, ?, ?)`)
-            .run(req.params.id, tarea.estado, estadoFinal, req.usuario.id_usuario, `Tarea finalizada (${formatearTiempo(tiempoRealSegundos)})`);
-
-        // Gamificación
-        let puntos = 0;
-        let motivo = '';
-        if (estadoFinal === 'finalizada') {
-            puntos = 10;
-            motivo = 'TAREA_A_TIEMPO';
-        } else {
-            puntos = 5;
-            motivo = 'TAREA_ATRASADA';
-        }
+        let puntos = estadoFinal === 'finalizada' ? 10 : 5;
+        let motivo = estadoFinal === 'finalizada' ? 'TAREA_A_TIEMPO' : 'TAREA_ATRASADA';
 
         if (tarea.id_empleado) {
-            db.prepare(`INSERT INTO movimientos_puntos (id_usuario, id_tarea, puntos, motivo, descripcion) VALUES (?, ?, ?, ?, ?)`)
-                .run(tarea.id_empleado, req.params.id, puntos, motivo, `Tarea "${tarea.titulo}" ${estadoFinal === 'finalizada' ? 'a tiempo' : 'atrasada'}`);
+            await db.run(`INSERT INTO movimientos_puntos (id_usuario, id_tarea, puntos, motivo, descripcion) VALUES (?, ?, ?, ?, ?)`,
+                tarea.id_empleado, req.params.id, puntos, motivo, `Tarea "${tarea.titulo}" ${estadoFinal === 'finalizada' ? 'a tiempo' : 'atrasada'}`);
         }
 
-        // Notificar al supervisor
         if (tarea.id_supervisor) {
-            db.prepare(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'tarea_finalizada')`)
-                .run(uuidv4(), tarea.id_supervisor, '✅ Tarea finalizada', `La tarea "${tarea.titulo}" fue finalizada`);
+            await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'tarea_finalizada')`,
+                uuidv4(), tarea.id_supervisor, '✅ Tarea finalizada', `La tarea "${tarea.titulo}" fue finalizada`);
         }
 
-        // Socket
         const io = req.app.get('io');
         if (io) {
             io.to(`empresa_${tarea.id_empresa}`).emit('tarea_actualizada', {
@@ -353,10 +279,8 @@ router.put('/:id/finalizar', verificarToken, (req, res) => {
         registrarAuditoria(tarea.id_empresa, req.usuario.id_usuario, 'FINALIZAR_TAREA', `Tarea "${tarea.titulo}" finalizada (${estadoFinal})`);
 
         res.json({
-            mensaje: 'Tarea finalizada',
-            estado: estadoFinal,
-            tiempo_real_segundos: tiempoRealSegundos,
-            tiempo_formateado: formatearTiempo(tiempoRealSegundos),
+            mensaje: 'Tarea finalizada', estado: estadoFinal,
+            tiempo_real_segundos: tiempoRealSegundos, tiempo_formateado: formatearTiempo(tiempoRealSegundos),
             puntos_ganados: puntos
         });
     } catch (err) {
@@ -367,30 +291,25 @@ router.put('/:id/finalizar', verificarToken, (req, res) => {
 
 /**
  * PUT /api/tareas/:id
- * Editar tarea
  */
-router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), (req, res) => {
+router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
     try {
-        const tarea = db.prepare('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0').get(req.params.id);
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
 
         const { titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos } = req.body;
 
-        db.prepare(`
+        await db.run(`
             UPDATE tareas SET
-                titulo = COALESCE(?, titulo),
-                descripcion = COALESCE(?, descripcion),
-                id_empleado = COALESCE(?, id_empleado),
-                id_supervisor = COALESCE(?, id_supervisor),
-                id_tipo = COALESCE(?, id_tipo),
-                prioridad = COALESCE(?, prioridad),
+                titulo = COALESCE(?, titulo), descripcion = COALESCE(?, descripcion),
+                id_empleado = COALESCE(?, id_empleado), id_supervisor = COALESCE(?, id_supervisor),
+                id_tipo = COALESCE(?, id_tipo), prioridad = COALESCE(?, prioridad),
                 tiempo_estimado_minutos = COALESCE(?, tiempo_estimado_minutos)
             WHERE id_tarea = ?
-        `).run(titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos, req.params.id);
+        `, titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos, req.params.id);
 
         registrarAuditoria(tarea.id_empresa, req.usuario.id_usuario, 'EDITAR_TAREA', `Tarea "${tarea.titulo}" editada`);
-
-        const actualizada = db.prepare('SELECT * FROM tareas WHERE id_tarea = ?').get(req.params.id);
+        const actualizada = await db.get('SELECT * FROM tareas WHERE id_tarea = ?', req.params.id);
         res.json({ mensaje: 'Tarea actualizada', tarea: actualizada });
     } catch (err) {
         res.status(500).json({ error: 'Error al actualizar tarea' });
@@ -398,16 +317,14 @@ router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), (req, re
 });
 
 /**
- * DELETE /api/tareas/:id (Soft Delete)
+ * DELETE /api/tareas/:id
  */
-router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), (req, res) => {
+router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
     try {
-        const tarea = db.prepare('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0').get(req.params.id);
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
-
-        db.prepare('UPDATE tareas SET eliminado = 1 WHERE id_tarea = ?').run(req.params.id);
+        await db.run('UPDATE tareas SET eliminado = 1 WHERE id_tarea = ?', req.params.id);
         registrarAuditoria(tarea.id_empresa, req.usuario.id_usuario, 'ELIMINAR_TAREA', `Tarea "${tarea.titulo}" eliminada`);
-
         res.json({ mensaje: 'Tarea eliminada' });
     } catch (err) {
         res.status(500).json({ error: 'Error al eliminar tarea' });
@@ -418,28 +335,22 @@ router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), (req,
 // COMENTARIOS
 // ═══════════════════════════════════════════
 
-/**
- * POST /api/tareas/:id/comentarios
- */
-router.post('/:id/comentarios', verificarToken, (req, res) => {
+router.post('/:id/comentarios', verificarToken, async (req, res) => {
     try {
         const { contenido } = req.body;
         if (!contenido) return res.status(400).json({ error: 'Contenido requerido' });
-
-        const tarea = db.prepare('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0').get(req.params.id);
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
 
-        db.prepare(`INSERT INTO comentarios_tarea (id_tarea, id_usuario, contenido) VALUES (?, ?, ?)`)
-            .run(req.params.id, req.usuario.id_usuario, contenido);
+        await db.run(`INSERT INTO comentarios_tarea (id_tarea, id_usuario, contenido) VALUES (?, ?, ?)`,
+            req.params.id, req.usuario.id_usuario, contenido);
 
-        // Socket
         const io = req.app.get('io');
         if (io) {
             io.to(`empresa_${tarea.id_empresa}`).emit('nuevo_comentario', {
                 id_tarea: req.params.id, usuario: req.usuario.nombre, contenido
             });
         }
-
         res.status(201).json({ mensaje: 'Comentario agregado' });
     } catch (err) {
         res.status(500).json({ error: 'Error al agregar comentario' });
@@ -447,42 +358,27 @@ router.post('/:id/comentarios', verificarToken, (req, res) => {
 });
 
 // ═══════════════════════════════════════════
-// EVIDENCIAS (texto + imágenes)
+// EVIDENCIAS
 // ═══════════════════════════════════════════
 
 const { uploadEvidencia, setUploadTipo } = require('../middleware/uploads');
 
-/**
- * POST /api/tareas/:id/evidencias
- * Soporta texto o imagen (multipart/form-data)
- */
-router.post('/:id/evidencias', verificarToken, setUploadTipo('evidencias'), uploadEvidencia.single('archivo'), (req, res) => {
+router.post('/:id/evidencias', verificarToken, setUploadTipo('evidencias'), uploadEvidencia.single('archivo'), async (req, res) => {
     try {
         const tipo = req.body.tipo || (req.file ? 'imagen' : 'texto');
         let contenido = req.body.contenido || '';
-
-        // Si se subió un archivo, guardar la URL
-        if (req.file) {
-            contenido = `/uploads/evidencias/${req.file.filename}`;
-        }
-
+        if (req.file) contenido = `/uploads/evidencias/${req.file.filename}`;
         if (!contenido) return res.status(400).json({ error: 'Contenido o archivo requerido' });
 
-        const tarea = db.prepare('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0').get(req.params.id);
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
 
         const id_evidencia = uuidv4();
-        db.prepare(`INSERT INTO evidencias_tarea (id_evidencia, id_tarea, tipo, contenido) VALUES (?, ?, ?, ?)`)
-            .run(id_evidencia, req.params.id, tipo, contenido);
+        await db.run(`INSERT INTO evidencias_tarea (id_evidencia, id_tarea, tipo, contenido) VALUES (?, ?, ?, ?)`,
+            id_evidencia, req.params.id, tipo, contenido);
 
-        // Socket
         const io = req.app.get('io');
-        if (io) {
-            io.to(`empresa_${tarea.id_empresa}`).emit('nueva_evidencia', {
-                id_tarea: req.params.id, tipo
-            });
-        }
-
+        if (io) io.to(`empresa_${tarea.id_empresa}`).emit('nueva_evidencia', { id_tarea: req.params.id, tipo });
         res.status(201).json({ mensaje: 'Evidencia agregada', id_evidencia, tipo, contenido });
     } catch (err) {
         res.status(500).json({ error: 'Error al agregar evidencia' });
@@ -493,12 +389,9 @@ router.post('/:id/evidencias', verificarToken, setUploadTipo('evidencias'), uplo
 // TIPOS DE TAREA
 // ═══════════════════════════════════════════
 
-/**
- * GET /api/tareas/tipos/lista
- */
-router.get('/tipos/lista', verificarToken, (req, res) => {
+router.get('/tipos/lista', verificarToken, async (req, res) => {
     try {
-        const tipos = db.prepare('SELECT * FROM tipos_tarea WHERE id_empresa = ?').all(req.usuario.id_empresa);
+        const tipos = await db.all('SELECT * FROM tipos_tarea WHERE id_empresa = ?', req.usuario.id_empresa);
         res.json(tipos);
     } catch (err) {
         res.status(500).json({ error: 'Error al listar tipos' });
@@ -509,30 +402,21 @@ router.get('/tipos/lista', verificarToken, (req, res) => {
 // NOTIFICACIONES
 // ═══════════════════════════════════════════
 
-/**
- * GET /api/tareas/notificaciones/mis
- */
-router.get('/notificaciones/mis', verificarToken, (req, res) => {
+router.get('/notificaciones/mis', verificarToken, async (req, res) => {
     try {
-        const notificaciones = db.prepare(`
-            SELECT * FROM notificaciones
-            WHERE id_usuario = ?
-            ORDER BY fecha DESC
-            LIMIT 50
-        `).all(req.usuario.id_usuario);
+        const notificaciones = await db.all(`
+            SELECT * FROM notificaciones WHERE id_usuario = ? ORDER BY fecha DESC LIMIT 50
+        `, req.usuario.id_usuario);
         res.json(notificaciones);
     } catch (err) {
         res.status(500).json({ error: 'Error al obtener notificaciones' });
     }
 });
 
-/**
- * PUT /api/tareas/notificaciones/:id/leer
- */
-router.put('/notificaciones/:id/leer', verificarToken, (req, res) => {
+router.put('/notificaciones/:id/leer', verificarToken, async (req, res) => {
     try {
-        db.prepare('UPDATE notificaciones SET leido = 1 WHERE id_notificacion = ? AND id_usuario = ?')
-            .run(req.params.id, req.usuario.id_usuario);
+        await db.run('UPDATE notificaciones SET leido = 1 WHERE id_notificacion = ? AND id_usuario = ?',
+            req.params.id, req.usuario.id_usuario);
         res.json({ mensaje: 'Notificación marcada como leída' });
     } catch (err) {
         res.status(500).json({ error: 'Error' });

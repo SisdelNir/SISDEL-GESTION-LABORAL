@@ -1,28 +1,131 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+/**
+ * Database Abstraction Layer
+ * Soporta SQLite (local) y PostgreSQL (producción/Render)
+ * Detecta automáticamente DATABASE_URL para PostgreSQL
+ */
 
-// En Render, usar el disco persistente montado en /opt/render/project/src/data
-// Localmente, usar la carpeta ./data
-const dataDir = process.env.RENDER ? '/opt/render/project/src/data' : path.join(__dirname, '..', 'data');
+const isPostgres = !!process.env.DATABASE_URL;
 
-// Crear carpeta data si no existe
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+let db;
+
+if (isPostgres) {
+    // ═══════════════════════════════════════════
+    // PostgreSQL (Render / Producción)
+    // ═══════════════════════════════════════════
+    const { Pool } = require('pg');
+    const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+    });
+
+    // Convertir placeholders ? → $1, $2, ...
+    function convertPlaceholders(sql) {
+        let i = 0;
+        return sql.replace(/\?/g, () => `$${++i}`);
+    }
+
+    // Convertir SQL de SQLite a PostgreSQL
+    function convertSQL(sql) {
+        let pgSQL = convertPlaceholders(sql);
+        // INTEGER PRIMARY KEY AUTOINCREMENT → SERIAL PRIMARY KEY
+        pgSQL = pgSQL.replace(/INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT/gi, 'SERIAL PRIMARY KEY');
+        // datetime('now', 'localtime') → NOW()
+        pgSQL = pgSQL.replace(/datetime\('now',\s*'localtime'\)/gi, 'NOW()');
+        pgSQL = pgSQL.replace(/datetime\('now'\)/gi, 'NOW()');
+        // INSERT OR IGNORE → INSERT ... ON CONFLICT DO NOTHING
+        pgSQL = pgSQL.replace(/INSERT\s+OR\s+IGNORE/gi, 'INSERT');
+        // BOOLEAN integers
+        return pgSQL;
+    }
+
+    db = {
+        get: async function(sql, ...params) {
+            const pgSQL = convertSQL(sql);
+            const flatParams = params.flat();
+            const result = await pool.query(pgSQL, flatParams);
+            return result.rows[0] || null;
+        },
+        all: async function(sql, ...params) {
+            const pgSQL = convertSQL(sql);
+            const flatParams = params.flat();
+            const result = await pool.query(pgSQL, flatParams);
+            return result.rows;
+        },
+        run: async function(sql, ...params) {
+            const pgSQL = convertSQL(sql);
+            const flatParams = params.flat();
+            const result = await pool.query(pgSQL, flatParams);
+            return { changes: result.rowCount, lastInsertRowid: null };
+        },
+        exec: async function(sql) {
+            // Dividir múltiples sentencias y ejecutar una por una
+            const statements = sql.split(';').filter(s => s.trim() && !s.trim().startsWith('--'));
+            for (const stmt of statements) {
+                if (stmt.trim()) {
+                    try {
+                        let pgStmt = stmt.trim();
+                        pgStmt = pgStmt.replace(/INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT/gi, 'SERIAL PRIMARY KEY');
+                        pgStmt = pgStmt.replace(/datetime\('now',\s*'localtime'\)/gi, 'NOW()');
+                        pgStmt = pgStmt.replace(/datetime\('now'\)/gi, 'NOW()');
+                        pgStmt = pgStmt.replace(/INSERT\s+OR\s+IGNORE/gi, 'INSERT');
+                        await pool.query(pgStmt);
+                    } catch(e) {
+                        // Ignorar errores de "ya existe" 
+                        if (!e.message.includes('already exists') && !e.message.includes('duplicate')) {
+                            console.warn('⚠️ SQL warning:', e.message.substring(0, 100));
+                        }
+                    }
+                }
+            }
+        },
+        pool: pool
+    };
+
+    console.log('🐘 Modo PostgreSQL (DATABASE_URL detectada)');
+
+} else {
+    // ═══════════════════════════════════════════
+    // SQLite (Desarrollo Local)
+    // ═══════════════════════════════════════════
+    const Database = require('better-sqlite3');
+    const path = require('path');
+    const fs = require('fs');
+
+    const dataDir = path.join(__dirname, '..', 'data');
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    const dbPath = path.join(dataDir, 'gestion_laboral.db');
+    const sqlite = new Database(dbPath);
+    sqlite.pragma('journal_mode = WAL');
+    sqlite.pragma('foreign_keys = ON');
+
+    // Wrapper async que envuelve las llamadas síncronas de better-sqlite3
+    db = {
+        get: async function(sql, ...params) {
+            return sqlite.prepare(sql).get(...params.flat());
+        },
+        all: async function(sql, ...params) {
+            return sqlite.prepare(sql).all(...params.flat());
+        },
+        run: async function(sql, ...params) {
+            return sqlite.prepare(sql).run(...params.flat());
+        },
+        exec: async function(sql) {
+            return sqlite.exec(sql);
+        },
+        sqlite: sqlite
+    };
+
+    console.log('📦 Modo SQLite (desarrollo local)');
 }
 
-const dbPath = path.join(dataDir, 'gestion_laboral.db');
-const db = new Database(dbPath);
-
-// Activar WAL mode y foreign keys
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-function inicializarDB() {
-    db.exec(`
-        -- ═══════════════════════════════════════════
-        -- 1. EMPRESAS
-        -- ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// Inicialización del esquema
+// ═══════════════════════════════════════════
+async function inicializarDB() {
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS empresas (
             id_empresa TEXT PRIMARY KEY,
             nombre TEXT NOT NULL,
@@ -39,12 +142,11 @@ function inicializarDB() {
             estado INTEGER DEFAULT 1,
             eliminado INTEGER DEFAULT 0,
             fecha_eliminacion TEXT,
-            fecha_creacion TEXT DEFAULT (datetime('now', 'localtime'))
-        );
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 2. DEPARTAMENTOS
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS departamentos (
             id_departamento TEXT PRIMARY KEY,
             id_empresa TEXT NOT NULL,
@@ -52,13 +154,12 @@ function inicializarDB() {
             descripcion TEXT,
             id_responsable TEXT,
             estado INTEGER DEFAULT 1,
-            fecha_creacion TEXT DEFAULT (datetime('now', 'localtime')),
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
             FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
-        );
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 3. USUARIOS
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS usuarios (
             id_usuario TEXT PRIMARY KEY,
             id_empresa TEXT NOT NULL,
@@ -67,7 +168,7 @@ function inicializarDB() {
             telefono TEXT,
             correo TEXT,
             foto_url TEXT,
-            rol TEXT NOT NULL CHECK (rol IN ('ADMIN', 'SUPERVISOR', 'EMPLEADO')),
+            rol TEXT NOT NULL,
             codigo_acceso TEXT UNIQUE NOT NULL,
             password_hash TEXT,
             id_departamento TEXT,
@@ -77,81 +178,73 @@ function inicializarDB() {
             eliminado INTEGER DEFAULT 0,
             fecha_eliminacion TEXT,
             eliminado_por TEXT,
-            fecha_creacion TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa),
-            FOREIGN KEY (id_departamento) REFERENCES departamentos(id_departamento)
-        );
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 4. SESIONES
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS sesiones (
             id_sesion TEXT PRIMARY KEY,
             id_usuario TEXT NOT NULL,
             refresh_token TEXT NOT NULL,
             dispositivo TEXT,
             ip TEXT,
-            fecha_creacion TEXT DEFAULT (datetime('now', 'localtime')),
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
             fecha_expiracion TEXT NOT NULL,
             activa INTEGER DEFAULT 1,
             FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
-        );
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 5. PERMISOS (RBAC)
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS permisos (
-            id_permiso INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_permiso ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             codigo TEXT UNIQUE NOT NULL,
             descripcion TEXT
-        );
+        )
+    `);
 
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS rol_permisos (
             id_rol TEXT NOT NULL,
             id_permiso INTEGER NOT NULL,
             id_empresa TEXT NOT NULL,
-            PRIMARY KEY (id_rol, id_permiso, id_empresa),
-            FOREIGN KEY (id_permiso) REFERENCES permisos(id_permiso),
-            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
-        );
+            PRIMARY KEY (id_rol, id_permiso, id_empresa)
+        )
+    `);
 
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS permisos_usuario (
             id_usuario TEXT NOT NULL,
             id_permiso INTEGER NOT NULL,
             concedido INTEGER DEFAULT 1,
-            PRIMARY KEY (id_usuario, id_permiso),
-            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
-            FOREIGN KEY (id_permiso) REFERENCES permisos(id_permiso)
-        );
+            PRIMARY KEY (id_usuario, id_permiso)
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 6. RELACIÓN SUPERVISOR - EMPLEADO
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS supervisores_empleados (
             id_relacion TEXT PRIMARY KEY,
             id_supervisor TEXT NOT NULL,
             id_empleado TEXT NOT NULL,
-            fecha_asignacion TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_supervisor) REFERENCES usuarios(id_usuario),
-            FOREIGN KEY (id_empleado) REFERENCES usuarios(id_usuario)
-        );
+            fecha_asignacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 7. TIPOS DE TAREA
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS tipos_tarea (
             id_tipo TEXT PRIMARY KEY,
             id_empresa TEXT NOT NULL,
             nombre TEXT NOT NULL,
             descripcion TEXT,
             peso_complejidad INTEGER DEFAULT 1,
-            fecha_creacion TEXT DEFAULT (datetime('now', 'localtime')),
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
             FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
-        );
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 8. TAREAS
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS tareas (
             id_tarea TEXT PRIMARY KEY,
             id_empresa TEXT NOT NULL,
@@ -161,38 +254,30 @@ function inicializarDB() {
             id_supervisor TEXT,
             id_creador TEXT NOT NULL,
             id_tipo TEXT,
-            prioridad TEXT DEFAULT 'media' CHECK (prioridad IN ('baja', 'media', 'alta', 'urgente')),
+            prioridad TEXT DEFAULT 'media',
             tiempo_estimado_minutos INTEGER,
-            estado TEXT DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'en_proceso', 'finalizada', 'atrasada', 'finalizada_atrasada')),
-            fecha_creacion TEXT DEFAULT (datetime('now', 'localtime')),
+            estado TEXT DEFAULT 'pendiente',
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
             fecha_inicio TEXT,
             fecha_fin TEXT,
             eliminado INTEGER DEFAULT 0,
-            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa),
-            FOREIGN KEY (id_empleado) REFERENCES usuarios(id_usuario),
-            FOREIGN KEY (id_supervisor) REFERENCES usuarios(id_usuario),
-            FOREIGN KEY (id_creador) REFERENCES usuarios(id_usuario),
-            FOREIGN KEY (id_tipo) REFERENCES tipos_tarea(id_tipo)
-        );
+            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 9. HISTORIAL DE ESTADOS DE TAREA
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS historial_estados_tarea (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             id_tarea TEXT NOT NULL,
             estado_anterior TEXT,
             estado_nuevo TEXT NOT NULL,
             id_usuario TEXT,
             comentario TEXT,
-            fecha TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_tarea) REFERENCES tareas(id_tarea),
-            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
-        );
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 10. SEGUIMIENTO DE TIEMPO + GEOLOCALIZACIÓN
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS seguimiento_tiempo (
             id_seguimiento TEXT PRIMARY KEY,
             id_tarea TEXT NOT NULL,
@@ -202,38 +287,31 @@ function inicializarDB() {
             lat_inicio REAL,
             lng_inicio REAL,
             lat_fin REAL,
-            lng_fin REAL,
-            FOREIGN KEY (id_tarea) REFERENCES tareas(id_tarea)
-        );
+            lng_fin REAL
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 11. EVIDENCIAS
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS evidencias_tarea (
             id_evidencia TEXT PRIMARY KEY,
             id_tarea TEXT NOT NULL,
-            tipo TEXT CHECK (tipo IN ('imagen', 'texto')),
+            tipo TEXT,
             contenido TEXT,
-            fecha_registro TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_tarea) REFERENCES tareas(id_tarea)
-        );
+            fecha_registro TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 12. COMENTARIOS EN TAREAS
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS comentarios_tarea (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             id_tarea TEXT NOT NULL,
             id_usuario TEXT NOT NULL,
             contenido TEXT NOT NULL,
-            fecha TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_tarea) REFERENCES tareas(id_tarea),
-            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
-        );
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 13. NOTIFICACIONES
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS notificaciones (
             id_notificacion TEXT PRIMARY KEY,
             id_usuario TEXT NOT NULL,
@@ -241,13 +319,11 @@ function inicializarDB() {
             mensaje TEXT,
             tipo TEXT,
             leido INTEGER DEFAULT 0,
-            fecha TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
-        );
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 14. PLANTILLAS DE TAREAS (RECURRENCIA)
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS plantillas_tarea (
             id_plantilla TEXT PRIMARY KEY,
             id_empresa TEXT NOT NULL,
@@ -256,34 +332,29 @@ function inicializarDB() {
             id_tipo TEXT,
             tiempo_estimado_minutos INTEGER,
             prioridad TEXT DEFAULT 'media',
-            recurrencia TEXT CHECK (recurrencia IN ('diaria', 'semanal', 'mensual', 'personalizada')),
+            recurrencia TEXT,
             dias_semana TEXT,
             hora_creacion TEXT,
             id_empleado_default TEXT,
             id_supervisor_default TEXT,
             activa INTEGER DEFAULT 1,
-            fecha_creacion TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
-        );
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 15. GAMIFICACIÓN (MOVIMIENTOS DE PUNTOS)
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS movimientos_puntos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             id_usuario TEXT NOT NULL,
             id_tarea TEXT,
             puntos INTEGER NOT NULL,
             motivo TEXT NOT NULL,
             descripcion TEXT,
-            fecha TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
-            FOREIGN KEY (id_tarea) REFERENCES tareas(id_tarea)
-        );
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 16. CONFIGURACIÓN POR EMPRESA
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS configuraciones_empresa (
             id_config TEXT PRIMARY KEY,
             id_empresa TEXT UNIQUE NOT NULL,
@@ -292,89 +363,77 @@ function inicializarDB() {
             permite_supervisor_asignar INTEGER DEFAULT 1,
             usa_gamificacion INTEGER DEFAULT 1,
             usa_geolocalizacion INTEGER DEFAULT 1,
-            personalizacion_json TEXT DEFAULT '{}',
-            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
-        );
+            personalizacion_json TEXT DEFAULT '{}'
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 17. AUDITORÍA
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS auditoria (
-            id_auditoria INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_auditoria ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             id_empresa TEXT,
             id_usuario TEXT,
             accion TEXT NOT NULL,
             descripcion TEXT,
-            fecha TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa),
-            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
-        );
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
 
-        -- ═══════════════════════════════════════════
-        -- 18. LOG DE ACCESOS
-        -- ═══════════════════════════════════════════
+    await db.exec(`
         CREATE TABLE IF NOT EXISTS accesos (
-            id_acceso INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_acceso ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             id_usuario TEXT,
-            fecha_login TEXT DEFAULT (datetime('now', 'localtime')),
+            fecha_login TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
             ip TEXT,
-            dispositivo TEXT,
-            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
-        );
-
-        -- ═══════════════════════════════════════════
-        -- ÍNDICES CRÍTICOS
-        -- ═══════════════════════════════════════════
-        CREATE INDEX IF NOT EXISTS idx_tareas_empresa_estado ON tareas(id_empresa, estado);
-        CREATE INDEX IF NOT EXISTS idx_tareas_empleado ON tareas(id_empleado, estado);
-        CREATE INDEX IF NOT EXISTS idx_tareas_supervisor ON tareas(id_supervisor, estado);
-        CREATE INDEX IF NOT EXISTS idx_usuarios_empresa_rol ON usuarios(id_empresa, rol);
-        CREATE INDEX IF NOT EXISTS idx_usuarios_codigo ON usuarios(codigo_acceso);
-        CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(id_usuario, leido);
-        CREATE INDEX IF NOT EXISTS idx_auditoria_empresa ON auditoria(id_empresa, fecha);
-        CREATE INDEX IF NOT EXISTS idx_seguimiento_tarea ON seguimiento_tiempo(id_tarea);
-        CREATE INDEX IF NOT EXISTS idx_evidencias_tarea ON evidencias_tarea(id_tarea);
-        CREATE INDEX IF NOT EXISTS idx_historial_tarea ON historial_estados_tarea(id_tarea);
-        CREATE INDEX IF NOT EXISTS idx_movimientos_usuario ON movimientos_puntos(id_usuario);
-        CREATE INDEX IF NOT EXISTS idx_supervisores_empleados_sup ON supervisores_empleados(id_supervisor);
-        CREATE INDEX IF NOT EXISTS idx_supervisores_empleados_emp ON supervisores_empleados(id_empleado);
+            dispositivo TEXT
+        )
     `);
 
-    // Insertar permisos base si no existen
-    const permisosBase = [
-        { codigo: 'ASIGNAR_TAREAS', descripcion: 'Puede asignar tareas a empleados' },
-        { codigo: 'VER_REPORTES', descripcion: 'Puede ver reportes de productividad' },
-        { codigo: 'GESTIONAR_EMPLEADOS', descripcion: 'Puede crear y editar empleados' },
-        { codigo: 'VER_TODOS_EMPLEADOS', descripcion: 'Puede ver todos los empleados de la empresa' },
-        { codigo: 'GESTIONAR_TIPOS_TAREA', descripcion: 'Puede crear tipos de tarea' },
-        { codigo: 'VER_EVIDENCIAS', descripcion: 'Puede ver evidencias de tareas' },
-        { codigo: 'GESTIONAR_DEPARTAMENTOS', descripcion: 'Puede crear y editar departamentos' },
-        { codigo: 'VER_DASHBOARD', descripcion: 'Puede ver el dashboard ejecutivo' },
-        { codigo: 'GESTIONAR_CONFIGURACION', descripcion: 'Puede modificar configuración de empresa' },
-        { codigo: 'VER_AUDITORIA', descripcion: 'Puede ver logs de auditoría' }
+    // Índices
+    const indices = [
+        'CREATE INDEX IF NOT EXISTS idx_tareas_empresa_estado ON tareas(id_empresa, estado)',
+        'CREATE INDEX IF NOT EXISTS idx_tareas_empleado ON tareas(id_empleado, estado)',
+        'CREATE INDEX IF NOT EXISTS idx_tareas_supervisor ON tareas(id_supervisor, estado)',
+        'CREATE INDEX IF NOT EXISTS idx_usuarios_empresa_rol ON usuarios(id_empresa, rol)',
+        'CREATE INDEX IF NOT EXISTS idx_usuarios_codigo ON usuarios(codigo_acceso)',
+        'CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(id_usuario, leido)',
+        'CREATE INDEX IF NOT EXISTS idx_auditoria_empresa ON auditoria(id_empresa, fecha)',
+        'CREATE INDEX IF NOT EXISTS idx_seguimiento_tarea ON seguimiento_tiempo(id_tarea)',
+        'CREATE INDEX IF NOT EXISTS idx_evidencias_tarea ON evidencias_tarea(id_tarea)',
+        'CREATE INDEX IF NOT EXISTS idx_historial_tarea ON historial_estados_tarea(id_tarea)',
+        'CREATE INDEX IF NOT EXISTS idx_movimientos_usuario ON movimientos_puntos(id_usuario)',
+        'CREATE INDEX IF NOT EXISTS idx_supervisores_empleados_sup ON supervisores_empleados(id_supervisor)',
+        'CREATE INDEX IF NOT EXISTS idx_supervisores_empleados_emp ON supervisores_empleados(id_empleado)'
     ];
 
-    const insertPermiso = db.prepare(`
-        INSERT OR IGNORE INTO permisos (codigo, descripcion) VALUES (?, ?)
-    `);
-
-    for (const p of permisosBase) {
-        insertPermiso.run(p.codigo, p.descripcion);
+    for (const idx of indices) {
+        await db.exec(idx);
     }
-    // ═══════════════════════════════════════════
-    // MIGRACIONES (agregar columnas a tablas existentes)
-    // ═══════════════════════════════════════════
-    const migraciones = [
-        "ALTER TABLE empresas ADD COLUMN pais TEXT DEFAULT 'MX'",
-        "ALTER TABLE empresas ADD COLUMN moneda TEXT DEFAULT 'MXN'",
-        "ALTER TABLE empresas ADD COLUMN zona_horaria TEXT DEFAULT 'America/Mexico_City'"
+
+    // Permisos base
+    const permisosBase = [
+        ['ASIGNAR_TAREAS', 'Puede asignar tareas a empleados'],
+        ['VER_REPORTES', 'Puede ver reportes de productividad'],
+        ['GESTIONAR_EMPLEADOS', 'Puede crear y editar empleados'],
+        ['VER_TODOS_EMPLEADOS', 'Puede ver todos los empleados de la empresa'],
+        ['GESTIONAR_TIPOS_TAREA', 'Puede crear tipos de tarea'],
+        ['VER_EVIDENCIAS', 'Puede ver evidencias de tareas'],
+        ['GESTIONAR_DEPARTAMENTOS', 'Puede crear y editar departamentos'],
+        ['VER_DASHBOARD', 'Puede ver el dashboard ejecutivo'],
+        ['GESTIONAR_CONFIGURACION', 'Puede modificar configuración de empresa'],
+        ['VER_AUDITORIA', 'Puede ver logs de auditoría']
     ];
 
-    for (const sql of migraciones) {
-        try { db.exec(sql); } catch(e) { /* columna ya existe */ }
+    for (const [codigo, descripcion] of permisosBase) {
+        try {
+            if (isPostgres) {
+                await db.run(`INSERT INTO permisos (codigo, descripcion) VALUES (?, ?) ON CONFLICT (codigo) DO NOTHING`, codigo, descripcion);
+            } else {
+                await db.run(`INSERT OR IGNORE INTO permisos (codigo, descripcion) VALUES (?, ?)`, codigo, descripcion);
+            }
+        } catch(e) { /* ya existe */ }
     }
 
     console.log('✅ Base de datos inicializada correctamente');
 }
 
-module.exports = { db, inicializarDB };
+module.exports = { db, inicializarDB, isPostgres };

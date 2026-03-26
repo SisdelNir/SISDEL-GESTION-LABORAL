@@ -40,7 +40,7 @@ router.post('/root', (req, res) => {
  * POST /api/auth/login
  * Login de usuario con código de acceso
  */
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
     try {
         const { codigo_acceso } = req.body;
 
@@ -48,12 +48,12 @@ router.post('/login', (req, res) => {
             return res.status(400).json({ error: 'Código de acceso requerido' });
         }
 
-        const usuario = db.prepare(`
+        const usuario = await db.get(`
             SELECT u.*, e.nombre as nombre_empresa, e.logo_url as logo_empresa
             FROM usuarios u
             JOIN empresas e ON u.id_empresa = e.id_empresa
             WHERE u.codigo_acceso = ? AND u.eliminado = 0 AND u.estado = 1
-        `).get(codigo_acceso);
+        `, codigo_acceso);
 
         if (!usuario) {
             return res.status(401).json({ error: 'Código de acceso inválido' });
@@ -69,13 +69,13 @@ router.post('/login', (req, res) => {
                 });
             }
             // Desbloquear si ya pasó el tiempo
-            db.prepare('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id_usuario = ?')
-                .run(usuario.id_usuario);
+            await db.run('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id_usuario = ?',
+                usuario.id_usuario);
         }
 
         // Verificar empresa activa
-        const empresa = db.prepare('SELECT * FROM empresas WHERE id_empresa = ? AND eliminado = 0')
-            .get(usuario.id_empresa);
+        const empresa = await db.get('SELECT * FROM empresas WHERE id_empresa = ? AND eliminado = 0',
+            usuario.id_empresa);
 
         if (!empresa) {
             return res.status(403).json({ error: 'La empresa está desactivada' });
@@ -98,8 +98,8 @@ router.post('/login', (req, res) => {
         registrarAcceso(usuario.id_usuario, ip, dispositivo);
 
         // Obtener configuración de empresa
-        const config = db.prepare('SELECT * FROM configuraciones_empresa WHERE id_empresa = ?')
-            .get(usuario.id_empresa);
+        const config = await db.get('SELECT * FROM configuraciones_empresa WHERE id_empresa = ?',
+            usuario.id_empresa);
 
         res.json({
             mensaje: 'Inicio de sesión exitoso',
@@ -135,18 +135,18 @@ router.post('/logout', verificarToken, (req, res) => {
  * GET /api/auth/me
  * Obtener datos del usuario autenticado
  */
-router.get('/me', verificarToken, (req, res) => {
+router.get('/me', verificarToken, async (req, res) => {
     try {
         if (req.usuario.rol === 'ROOT') {
             return res.json({ rol: 'ROOT', nombre: 'Programador' });
         }
 
-        const usuario = db.prepare(`
+        const usuario = await db.get(`
             SELECT u.*, e.nombre as nombre_empresa, e.logo_url as logo_empresa
             FROM usuarios u
             JOIN empresas e ON u.id_empresa = e.id_empresa
             WHERE u.id_usuario = ? AND u.eliminado = 0
-        `).get(req.usuario.id_usuario);
+        `, req.usuario.id_usuario);
 
         if (!usuario) {
             return res.status(404).json({ error: 'Usuario no encontrado' });

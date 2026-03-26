@@ -69,28 +69,28 @@ function verificarEmpresa(req, res, next) {
 }
 
 /**
- * Registrar acción en auditoría
+ * Registrar acción en auditoría (async)
  */
-function registrarAuditoria(id_empresa, id_usuario, accion, descripcion) {
+async function registrarAuditoria(id_empresa, id_usuario, accion, descripcion) {
     try {
-        db.prepare(`
-            INSERT INTO auditoria (id_empresa, id_usuario, accion, descripcion)
-            VALUES (?, ?, ?, ?)
-        `).run(id_empresa, id_usuario, accion, descripcion);
+        await db.run(
+            `INSERT INTO auditoria (id_empresa, id_usuario, accion, descripcion) VALUES (?, ?, ?, ?)`,
+            id_empresa, id_usuario, accion, descripcion
+        );
     } catch (err) {
         console.error('Error registrando auditoría:', err.message);
     }
 }
 
 /**
- * Registrar acceso
+ * Registrar acceso (async)
  */
-function registrarAcceso(id_usuario, ip, dispositivo) {
+async function registrarAcceso(id_usuario, ip, dispositivo) {
     try {
-        db.prepare(`
-            INSERT INTO accesos (id_usuario, ip, dispositivo)
-            VALUES (?, ?, ?)
-        `).run(id_usuario, ip, dispositivo);
+        await db.run(
+            `INSERT INTO accesos (id_usuario, ip, dispositivo) VALUES (?, ?, ?)`,
+            id_usuario, ip, dispositivo
+        );
     } catch (err) {
         console.error('Error registrando acceso:', err.message);
     }

@@ -26,8 +26,15 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Inicializar base de datos
-inicializarDB();
+// Inicializar base de datos (async para PostgreSQL)
+(async () => {
+    try {
+        await inicializarDB();
+    } catch(err) {
+        console.error('❌ Error inicializando BD:', err);
+        process.exit(1);
+    }
+})();
 
 // Socket.IO - conexiones en tiempo real
 io.on('connection', (socket) => {
