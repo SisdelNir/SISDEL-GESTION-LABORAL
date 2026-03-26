@@ -11,11 +11,12 @@ let db;
 if (isPostgres) {
     // ═══════════════════════════════════════════
     // PostgreSQL (Render / Producción)
+    // Usa schema 'gestion_laboral' para no chocar con otros proyectos
     // ═══════════════════════════════════════════
     const { Pool } = require('pg');
     const pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
+        ssl: process.env.DATABASE_URL.includes('render.com') ? { rejectUnauthorized: false } : false
     });
 
     // Convertir placeholders ? → $1, $2, ...
@@ -125,6 +126,20 @@ if (isPostgres) {
 // Inicialización del esquema
 // ═══════════════════════════════════════════
 async function inicializarDB() {
+    // En PostgreSQL, crear schema separado para no chocar con otros proyectos
+    if (isPostgres) {
+        try {
+            await db.pool.query('CREATE SCHEMA IF NOT EXISTS gestion_laboral');
+            await db.pool.query('SET search_path TO gestion_laboral, public');
+            // Configurar search_path para TODAS las conexiones futuras del pool
+            db.pool.on('connect', (client) => {
+                client.query('SET search_path TO gestion_laboral, public');
+            });
+        } catch(e) {
+            console.warn('⚠️ Schema warning:', e.message);
+        }
+    }
+
     await db.exec(`
         CREATE TABLE IF NOT EXISTS empresas (
             id_empresa TEXT PRIMARY KEY,
