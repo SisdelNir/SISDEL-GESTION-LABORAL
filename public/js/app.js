@@ -295,45 +295,103 @@ async function editarEmpresa(id) {
     try {
         const empresa = await fetchAPI(`/api/empresas/${id}`);
         if (empresa.error) return mostrarToast(empresa.error, 'error');
-        const m = document.createElement('div');
-        m.id = 'modal-editar-empresa';
-        m.className = 'modal-overlay';
-        m.onclick = function(ev) { if(ev.target===this) this.remove(); };
-        m.innerHTML = `
-            <div class="modal glass" style="max-width:500px;padding:2rem">
-                <h3 style="color:var(--primary);margin-bottom:1rem">✏️ Editar Empresa</h3>
-                <form id="form-editar-empresa">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
-                        <div class="form-group"><label>Nombre *</label><input id="edit-nombre" class="form-input" value="${empresa.nombre||''}" required></div>
-                        <div class="form-group"><label>Identificación</label><input id="edit-identificacion" class="form-input" value="${empresa.identificacion_empresa||''}"></div>
-                        <div class="form-group"><label>Teléfono</label><input id="edit-telefono" class="form-input" value="${empresa.telefono||''}"></div>
-                        <div class="form-group"><label>Correo</label><input id="edit-correo" class="form-input" value="${empresa.correo||''}"></div>
-                        <div class="form-group" style="grid-column:span 2"><label>Dirección</label><input id="edit-direccion" class="form-input" value="${empresa.direccion||''}"></div>
-                    </div>
-                    <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1.2rem">
-                        <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-editar-empresa').remove()">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">💾 Guardar</button>
-                    </div>
-                </form>
-            </div>
-        `;
-        document.body.appendChild(m);
-        document.getElementById('form-editar-empresa').onsubmit = async function(ev) {
+
+        // Navegar a la vista de crear empresa
+        cambiarVistaRoot('crear-empresa');
+
+        // Cambiar título y botón
+        const vistaHeader = document.querySelector('#vista-crear-empresa .vista-header h3');
+        if (vistaHeader) vistaHeader.innerHTML = '✏️ Editar Empresa';
+
+        const btnSubmit = document.getElementById('btn-crear-empresa');
+        if (btnSubmit) btnSubmit.innerHTML = '<svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Guardar Cambios';
+
+        // Pre-llenar datos de empresa
+        document.getElementById('emp-nombre').value = empresa.nombre || '';
+        document.getElementById('emp-identificacion').value = empresa.identificacion_empresa || '';
+        document.getElementById('emp-correo').value = empresa.correo || '';
+        document.getElementById('emp-direccion').value = empresa.direccion || '';
+
+        // País
+        const paisSel = document.getElementById('emp-pais');
+        if (paisSel && empresa.pais) {
+            paisSel.value = empresa.pais;
+            actualizarPais();
+        }
+
+        // Moneda
+        const monedaSel = document.getElementById('emp-moneda');
+        if (monedaSel && empresa.moneda) monedaSel.value = empresa.moneda;
+
+        // Zona horaria
+        const zonaInput = document.getElementById('emp-zona-horaria');
+        if (zonaInput && empresa.zona_horaria) zonaInput.value = empresa.zona_horaria;
+
+        // Teléfono (separar lada del número si existe)
+        if (empresa.telefono) {
+            const partes = empresa.telefono.split(' ');
+            if (partes.length >= 2) {
+                document.getElementById('emp-lada').value = partes[0];
+                document.getElementById('emp-telefono').value = partes.slice(1).join(' ');
+            } else {
+                document.getElementById('emp-telefono').value = empresa.telefono;
+            }
+        }
+
+        // Pre-llenar datos del admin
+        document.getElementById('admin-nombre').value = empresa.nombre_administrador || '';
+        if (document.getElementById('admin-identificacion'))
+            document.getElementById('admin-identificacion').value = '';
+        if (document.getElementById('admin-correo'))
+            document.getElementById('admin-correo').value = '';
+
+        // Cambiar el handler del formulario
+        const form = document.getElementById('form-empresa');
+        form.onsubmit = async function(ev) {
             ev.preventDefault();
+            const lada = document.getElementById('emp-lada').value;
+            const tel = document.getElementById('emp-telefono').value.trim();
+
             const body = {
-                nombre: document.getElementById('edit-nombre').value,
-                identificacion_empresa: document.getElementById('edit-identificacion').value,
-                telefono: document.getElementById('edit-telefono').value,
-                correo: document.getElementById('edit-correo').value,
-                direccion: document.getElementById('edit-direccion').value
+                nombre: document.getElementById('emp-nombre').value.trim(),
+                identificacion_empresa: document.getElementById('emp-identificacion').value.trim(),
+                pais: document.getElementById('emp-pais').value,
+                moneda: document.getElementById('emp-moneda').value,
+                zona_horaria: document.getElementById('emp-zona-horaria').value,
+                telefono: tel ? `${lada} ${tel}` : '',
+                correo: document.getElementById('emp-correo').value.trim(),
+                direccion: document.getElementById('emp-direccion').value.trim(),
+                nombre_administrador: document.getElementById('admin-nombre').value.trim()
             };
-            const res = await fetchAPI(`/api/empresas/${id}`, { method:'PUT', body:JSON.stringify(body) });
-            if (res.error) return mostrarToast(res.error, 'error');
-            mostrarToast('✅ Empresa actualizada', 'success');
-            m.remove();
-            cargarEmpresas();
+
+            try {
+                const res = await fetchAPI(`/api/empresas/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+                if (res.error) return mostrarToast(res.error, 'error');
+                mostrarToast('✅ Empresa actualizada exitosamente', 'success');
+
+                // Restaurar formulario a modo crear
+                restaurarFormularioCrear();
+                cambiarVistaRoot('empresas');
+            } catch(err) {
+                mostrarToast('Error al actualizar: ' + err.message, 'error');
+            }
         };
-    } catch(err) { mostrarToast('Error al cargar empresa', 'error'); }
+
+    } catch(err) {
+        mostrarToast('Error al cargar empresa', 'error');
+    }
+}
+
+function restaurarFormularioCrear() {
+    const vistaHeader = document.querySelector('#vista-crear-empresa .vista-header h3');
+    if (vistaHeader) vistaHeader.innerHTML = '➕ Nueva Empresa + Administrador';
+
+    const btnSubmit = document.getElementById('btn-crear-empresa');
+    if (btnSubmit) btnSubmit.innerHTML = '<svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Crear Empresa';
+
+    const form = document.getElementById('form-empresa');
+    form.onsubmit = function(ev) { crearEmpresa(ev); };
+    form.reset();
 }
 
 async function toggleEstadoEmpresa(id, estadoActual) {
