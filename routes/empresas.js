@@ -24,7 +24,7 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
         const id_empresa = uuidv4();
         const id_usuario = uuidv4();
         const id_config = uuidv4();
-        const codigo_admin = generarCodigoAcceso(nombre);
+        const codigo_admin = await generarCodigoAcceso(nombre);
 
         await db.run(`
             INSERT INTO empresas (id_empresa, nombre, identificacion_empresa, nombre_administrador, pais, moneda, zona_horaria, telefono, correo, direccion, codigo_admin)

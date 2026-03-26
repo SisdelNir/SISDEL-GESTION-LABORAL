@@ -23,7 +23,7 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
         if (!empresa) return res.status(404).json({ error: 'Empresa no encontrada' });
 
         const id_usuario = uuidv4();
-        const codigo_acceso = generarCodigoAcceso(empresa.nombre);
+        const codigo_acceso = await generarCodigoAcceso(empresa.nombre);
 
         await db.run(`
             INSERT INTO usuarios (id_usuario, id_empresa, identificacion, nombre, telefono, correo, rol, codigo_acceso, id_departamento)

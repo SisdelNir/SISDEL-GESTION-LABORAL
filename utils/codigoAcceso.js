@@ -7,9 +7,9 @@ const { db } = require('../database/init');
  * - Posición 4-6: Números aleatorios (0-9)
  * 
  * @param {string} nombreEmpresa - Nombre de la empresa
- * @returns {string} Código único de 6 caracteres
+ * @returns {Promise<string>} Código único de 6 caracteres
  */
-function generarCodigoAcceso(nombreEmpresa) {
+async function generarCodigoAcceso(nombreEmpresa) {
     const letras = 'abcdefghijklmnopqrstuvwxyz';
     let codigo;
     let intentos = 0;
@@ -29,17 +29,17 @@ function generarCodigoAcceso(nombreEmpresa) {
         if (intentos >= maxIntentos) {
             throw new Error('No se pudo generar un código de acceso único');
         }
-    } while (existeCodigo(codigo));
+    } while (await existeCodigo(codigo));
 
     return codigo;
 }
 
 /**
- * Verifica si un código ya existe en la base de datos
+ * Verifica si un código ya existe en la base de datos (async)
  */
-function existeCodigo(codigo) {
-    const result = db.prepare('SELECT COUNT(*) as count FROM usuarios WHERE codigo_acceso = ?').get(codigo);
-    return result.count > 0;
+async function existeCodigo(codigo) {
+    const result = await db.get('SELECT COUNT(*) as count FROM usuarios WHERE codigo_acceso = ?', codigo);
+    return result && result.count > 0;
 }
 
 module.exports = { generarCodigoAcceso };
