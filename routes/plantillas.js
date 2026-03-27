@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../database/init');
-const { verificarToken, verificarRol, registrarAuditoria } = require('./auth');
+const { verificarToken, verificarRol, registrarAuditoria } = require('../middleware/auth');
 
 // ═══════════════════════════════════════════
 // PLANTILLAS REPETITIVAS
