@@ -80,10 +80,13 @@ router.get('/', verificarToken, async (req, res) => {
                    cre.nombre as nombre_creador,
                    tt.nombre as nombre_tipo,
                    tt.peso_complejidad,
-                   st.hora_inicio as tiempo_inicio,
-                   st.hora_fin as tiempo_fin,
-                   st.tiempo_real_segundos,
-                   st.lat_inicio, st.lng_inicio, st.lat_fin, st.lng_fin,
+                   (SELECT hora_inicio FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea ORDER BY hora_inicio ASC LIMIT 1) as tiempo_inicio,
+                   (SELECT hora_fin FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea AND hora_fin IS NOT NULL ORDER BY hora_fin DESC LIMIT 1) as tiempo_fin,
+                   (SELECT SUM(tiempo_real_segundos) FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea) as tiempo_real_segundos,
+                   (SELECT lat_inicio FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea AND lat_inicio IS NOT NULL LIMIT 1) as lat_inicio,
+                   (SELECT lng_inicio FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea AND lng_inicio IS NOT NULL LIMIT 1) as lng_inicio,
+                   (SELECT lat_fin FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea AND lat_fin IS NOT NULL LIMIT 1) as lat_fin,
+                   (SELECT lng_fin FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea AND lng_fin IS NOT NULL LIMIT 1) as lng_fin,
                    (SELECT COUNT(*) FROM evidencias_tarea WHERE id_tarea = t.id_tarea) as total_evidencias,
                    (SELECT COUNT(*) FROM comentarios_tarea WHERE id_tarea = t.id_tarea) as total_comentarios
             FROM tareas t
@@ -91,8 +94,7 @@ router.get('/', verificarToken, async (req, res) => {
             LEFT JOIN usuarios sup ON t.id_supervisor = sup.id_usuario
             LEFT JOIN usuarios cre ON t.id_creador = cre.id_usuario
             LEFT JOIN tipos_tarea tt ON t.id_tipo = tt.id_tipo
-            LEFT JOIN seguimiento_tiempo st ON t.id_tarea = st.id_tarea
-            WHERE t.id_empresa = ? AND t.eliminado = 0
+            WHERE t.id_empresa = ?
         `;
         const params = [id_empresa];
 
