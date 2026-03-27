@@ -14,7 +14,8 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
         const {
             nombre, identificacion_empresa, nombre_administrador,
             pais, moneda, zona_horaria, telefono, correo, direccion,
-            admin_identificacion, admin_telefono, admin_correo
+            admin_identificacion, admin_telefono, admin_correo,
+            permite_supervisor_asignar
         } = req.body;
 
         if (!nombre || !nombre_administrador) {
@@ -37,8 +38,8 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
         `, id_usuario, id_empresa, admin_identificacion || identificacion_empresa || '', nombre_administrador, admin_telefono || telefono || '', admin_correo || correo || '', codigo_admin);
 
         await db.run(`
-            INSERT INTO configuraciones_empresa (id_config, id_empresa) VALUES (?, ?)
-        `, id_config, id_empresa);
+            INSERT INTO configuraciones_empresa (id_config, id_empresa, permite_supervisor_asignar) VALUES (?, ?, ?)
+        `, id_config, id_empresa, permite_supervisor_asignar !== undefined ? (permite_supervisor_asignar ? 1 : 0) : 1);
 
         const tiposDefault = [
             { nombre: 'Operativa', descripcion: 'Tareas operativas del día a día', peso: 1 },
@@ -217,6 +218,18 @@ router.delete('/:id', verificarToken, verificarRoot, async (req, res) => {
         res.json({ mensaje: 'Empresa eliminada correctamente' });
     } catch (err) {
         res.status(500).json({ error: 'Error al eliminar empresa' });
+    }
+});
+
+/**
+ * GET /api/empresas/mi-config — Config de la empresa del usuario autenticado
+ */
+router.get('/mi-config', verificarToken, async (req, res) => {
+    try {
+        const config = await db.get('SELECT * FROM configuraciones_empresa WHERE id_empresa = ?', req.usuario.id_empresa);
+        res.json(config || { permite_supervisor_asignar: 1 });
+    } catch (err) {
+        res.status(500).json({ error: 'Error al obtener configuración' });
     }
 });
 

@@ -140,6 +140,7 @@ function abrirPanelPorRol() {
         document.getElementById('sup-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
         cargarDashboardSupervisor();
         verificarEstadoCheckin();
+        verificarPermisosSupervisor();
     } else if (USUARIO.rol === 'EMPLEADO') {
         mostrarPantalla('empleado');
         document.getElementById('emp-panel-user-name').textContent = USUARIO.nombre;
@@ -262,7 +263,8 @@ async function crearEmpresa(e) {
         nombre_administrador: document.getElementById('admin-nombre').value.trim(),
         admin_identificacion: document.getElementById('admin-identificacion').value.trim(),
         admin_telefono: telAdmin ? `${ladaAdmin} ${telAdmin}` : '',
-        admin_correo: document.getElementById('admin-correo').value.trim()
+        admin_correo: document.getElementById('admin-correo').value.trim(),
+        permite_supervisor_asignar: document.getElementById('cfg-sup-asignar').checked
     };
 
     try {
@@ -2084,5 +2086,30 @@ async function cargarAsistenciaAdmin() {
         `;
     } catch (err) {
         console.error('Error cargando asistencia:', err);
+    }
+}
+
+// ═══════════════════════════════════════════
+// PERMISOS SUPERVISOR
+// ═══════════════════════════════════════════
+async function verificarPermisosSupervisor() {
+    try {
+        const config = await fetchAPI('/api/empresas/mi-config');
+        const supContainer = document.getElementById('pantalla-supervisor');
+        if (!supContainer) return;
+
+        // Buscar todos los botones de nueva tarea y repetitivas en el panel supervisor
+        const botonesNuevaTarea = supContainer.querySelectorAll('button[onclick*="mostrarFormularioTarea"]');
+        const botonesRepetitivas = supContainer.querySelectorAll('button[onclick*="abrirModalPlantillas"]');
+
+        if (!config.permite_supervisor_asignar) {
+            botonesNuevaTarea.forEach(btn => btn.style.display = 'none');
+            botonesRepetitivas.forEach(btn => btn.style.display = 'none');
+        } else {
+            botonesNuevaTarea.forEach(btn => btn.style.display = '');
+            botonesRepetitivas.forEach(btn => btn.style.display = '');
+        }
+    } catch(e) {
+        console.log('No se pudo verificar permisos:', e);
     }
 }
