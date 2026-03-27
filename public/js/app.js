@@ -2113,3 +2113,107 @@ async function verificarPermisosSupervisor() {
         console.log('No se pudo verificar permisos:', e);
     }
 }
+
+// ═══════════════════════════════════════════
+// HISTORIAL DE TAREAS (ADMIN)
+// ═══════════════════════════════════════════
+function toggleHistorialTareas() {
+    const panel = document.getElementById('panel-historial-tareas');
+    const btn = document.getElementById('btn-historial-tareas');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        btn.innerHTML = '📜 Ocultar Historial';
+        btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
+        cargarHistorialTareas();
+    } else {
+        panel.style.display = 'none';
+        btn.innerHTML = '📜 Historial';
+        btn.style.background = 'linear-gradient(135deg,#6366f1,#4f46e5)';
+    }
+}
+
+async function cargarHistorialTareas() {
+    try {
+        const desde = document.getElementById('historial-fecha-desde')?.value || '';
+        const hasta = document.getElementById('historial-fecha-hasta')?.value || '';
+        let url = '/api/tareas/historial';
+        const params = [];
+        if (desde) params.push(`desde=${desde}`);
+        if (hasta) params.push(`hasta=${hasta}`);
+        if (params.length) url += '?' + params.join('&');
+
+        const tareas = await fetchAPI(url);
+        const container = document.getElementById('tabla-historial-tareas');
+
+        if (!tareas.length) {
+            container.innerHTML = '<div class="empty-state"><p>No hay registros en el historial</p></div>';
+            return;
+        }
+
+        const prioridadColor = { 'urgente': '#ef4444', 'alta': '#f97316', 'media': '#f59e0b', 'baja': '#10b981' };
+        const estadoColor = {
+            'pendiente': '#f59e0b', 'en_proceso': '#3b82f6', 'finalizada': '#10b981',
+            'finalizada_atrasada': '#f97316', 'atrasada': '#ef4444', 'cancelada': '#6b7280'
+        };
+        const estadoNombre = {
+            'pendiente': 'Pendiente', 'en_proceso': 'En Proceso', 'finalizada': '✅ Finalizada',
+            'finalizada_atrasada': '⚠ Fin. Atrasada', 'atrasada': '🔴 Atrasada', 'cancelada': 'Cancelada'
+        };
+
+        function fmtFechaHora(f) {
+            if (!f) return '—';
+            const d = new Date(f);
+            return d.toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'}) + ' ' +
+                   d.toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+        }
+
+        function fmtDuracion(segundos) {
+            if (!segundos) return '—';
+            const h = Math.floor(segundos / 3600);
+            const m = Math.floor((segundos % 3600) / 60);
+            if (h > 0) return `${h}h ${m}m`;
+            return `${m}m`;
+        }
+
+        container.innerHTML = `
+            <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border-color);text-align:left;position:sticky;top:0;background:var(--bg-card);">
+                        <th style="padding:8px 5px;">📋 Tarea</th>
+                        <th style="padding:8px 5px;">👤 Empleado</th>
+                        <th style="padding:8px 5px;">👁 Supervisor</th>
+                        <th style="padding:8px 5px;">📅 Asignada</th>
+                        <th style="padding:8px 5px;">▶ Inicio</th>
+                        <th style="padding:8px 5px;">⏹ Fin</th>
+                        <th style="padding:8px 5px;">⏱ Ejecución</th>
+                        <th style="padding:8px 5px;">⚡ Prioridad</th>
+                        <th style="padding:8px 5px;">📊 Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tareas.map(t => {
+                        const pColor = prioridadColor[t.prioridad] || '#6366f1';
+                        const eColor = estadoColor[t.estado] || '#6b7280';
+                        const eNombre = estadoNombre[t.estado] || t.estado;
+                        return `<tr style="border-bottom:1px solid var(--border-color);">
+                            <td style="padding:7px 5px;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.titulo}">${t.titulo}</td>
+                            <td style="padding:7px 5px;">${t.nombre_empleado || '—'}</td>
+                            <td style="padding:7px 5px;">${t.nombre_supervisor || '—'}</td>
+                            <td style="padding:7px 5px;font-size:0.7rem;">${fmtFechaHora(t.fecha_creacion)}</td>
+                            <td style="padding:7px 5px;font-size:0.7rem;color:#3b82f6;">${fmtFechaHora(t.fecha_inicio)}</td>
+                            <td style="padding:7px 5px;font-size:0.7rem;color:#10b981;">${fmtFechaHora(t.fecha_fin)}</td>
+                            <td style="padding:7px 5px;font-weight:600;">${fmtDuracion(t.tiempo_total_segundos)}</td>
+                            <td style="padding:7px 5px;"><span style="background:${pColor}22;color:${pColor};padding:2px 6px;border-radius:4px;font-size:0.68rem;font-weight:600;">${t.prioridad.toUpperCase()}</span></td>
+                            <td style="padding:7px 5px;"><span style="color:${eColor};font-weight:600;font-size:0.7rem;">${eNombre}</span></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            <div style="text-align:center;padding:8px;font-size:0.72rem;color:var(--text-muted);">
+                Total: ${tareas.length} tareas
+            </div>
+        `;
+    } catch (err) {
+        console.error('Error cargando historial:', err);
+    }
+}

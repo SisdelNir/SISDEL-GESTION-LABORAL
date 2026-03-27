@@ -521,6 +521,28 @@
                         </div>
                     </div>
 
+                    <!-- Botón Historial -->
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+                        <button class="btn btn-sm" id="btn-historial-tareas" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;font-weight:600;" onclick="toggleHistorialTareas()">
+                            📜 Historial
+                        </button>
+                    </div>
+
+                    <!-- Panel Historial (oculto por defecto) -->
+                    <div id="panel-historial-tareas" style="display:none;margin-bottom:20px;">
+                        <div class="glass" style="padding:16px;border-radius:var(--radius-lg);">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                <h4 style="margin:0;">📜 Historial completo de tareas</h4>
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <input type="date" id="historial-fecha-desde" style="padding:6px 8px;font-size:0.78rem;" placeholder="Desde">
+                                    <input type="date" id="historial-fecha-hasta" style="padding:6px 8px;font-size:0.78rem;" placeholder="Hasta">
+                                    <button class="btn btn-ghost btn-sm" onclick="cargarHistorialTareas()">🔍 Filtrar</button>
+                                </div>
+                            </div>
+                            <div class="tabla-container" id="tabla-historial-tareas" style="max-height:500px;overflow-y:auto;"></div>
+                        </div>
+                    </div>
+
                     <div id="lista-tareas" class="grid-cards">
                         <div class="empty-state"><p>No hay tareas registradas</p></div>
                     </div>

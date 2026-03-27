@@ -444,4 +444,40 @@ function formatearTiempo(segundos) {
     return `${s}s`;
 }
 
+/**
+ * GET /api/tareas/historial — Historial completo de tareas (Admin)
+ */
+router.get('/historial', verificarToken, verificarRol('ADMIN'), async (req, res) => {
+    try {
+        const { desde, hasta } = req.query;
+        let query = `
+            SELECT t.*,
+                ue.nombre AS nombre_empleado, ue.telefono AS telefono_empleado,
+                us.nombre AS nombre_supervisor,
+                st.tiempo_total_segundos
+            FROM tareas t
+            LEFT JOIN usuarios ue ON t.id_empleado = ue.id_usuario
+            LEFT JOIN usuarios us ON t.id_supervisor = us.id_usuario
+            LEFT JOIN (
+                SELECT id_tarea, SUM(duracion_segundos) AS tiempo_total_segundos
+                FROM seguimiento_tiempo
+                GROUP BY id_tarea
+            ) st ON t.id_tarea = st.id_tarea
+            WHERE t.id_empresa = ?
+        `;
+        const params = [req.usuario.id_empresa];
+
+        if (desde) { query += ' AND t.fecha_creacion >= ?'; params.push(desde); }
+        if (hasta) { query += ' AND t.fecha_creacion <= ?'; params.push(hasta + ' 23:59:59'); }
+
+        query += ' ORDER BY t.fecha_creacion DESC';
+
+        const tareas = await db.all(query, ...params);
+        res.json(tareas);
+    } catch (err) {
+        console.error('Error historial:', err);
+        res.status(500).json({ error: 'Error al obtener historial' });
+    }
+});
+
 module.exports = router;
