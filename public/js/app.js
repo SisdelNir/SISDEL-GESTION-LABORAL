@@ -1268,7 +1268,25 @@ async function crearTarea(e) {
     e.preventDefault();
     const tiempoRaw = parseInt(document.getElementById('tarea-tiempo').value);
     const unidad = parseInt(document.getElementById('tarea-tiempo-unidad').value) || 1;
-    const tiempoEstFinal = tiempoRaw ? (tiempoRaw * unidad) : undefined;
+    const finSemana = document.getElementById('tarea-fin-semana').checked;
+    
+    let tiempoEstFinal = tiempoRaw ? (tiempoRaw * unidad) : undefined;
+
+    if (tiempoEstFinal && !finSemana) {
+        let diasEvaluados = Math.ceil(tiempoEstFinal / 1440);
+        let diasExtrasOff = 0;
+        let fechaCal = new Date();
+        while (diasEvaluados > 0) {
+            fechaCal.setDate(fechaCal.getDate() + 1);
+            if (fechaCal.getDay() === 0 || fechaCal.getDay() === 6) {
+                // Sábado (6) o Domingo (0) no se cuentan, sumamos tolerancia de 1 día (1440m)
+                diasExtrasOff++;
+            } else {
+                diasEvaluados--;
+            }
+        }
+        tiempoEstFinal += (diasExtrasOff * 1440);
+    }
 
     const datos = {
         titulo: document.getElementById('tarea-titulo').value.trim(),
