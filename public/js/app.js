@@ -1927,27 +1927,21 @@ async function eliminarProgramada(id) {
 // ASISTENCIA (CHECK-IN / CHECK-OUT)
 // ═══════════════════════════════════════════
 let CHECKIN_ACTIVO = false;
-let CHECKIN_HORA_ENTRADA = null;
-let CHECKIN_INTERVAL = null;
 
 async function verificarEstadoCheckin() {
     try {
         const res = await fetchAPI('/api/asistencia/estado');
         if (res.presente && res.registro) {
             CHECKIN_ACTIVO = true;
-            CHECKIN_HORA_ENTRADA = new Date(res.registro.hora_entrada);
             actualizarUICheckin(true);
-            iniciarTimerCheckin();
         } else {
             CHECKIN_ACTIVO = false;
-            CHECKIN_HORA_ENTRADA = null;
             actualizarUICheckin(false);
         }
     } catch(e) {}
 }
 
 function actualizarUICheckin(presente) {
-    // Actualizar botones según rol (emp o sup)
     const btnEmp = document.getElementById('emp-btn-checkin');
     const btnSup = document.getElementById('sup-btn-checkin');
     const widgetEmp = document.getElementById('emp-checkin-widget');
@@ -1981,26 +1975,7 @@ function actualizarUICheckin(presente) {
             w.style.borderColor = 'rgba(16,185,129,0.3)';
         });
         labels.forEach(l => l.textContent = '📍 Control de asistencia');
-        const timerEmp = document.getElementById('emp-checkin-timer');
-        const timerSup = document.getElementById('sup-checkin-timer');
-        [timerEmp, timerSup].filter(Boolean).forEach(t => t.textContent = '');
     }
-}
-
-function iniciarTimerCheckin() {
-    if (CHECKIN_INTERVAL) clearInterval(CHECKIN_INTERVAL);
-    CHECKIN_INTERVAL = setInterval(() => {
-        if (!CHECKIN_HORA_ENTRADA) return;
-        const ahora = new Date();
-        const diff = Math.floor((ahora - CHECKIN_HORA_ENTRADA) / 1000);
-        const h = Math.floor(diff / 3600);
-        const m = Math.floor((diff % 3600) / 60);
-        const s = diff % 60;
-        const texto = `⏱ Tiempo en sitio: ${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
-        const timerEmp = document.getElementById('emp-checkin-timer');
-        const timerSup = document.getElementById('sup-checkin-timer');
-        [timerEmp, timerSup].filter(Boolean).forEach(t => t.textContent = texto);
-    }, 1000);
 }
 
 async function toggleCheckin() {
@@ -2025,9 +2000,7 @@ async function toggleCheckin() {
                 body: JSON.stringify({ lat, lng })
             });
             CHECKIN_ACTIVO = true;
-            CHECKIN_HORA_ENTRADA = new Date();
             actualizarUICheckin(true);
-            iniciarTimerCheckin();
             mostrarToast('✅ Te reportaste presente correctamente', 'success');
         } catch(err) {
             mostrarToast(err.message || 'Error al registrar entrada', 'error');
@@ -2041,12 +2014,8 @@ async function toggleCheckin() {
                 body: JSON.stringify({ lat, lng })
             });
             CHECKIN_ACTIVO = false;
-            CHECKIN_HORA_ENTRADA = null;
-            if (CHECKIN_INTERVAL) { clearInterval(CHECKIN_INTERVAL); CHECKIN_INTERVAL = null; }
             actualizarUICheckin(false);
-            const horas = Math.floor(res.duracion_minutos / 60);
-            const mins = res.duracion_minutos % 60;
-            mostrarToast(`🚪 Salida registrada. Tiempo trabajado: ${horas}h ${mins}m`, 'success');
+            mostrarToast('🚪 Salida registrada correctamente', 'success');
         } catch(err) {
             mostrarToast(err.message || 'Error al registrar salida', 'error');
         }
