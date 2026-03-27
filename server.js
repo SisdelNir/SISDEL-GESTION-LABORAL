@@ -79,10 +79,10 @@ server.listen(PORT, () => {
     console.log('═══════════════════════════════════════════');
     console.log('');
 
-    // Cron job: cada 30 minutos verificar plantillas repetitivas y tareas programadas
+    // Cron job: cada 5 minutos verificar plantillas repetitivas y tareas programadas
     const { ejecutarCronPlantillas } = require('./routes/plantillas');
-    setInterval(() => ejecutarCronPlantillas(io), 30 * 60 * 1000);
+    setInterval(() => ejecutarCronPlantillas(io), 5 * 60 * 1000);
     // Ejecutar una vez al iniciar
     setTimeout(() => ejecutarCronPlantillas(io), 10000);
-    console.log('⏰ Cron de plantillas activado (cada 30 min)');
+    console.log('⏰ Cron de plantillas activado (cada 5 min)');
 });

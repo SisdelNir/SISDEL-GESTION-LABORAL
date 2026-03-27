@@ -73,7 +73,57 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
            id_empleado_default || null, supFinal, incluir_finsemana !== undefined ? (incluir_finsemana ? 1 : 0) : 1);
 
         registrarAuditoria(id_empresa, req.usuario.id_usuario, 'CREAR_PLANTILLA', `Plantilla "${titulo}" (${recurrencia})`);
-        res.status(201).json({ mensaje: 'Plantilla creada', id_plantilla });
+
+        // Auto-ejecutar si corresponde hoy
+        let tareaGenerada = null;
+        try {
+            const ahora = new Date();
+            const diaActual = ahora.getDay();
+            const diaDelMes = ahora.getDate();
+            const mesActual = ahora.getMonth() + 1;
+            const diaDelAnio = `${String(mesActual).padStart(2,'0')}-${String(diaDelMes).padStart(2,'0')}`;
+            const esFinde = diaActual === 0 || diaActual === 6;
+            const incluyeFinde = incluir_finsemana !== undefined ? incluir_finsemana : true;
+
+            let debeEjecutar = false;
+            if (!esFinde || incluyeFinde) {
+                switch (recurrencia) {
+                    case 'diaria': debeEjecutar = true; break;
+                    case 'semanal':
+                        if (dias_semana) {
+                            const dias = dias_semana.split(',').map(Number);
+                            debeEjecutar = dias.includes(diaActual);
+                        } else {
+                            debeEjecutar = true;
+                        }
+                        break;
+                    case 'mensual':
+                        if (dias_semana) {
+                            const diasMes = dias_semana.split(',').map(Number);
+                            debeEjecutar = diasMes.includes(diaDelMes);
+                        } else {
+                            debeEjecutar = diaDelMes === 1;
+                        }
+                        break;
+                    case 'anual':
+                        if (dias_semana) debeEjecutar = dias_semana === diaDelAnio;
+                        break;
+                }
+            }
+
+            if (debeEjecutar) {
+                const plantillaCreada = await db.get('SELECT * FROM plantillas_tarea WHERE id_plantilla = ?', id_plantilla);
+                tareaGenerada = await generarTareaDesdePlantilla(plantillaCreada, req.usuario.id_usuario, req.app.get('io'));
+            }
+        } catch(autoErr) {
+            console.log('Auto-ejecución plantilla:', autoErr.message);
+        }
+
+        res.status(201).json({ 
+            mensaje: tareaGenerada ? 'Plantilla creada y tarea generada para hoy' : 'Plantilla creada', 
+            id_plantilla,
+            tarea_generada: tareaGenerada
+        });
     } catch (err) {
         console.error('Error creando plantilla:', err);
         res.status(500).json({ error: 'Error al crear plantilla' });
