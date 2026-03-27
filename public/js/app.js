@@ -15,6 +15,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-codigo-acceso').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') loginUnificado();
     });
+    
+    // Listeners vista previa tiempo de tarea
+    ['tarea-tiempo', 'tarea-tiempo-unidad', 'tarea-fin-semana'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', calcularTiempoEstimadoDisplay);
+    });
+
     verificarSesion();
     inicializarSocket();
 });
@@ -1258,6 +1265,38 @@ async function mostrarFormularioTarea() {
         tipos.forEach(t => { selTipo.innerHTML += `<option value="${t.id_tipo}">${t.nombre}</option>`; });
     } catch(e) {}
     document.getElementById('modal-tarea').style.display = 'flex';
+    document.getElementById('tarea-tiempo-preview').style.display = 'none'; // reset preview
+}
+
+function calcularTiempoEstimadoDisplay() {
+    const raw = parseInt(document.getElementById('tarea-tiempo').value);
+    const unidad = parseInt(document.getElementById('tarea-tiempo-unidad').value) || 1;
+    const finSemana = document.getElementById('tarea-fin-semana').checked;
+    const prevDiv = document.getElementById('tarea-tiempo-preview');
+    const prevSpan = document.getElementById('tarea-preview-val');
+
+    if (!raw || isNaN(raw) || raw <= 0) {
+        if(prevDiv) prevDiv.style.display = 'none';
+        return;
+    }
+
+    let finalMins = raw * unidad;
+    if (!finSemana) {
+        let diasEv = Math.ceil(finalMins / 1440);
+        let ex = 0;
+        let cal = new Date();
+        while (diasEv > 0) {
+            cal.setDate(cal.getDate() + 1);
+            if (cal.getDay() === 0 || cal.getDay() === 6) ex++;
+            else diasEv--;
+        }
+        finalMins += (ex * 1440);
+    }
+    
+    if(prevSpan) prevSpan.textContent = formatearTiempo(finalMins);
+    if(prevDiv) prevDiv.style.display = 'block';
+    
+    return finalMins;
 }
 
 function cerrarModalTarea() {
@@ -1266,27 +1305,7 @@ function cerrarModalTarea() {
 
 async function crearTarea(e) {
     e.preventDefault();
-    const tiempoRaw = parseInt(document.getElementById('tarea-tiempo').value);
-    const unidad = parseInt(document.getElementById('tarea-tiempo-unidad').value) || 1;
-    const finSemana = document.getElementById('tarea-fin-semana').checked;
-    
-    let tiempoEstFinal = tiempoRaw ? (tiempoRaw * unidad) : undefined;
-
-    if (tiempoEstFinal && !finSemana) {
-        let diasEvaluados = Math.ceil(tiempoEstFinal / 1440);
-        let diasExtrasOff = 0;
-        let fechaCal = new Date();
-        while (diasEvaluados > 0) {
-            fechaCal.setDate(fechaCal.getDate() + 1);
-            if (fechaCal.getDay() === 0 || fechaCal.getDay() === 6) {
-                // Sábado (6) o Domingo (0) no se cuentan, sumamos tolerancia de 1 día (1440m)
-                diasExtrasOff++;
-            } else {
-                diasEvaluados--;
-            }
-        }
-        tiempoEstFinal += (diasExtrasOff * 1440);
-    }
+    const tiempoEstFinal = calcularTiempoEstimadoDisplay() || undefined;
 
     const datos = {
         titulo: document.getElementById('tarea-titulo').value.trim(),
