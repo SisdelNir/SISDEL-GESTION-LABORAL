@@ -475,6 +475,9 @@
                                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                                 Nueva Tarea
                             </button>
+                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;" onclick="abrirModalPlantillas()">
+                                🔄 Repetitivas
+                            </button>
                         </div>
                     </div>
 
@@ -638,7 +641,10 @@
                 <!-- Sup Tareas -->
                 <div id="panel-sup-tareas" class="panel">
                     <div class="vista-header"><h3>📋 Gestión de Tareas</h3>
-                        <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTarea()">➕ Nueva Tarea</button>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTarea()">➕ Nueva Tarea</button>
+                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;" onclick="abrirModalPlantillas()">🔄 Repetitivas</button>
+                        </div>
                     </div>
                     <div id="sup-estadisticas-tareas" style="margin-bottom:16px;"></div>
                     <div id="sup-lista-tareas" class="grid-cards"></div>
@@ -900,6 +906,180 @@
 
                 <div id="tab-historial" class="tab-detalle" style="display:none;">
                     <div id="lista-historial"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Plantillas Repetitivas          -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="modal-plantillas" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="cerrarModalPlantillas()"></div>
+        <div class="modal-content glass" style="max-width:750px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3>🔄 Tareas Repetitivas y Programadas</h3>
+                <button class="btn-close" onclick="cerrarModalPlantillas()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:16px;">
+                <!-- Tabs de frecuencia -->
+                <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border-color);padding-bottom:0;">
+                    <button class="nav-btn activo" onclick="cambiarTabPlantilla('diaria',this)">📅 Diaria</button>
+                    <button class="nav-btn" onclick="cambiarTabPlantilla('semanal',this)">📆 Semanal</button>
+                    <button class="nav-btn" onclick="cambiarTabPlantilla('mensual',this)">🗓 Mensual</button>
+                    <button class="nav-btn" onclick="cambiarTabPlantilla('anual',this)">🎯 Anual</button>
+                    <button class="nav-btn" onclick="cambiarTabPlantilla('calendario',this)" style="margin-left:auto;color:#f59e0b;">📅 Calendario</button>
+                </div>
+
+                <!-- Formulario crear plantilla -->
+                <div id="form-plantilla-container">
+                    <form id="form-plantilla" onsubmit="crearPlantilla(event)" style="margin-bottom:16px;">
+                        <input type="hidden" id="plt-recurrencia" value="diaria">
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="plt-titulo">Título de la tarea repetitiva *</label>
+                                <input type="text" id="plt-titulo" required placeholder="Ej: Limpieza general de oficina">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="plt-descripcion">Descripción</label>
+                                <textarea id="plt-descripcion" rows="2" placeholder="Detalles..." style="resize:vertical;"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="plt-empleado">Asignar a Empleado</label>
+                                <select id="plt-empleado"><option value="">-- Seleccionar --</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="plt-supervisor">Supervisor</label>
+                                <select id="plt-supervisor"><option value="">-- Seleccionar --</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="plt-prioridad">Prioridad</label>
+                                <select id="plt-prioridad">
+                                    <option value="baja">🟢 Baja</option>
+                                    <option value="media" selected>🟡 Media</option>
+                                    <option value="alta">🟠 Alta</option>
+                                    <option value="urgente">🔴 Urgente</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="plt-hora">Hora de creación</label>
+                                <input type="time" id="plt-hora" value="08:00">
+                            </div>
+                            <div class="form-group">
+                                <label for="plt-tiempo">Tiempo Estimado</label>
+                                <div style="display:flex;gap:4px;">
+                                    <input type="number" id="plt-tiempo" placeholder="Ej: 2" min="1" style="flex:1;">
+                                    <select id="plt-tiempo-unidad" style="width:90px;">
+                                        <option value="60" selected>Horas</option>
+                                        <option value="1440">Días</option>
+                                        <option value="1">Min</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <div style="display:flex;align-items:center;gap:6px;height:38px;">
+                                    <input type="checkbox" id="plt-finsemana" checked style="width:auto;margin:0;">
+                                    <label for="plt-finsemana" style="margin:0;font-size:0.78rem;text-transform:none;cursor:pointer;">Incluir fines de semana</label>
+                                </div>
+                            </div>
+
+                            <!-- Opciones según frecuencia -->
+                            <div id="plt-dias-semana-container" class="form-group full-width" style="display:none;">
+                                <label>Días de la semana</label>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <label style="font-size:0.8rem;text-transform:none;display:flex;align-items:center;gap:3px;cursor:pointer;">
+                                        <input type="checkbox" value="1" class="plt-dia-check" style="width:auto;margin:0;"> Lun
+                                    </label>
+                                    <label style="font-size:0.8rem;text-transform:none;display:flex;align-items:center;gap:3px;cursor:pointer;">
+                                        <input type="checkbox" value="2" class="plt-dia-check" style="width:auto;margin:0;"> Mar
+                                    </label>
+                                    <label style="font-size:0.8rem;text-transform:none;display:flex;align-items:center;gap:3px;cursor:pointer;">
+                                        <input type="checkbox" value="3" class="plt-dia-check" style="width:auto;margin:0;"> Mié
+                                    </label>
+                                    <label style="font-size:0.8rem;text-transform:none;display:flex;align-items:center;gap:3px;cursor:pointer;">
+                                        <input type="checkbox" value="4" class="plt-dia-check" style="width:auto;margin:0;"> Jue
+                                    </label>
+                                    <label style="font-size:0.8rem;text-transform:none;display:flex;align-items:center;gap:3px;cursor:pointer;">
+                                        <input type="checkbox" value="5" class="plt-dia-check" style="width:auto;margin:0;"> Vie
+                                    </label>
+                                    <label style="font-size:0.8rem;text-transform:none;display:flex;align-items:center;gap:3px;cursor:pointer;">
+                                        <input type="checkbox" value="6" class="plt-dia-check" style="width:auto;margin:0;"> Sáb
+                                    </label>
+                                    <label style="font-size:0.8rem;text-transform:none;display:flex;align-items:center;gap:3px;cursor:pointer;">
+                                        <input type="checkbox" value="0" class="plt-dia-check" style="width:auto;margin:0;"> Dom
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="plt-dia-mes-container" class="form-group full-width" style="display:none;">
+                                <label for="plt-dia-mes">Día del mes</label>
+                                <input type="number" id="plt-dia-mes" min="1" max="28" placeholder="Ej: 1" style="width:100px;">
+                            </div>
+
+                            <div id="plt-fecha-anual-container" class="form-group full-width" style="display:none;">
+                                <label for="plt-fecha-anual">Fecha (MM-DD)</label>
+                                <input type="text" id="plt-fecha-anual" placeholder="Ej: 01-15 (15 de enero)" style="width:160px;">
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+                            <button type="submit" class="btn btn-primary btn-sm">✅ Crear Plantilla</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Formulario calendario (oculto por defecto) -->
+                <div id="form-calendario-container" style="display:none;">
+                    <form id="form-programar" onsubmit="programarTareaCalendario(event)" style="margin-bottom:16px;">
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="cal-titulo">Título *</label>
+                                <input type="text" id="cal-titulo" required placeholder="Tarea a programar">
+                            </div>
+                            <div class="form-group">
+                                <label for="cal-fecha">Fecha programada *</label>
+                                <input type="date" id="cal-fecha" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="cal-hora">Hora</label>
+                                <input type="time" id="cal-hora" value="08:00">
+                            </div>
+                            <div class="form-group">
+                                <label for="cal-empleado">Empleado</label>
+                                <select id="cal-empleado"><option value="">-- Seleccionar --</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cal-prioridad">Prioridad</label>
+                                <select id="cal-prioridad">
+                                    <option value="baja">🟢 Baja</option>
+                                    <option value="media" selected>🟡 Media</option>
+                                    <option value="alta">🟠 Alta</option>
+                                    <option value="urgente">🔴 Urgente</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cal-tiempo">Tiempo Est.</label>
+                                <div style="display:flex;gap:4px;">
+                                    <input type="number" id="cal-tiempo" placeholder="2" min="1" style="flex:1;">
+                                    <select id="cal-tiempo-unidad" style="width:80px;">
+                                        <option value="60" selected>Horas</option>
+                                        <option value="1440">Días</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+                            <button type="submit" class="btn btn-primary btn-sm">📅 Programar Tarea</button>
+                        </div>
+                    </form>
+                    <h4 style="margin:16px 0 8px;">📅 Tareas Programadas</h4>
+                    <div id="lista-programadas"></div>
+                </div>
+
+                <!-- Lista de plantillas existentes -->
+                <div id="lista-plantillas-container">
+                    <h4 style="margin:12px 0 8px;" id="titulo-lista-plantillas">📋 Plantillas Diarias</h4>
+                    <div id="lista-plantillas"></div>
                 </div>
             </div>
         </div>

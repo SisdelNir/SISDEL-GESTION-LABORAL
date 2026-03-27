@@ -1646,3 +1646,276 @@ function formatearFecha(fecha) {
         year: 'numeric'
     });
 }
+
+// ═══════════════════════════════════════════
+// PLANTILLAS REPETITIVAS Y PROGRAMADAS
+// ═══════════════════════════════════════════
+let PLANTILLA_TAB_ACTUAL = 'diaria';
+
+async function abrirModalPlantillas() {
+    document.getElementById('modal-plantillas').style.display = 'flex';
+    // Cargar empleados y supervisores en los selects
+    try {
+        const usuarios = await fetchAPI('/api/usuarios');
+        ['plt-empleado', 'plt-supervisor', 'cal-empleado'].forEach(selId => {
+            const sel = document.getElementById(selId);
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+            usuarios.forEach(u => {
+                if (selId.includes('supervisor') && u.rol === 'SUPERVISOR') {
+                    sel.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
+                } else if (!selId.includes('supervisor') && u.rol === 'EMPLEADO') {
+                    sel.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
+                }
+            });
+        });
+    } catch(e) {}
+    cambiarTabPlantilla('diaria', document.querySelector('#modal-plantillas .nav-btn'));
+}
+
+function cerrarModalPlantillas() {
+    document.getElementById('modal-plantillas').style.display = 'none';
+}
+
+function cambiarTabPlantilla(tab, btn) {
+    PLANTILLA_TAB_ACTUAL = tab;
+    // Actualizar botones activos
+    document.querySelectorAll('#modal-plantillas .nav-btn').forEach(b => b.classList.remove('activo'));
+    if (btn) btn.classList.add('activo');
+
+    const formPlantilla = document.getElementById('form-plantilla-container');
+    const formCalendario = document.getElementById('form-calendario-container');
+    const listaContainer = document.getElementById('lista-plantillas-container');
+
+    if (tab === 'calendario') {
+        formPlantilla.style.display = 'none';
+        formCalendario.style.display = 'block';
+        listaContainer.style.display = 'none';
+        cargarTareasProgramadas();
+        return;
+    }
+
+    formPlantilla.style.display = 'block';
+    formCalendario.style.display = 'none';
+    listaContainer.style.display = 'block';
+
+    document.getElementById('plt-recurrencia').value = tab;
+
+    // Mostrar/ocultar opciones específicas
+    document.getElementById('plt-dias-semana-container').style.display = tab === 'semanal' ? 'block' : 'none';
+    document.getElementById('plt-dia-mes-container').style.display = tab === 'mensual' ? 'block' : 'none';
+    document.getElementById('plt-fecha-anual-container').style.display = tab === 'anual' ? 'block' : 'none';
+
+    const titulosTab = { 'diaria': '📋 Plantillas Diarias', 'semanal': '📋 Plantillas Semanales', 'mensual': '📋 Plantillas Mensuales', 'anual': '📋 Plantillas Anuales' };
+    document.getElementById('titulo-lista-plantillas').textContent = titulosTab[tab] || '📋 Plantillas';
+
+    cargarPlantillas(tab);
+}
+
+async function cargarPlantillas(recurrencia) {
+    try {
+        const plantillas = await fetchAPI(`/api/plantillas?recurrencia=${recurrencia}`);
+        const container = document.getElementById('lista-plantillas');
+
+        if (!plantillas.length) {
+            container.innerHTML = '<div class="empty-state"><p>No hay plantillas de este tipo</p></div>';
+            return;
+        }
+
+        const diasNombre = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        const prioridadColor = { 'urgente': '#ef4444', 'alta': '#f97316', 'media': '#f59e0b', 'baja': '#10b981' };
+
+        container.innerHTML = plantillas.map(p => {
+            let frecInfo = '';
+            if (p.recurrencia === 'semanal' && p.dias_semana) {
+                frecInfo = p.dias_semana.split(',').map(d => diasNombre[parseInt(d)]).join(', ');
+            } else if (p.recurrencia === 'mensual' && p.dias_semana) {
+                frecInfo = `Día ${p.dias_semana} de cada mes`;
+            } else if (p.recurrencia === 'anual' && p.dias_semana) {
+                frecInfo = `Fecha: ${p.dias_semana}`;
+            }
+
+            return `
+            <div class="empresa-card glass" style="border-left:3px solid ${prioridadColor[p.prioridad] || '#6366f1'}; opacity:${p.activa ? '1' : '0.5'}; margin-bottom:8px;">
+                <div class="empresa-card-header">
+                    <div class="empresa-avatar" style="background:${p.activa ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : '#555'};font-size:1rem;">${p.activa ? '🔄' : '⏸'}</div>
+                    <div style="flex:1;">
+                        <h4 style="margin:0;">${p.titulo}</h4>
+                        <span class="empresa-id" style="font-size:0.75rem;">
+                            ${p.nombre_empleado ? `👤 ${p.nombre_empleado}` : 'Sin asignar'} · 
+                            ⏰ ${p.hora_creacion || '08:00'} ·
+                            ${frecInfo ? frecInfo : p.recurrencia}
+                        </span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                        <span class="badge" style="background:${prioridadColor[p.prioridad]}22;color:${prioridadColor[p.prioridad]};font-size:0.7rem;">${p.prioridad.toUpperCase()}</span>
+                        <span style="font-size:0.65rem;color:var(--text-muted);">Generadas: ${p.total_generadas || 0}</span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                    <button class="btn btn-sm" style="font-size:0.72rem;padding:4px 8px;background:${p.activa ? '#f59e0b' : '#10b981'};color:white;" onclick="togglePlantilla('${p.id_plantilla}')">
+                        ${p.activa ? '⏸ Pausar' : '▶ Activar'}
+                    </button>
+                    <button class="btn btn-sm" style="font-size:0.72rem;padding:4px 8px;background:#3b82f6;color:white;" onclick="ejecutarPlantilla('${p.id_plantilla}')">
+                        ⚡ Ejecutar ahora
+                    </button>
+                    <button class="btn btn-sm" style="font-size:0.72rem;padding:4px 8px;background:#ef4444;color:white;" onclick="eliminarPlantilla('${p.id_plantilla}')">
+                        🗑 Eliminar
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Error cargando plantillas:', err);
+    }
+}
+
+async function crearPlantilla(e) {
+    e.preventDefault();
+    const recurrencia = document.getElementById('plt-recurrencia').value;
+    const tiempoRaw = parseInt(document.getElementById('plt-tiempo').value);
+    const unidad = parseInt(document.getElementById('plt-tiempo-unidad').value) || 1;
+
+    let dias_semana = null;
+    if (recurrencia === 'semanal') {
+        const checks = document.querySelectorAll('.plt-dia-check:checked');
+        dias_semana = Array.from(checks).map(c => c.value).join(',');
+        if (!dias_semana) { mostrarToast('Selecciona al menos un día de la semana', 'error'); return; }
+    } else if (recurrencia === 'mensual') {
+        dias_semana = document.getElementById('plt-dia-mes').value;
+    } else if (recurrencia === 'anual') {
+        dias_semana = document.getElementById('plt-fecha-anual').value;
+    }
+
+    const datos = {
+        titulo: document.getElementById('plt-titulo').value.trim(),
+        descripcion: document.getElementById('plt-descripcion').value.trim(),
+        id_empleado_default: document.getElementById('plt-empleado').value || undefined,
+        id_supervisor_default: document.getElementById('plt-supervisor').value || undefined,
+        prioridad: document.getElementById('plt-prioridad').value,
+        recurrencia,
+        dias_semana,
+        hora_creacion: document.getElementById('plt-hora').value || '08:00',
+        tiempo_estimado_minutos: tiempoRaw ? (tiempoRaw * unidad) : undefined,
+        incluir_finsemana: document.getElementById('plt-finsemana').checked
+    };
+
+    try {
+        await fetchAPI('/api/plantillas', { method: 'POST', body: JSON.stringify(datos) });
+        mostrarToast('Plantilla creada exitosamente', 'success');
+        document.getElementById('form-plantilla').reset();
+        document.getElementById('plt-recurrencia').value = recurrencia;
+        cargarPlantillas(recurrencia);
+    } catch (err) {
+        mostrarToast(err.message || 'Error al crear plantilla', 'error');
+    }
+}
+
+async function togglePlantilla(id) {
+    try {
+        const res = await fetchAPI(`/api/plantillas/${id}/toggle`, { method: 'PUT' });
+        mostrarToast(res.activa ? 'Plantilla activada' : 'Plantilla pausada', 'success');
+        cargarPlantillas(PLANTILLA_TAB_ACTUAL);
+    } catch (err) {
+        mostrarToast('Error al cambiar estado', 'error');
+    }
+}
+
+async function ejecutarPlantilla(id) {
+    if (!confirm('¿Generar tarea ahora desde esta plantilla?')) return;
+    try {
+        await fetchAPI(`/api/plantillas/${id}/ejecutar`, { method: 'POST' });
+        mostrarToast('Tarea generada exitosamente', 'success');
+        cargarPlantillas(PLANTILLA_TAB_ACTUAL);
+        cargarTareas();
+    } catch (err) {
+        mostrarToast('Error al generar tarea', 'error');
+    }
+}
+
+async function eliminarPlantilla(id) {
+    if (!confirm('¿Eliminar esta plantilla permanentemente?')) return;
+    try {
+        await fetchAPI(`/api/plantillas/${id}`, { method: 'DELETE' });
+        mostrarToast('Plantilla eliminada', 'success');
+        cargarPlantillas(PLANTILLA_TAB_ACTUAL);
+    } catch (err) {
+        mostrarToast('Error al eliminar', 'error');
+    }
+}
+
+// ═══════════════════════════════════════════
+// TAREAS PROGRAMADAS POR CALENDARIO
+// ═══════════════════════════════════════════
+async function programarTareaCalendario(e) {
+    e.preventDefault();
+    const tiempoRaw = parseInt(document.getElementById('cal-tiempo').value);
+    const unidad = parseInt(document.getElementById('cal-tiempo-unidad').value) || 1;
+
+    const datos = {
+        titulo: document.getElementById('cal-titulo').value.trim(),
+        fecha_programada: document.getElementById('cal-fecha').value,
+        hora_programada: document.getElementById('cal-hora').value || '08:00',
+        id_empleado: document.getElementById('cal-empleado').value || undefined,
+        prioridad: document.getElementById('cal-prioridad').value,
+        tiempo_estimado_minutos: tiempoRaw ? (tiempoRaw * unidad) : undefined
+    };
+
+    try {
+        await fetchAPI('/api/plantillas/programadas', { method: 'POST', body: JSON.stringify(datos) });
+        mostrarToast('Tarea programada exitosamente', 'success');
+        document.getElementById('form-programar').reset();
+        cargarTareasProgramadas();
+    } catch (err) {
+        mostrarToast(err.message || 'Error al programar', 'error');
+    }
+}
+
+async function cargarTareasProgramadas() {
+    try {
+        const programadas = await fetchAPI('/api/plantillas/programadas');
+        const container = document.getElementById('lista-programadas');
+
+        if (!programadas.length) {
+            container.innerHTML = '<div class="empty-state"><p>No hay tareas programadas</p></div>';
+            return;
+        }
+
+        const prioridadColor = { 'urgente': '#ef4444', 'alta': '#f97316', 'media': '#f59e0b', 'baja': '#10b981' };
+
+        container.innerHTML = programadas.map(tp => `
+            <div class="empresa-card glass" style="border-left:3px solid ${tp.ejecutada ? '#10b981' : prioridadColor[tp.prioridad] || '#6366f1'}; margin-bottom:8px; opacity:${tp.ejecutada ? '0.6' : '1'};">
+                <div class="empresa-card-header">
+                    <div class="empresa-avatar" style="background:${tp.ejecutada ? '#10b981' : '#f59e0b'};font-size:1rem;">${tp.ejecutada ? '✅' : '📅'}</div>
+                    <div style="flex:1;">
+                        <h4 style="margin:0;">${tp.titulo}</h4>
+                        <span class="empresa-id" style="font-size:0.75rem;">
+                            📅 ${formatearFecha(tp.fecha_programada)} · ⏰ ${tp.hora_programada || '08:00'}
+                            ${tp.nombre_empleado ? ` · 👤 ${tp.nombre_empleado}` : ''}
+                        </span>
+                    </div>
+                    <span class="badge" style="background:${tp.ejecutada ? '#10b98122' : prioridadColor[tp.prioridad] + '22'};color:${tp.ejecutada ? '#10b981' : prioridadColor[tp.prioridad]};font-size:0.7rem;">
+                        ${tp.ejecutada ? 'EJECUTADA' : tp.prioridad.toUpperCase()}
+                    </span>
+                </div>
+                ${!tp.ejecutada ? `
+                <div style="margin-top:6px;">
+                    <button class="btn btn-sm" style="font-size:0.72rem;padding:4px 8px;background:#ef4444;color:white;" onclick="eliminarProgramada('${tp.id_programacion}')">🗑 Cancelar</button>
+                </div>` : ''}
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Error cargando programadas:', err);
+    }
+}
+
+async function eliminarProgramada(id) {
+    if (!confirm('¿Cancelar esta tarea programada?')) return;
+    try {
+        await fetchAPI(`/api/plantillas/programadas/${id}`, { method: 'DELETE' });
+        mostrarToast('Tarea programada cancelada', 'success');
+        cargarTareasProgramadas();
+    } catch (err) {
+        mostrarToast('Error al cancelar', 'error');
+    }
+}

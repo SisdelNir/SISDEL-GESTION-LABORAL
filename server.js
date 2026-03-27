@@ -60,6 +60,7 @@ app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/tareas', require('./routes/tareas'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/auditoria', require('./routes/auditoria'));
+app.use('/api/plantillas', require('./routes/plantillas'));
 
 // Ruta principal - SPA
 app.get('/{*path}', (req, res) => {
@@ -76,4 +77,11 @@ server.listen(PORT, () => {
     console.log(`  📍 http://localhost:${PORT}`);
     console.log('═══════════════════════════════════════════');
     console.log('');
+
+    // Cron job: cada 30 minutos verificar plantillas repetitivas y tareas programadas
+    const { ejecutarCronPlantillas } = require('./routes/plantillas');
+    setInterval(() => ejecutarCronPlantillas(io), 30 * 60 * 1000);
+    // Ejecutar una vez al iniciar
+    setTimeout(() => ejecutarCronPlantillas(io), 10000);
+    console.log('⏰ Cron de plantillas activado (cada 30 min)');
 });

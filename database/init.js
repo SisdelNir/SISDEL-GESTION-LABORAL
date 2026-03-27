@@ -353,7 +353,31 @@ async function inicializarDB() {
             id_empleado_default TEXT,
             id_supervisor_default TEXT,
             activa INTEGER DEFAULT 1,
+            incluir_finsemana INTEGER DEFAULT 1,
+            ultima_ejecucion TEXT,
+            total_generadas INTEGER DEFAULT 0,
             fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+        )
+    `);
+
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS tareas_programadas (
+            id_programacion TEXT PRIMARY KEY,
+            id_empresa TEXT NOT NULL,
+            titulo TEXT NOT NULL,
+            descripcion TEXT,
+            id_tipo TEXT,
+            tiempo_estimado_minutos INTEGER,
+            prioridad TEXT DEFAULT 'media',
+            id_empleado TEXT,
+            id_supervisor TEXT,
+            id_creador TEXT NOT NULL,
+            fecha_programada TEXT NOT NULL,
+            hora_programada TEXT DEFAULT '08:00',
+            ejecutada INTEGER DEFAULT 0,
+            id_tarea_generada TEXT,
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
         )
     `);
 
