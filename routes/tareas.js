@@ -21,17 +21,25 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
         const id_creador = req.usuario.id_usuario;
         const supervisorFinal = id_supervisor || (req.usuario.rol === 'SUPERVISOR' ? req.usuario.id_usuario : null);
 
+        const estadoInicial = id_empleado ? 'en_proceso' : 'pendiente';
+        const ahoraDate = new Date().toISOString();
+        const fechaInic = id_empleado ? ahoraDate : null;
+
         await db.run(`
-            INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_tarea, id_empresa, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null);
+            INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos, estado, fecha_inicio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, id_tarea, id_empresa, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null, estadoInicial, fechaInic);
 
         await db.run(`
             INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)
             VALUES (?, 'pendiente', ?, 'Tarea creada')
         `, id_tarea, id_creador);
 
-        await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
+        if (id_empleado) {
+            await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea, hora_inicio) VALUES (?, ?, ?)`, uuidv4(), id_tarea, ahoraDate);
+        } else {
+            await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
+        }
 
         if (id_empleado) {
             await db.run(`
@@ -44,7 +52,7 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
         if (io) {
             io.to(`empresa_${id_empresa}`).emit('nueva_tarea', {
                 id_tarea, titulo, id_empleado, prioridad,
-                estado: 'pendiente', fecha_creacion: new Date().toISOString()
+                estado: estadoInicial, fecha_creacion: ahoraDate
             });
         }
 

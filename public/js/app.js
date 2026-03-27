@@ -613,7 +613,7 @@ async function cargarTareasEmpleado() {
                     </div>
                     <div class="tarea-desc">${t.descripcion || ''}</div>
                     <div class="tarea-meta">
-                        <span class="badge ${t.prioridad === 'alta' ? 'badge-danger' : t.prioridad === 'media' ? 'badge-warning' : 'badge-info'}">${t.prioridad}</span>
+                        <span class="badge" style="background: ${t.prioridad === 'urgente' ? '#ef4444' : t.prioridad === 'alta' ? '#f97316' : t.prioridad === 'media' ? '#f59e0b' : '#10b981'}; color: white; display:inline-block;">${t.prioridad.toUpperCase()}</span>
                         ${tiempoEst ? `<span class="badge badge-info">${tiempoEst}</span>` : ''}
                         ${t.fecha_vencimiento ? `<span style="font-size:0.75rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_vencimiento)}</span>` : ''}
                     </div>
