@@ -360,6 +360,16 @@ async function inicializarDB() {
         )
     `);
 
+    // Migración: columnas nuevas para plantillas_tarea
+    const migracionesPlantillas = [
+        'ALTER TABLE plantillas_tarea ADD COLUMN incluir_finsemana INTEGER DEFAULT 1',
+        'ALTER TABLE plantillas_tarea ADD COLUMN ultima_ejecucion TEXT',
+        'ALTER TABLE plantillas_tarea ADD COLUMN total_generadas INTEGER DEFAULT 0'
+    ];
+    for (const mig of migracionesPlantillas) {
+        try { await db.run(mig); } catch(e) { /* ya existe */ }
+    }
+
     await db.exec(`
         CREATE TABLE IF NOT EXISTS tareas_programadas (
             id_programacion TEXT PRIMARY KEY,

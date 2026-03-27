@@ -1730,6 +1730,16 @@ async function cargarPlantillas(recurrencia) {
         const diasNombre = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
         const prioridadColor = { 'urgente': '#ef4444', 'alta': '#f97316', 'media': '#f59e0b', 'baja': '#10b981' };
 
+        function hora24a12(h24) {
+            if (!h24) return '7:00 AM';
+            const [hh, mm] = h24.split(':');
+            let h = parseInt(hh);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            if (h === 0) h = 12;
+            else if (h > 12) h -= 12;
+            return `${h}:${mm || '00'} ${ampm}`;
+        }
+
         container.innerHTML = plantillas.map(p => {
             let frecInfo = '';
             if (p.recurrencia === 'semanal' && p.dias_semana) {
@@ -1748,7 +1758,7 @@ async function cargarPlantillas(recurrencia) {
                         <h4 style="margin:0;">${p.titulo}</h4>
                         <span class="empresa-id" style="font-size:0.75rem;">
                             ${p.nombre_empleado ? `👤 ${p.nombre_empleado}` : 'Sin asignar'} · 
-                            ⏰ ${p.hora_creacion || '08:00'} ·
+                            ⏰ ${hora24a12(p.hora_creacion)} ·
                             ${frecInfo ? frecInfo : p.recurrencia}
                         </span>
                     </div>
@@ -1764,6 +1774,9 @@ async function cargarPlantillas(recurrencia) {
                     <button class="btn btn-sm" style="font-size:0.72rem;padding:4px 8px;background:#3b82f6;color:white;" onclick="ejecutarPlantilla('${p.id_plantilla}')">
                         ⚡ Ejecutar ahora
                     </button>
+                    <button class="btn btn-sm" style="font-size:0.72rem;padding:4px 8px;background:#8b5cf6;color:white;" onclick="editarPlantilla('${p.id_plantilla}','${encodeURIComponent(p.titulo)}','${encodeURIComponent(p.descripcion||'')}','${p.prioridad}','${p.hora_creacion||'07:00'}','${p.id_empleado_default||''}','${p.id_supervisor_default||''}','${p.tiempo_estimado_minutos||''}','${p.incluir_finsemana}','${p.dias_semana||''}')">
+                        ✏️ Modificar
+                    </button>
                     <button class="btn btn-sm" style="font-size:0.72rem;padding:4px 8px;background:#ef4444;color:white;" onclick="eliminarPlantilla('${p.id_plantilla}')">
                         🗑 Eliminar
                     </button>
@@ -1774,6 +1787,17 @@ async function cargarPlantillas(recurrencia) {
         console.error('Error cargando plantillas:', err);
     }
 }
+
+function obtenerHora12a24() {
+    let h = parseInt(document.getElementById('plt-hora-h').value);
+    const m = document.getElementById('plt-hora-m').value;
+    const ampm = document.getElementById('plt-hora-ampm').value;
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return `${String(h).padStart(2,'0')}:${m}`;
+}
+
+let PLANTILLA_EDITANDO_ID = null;
 
 async function crearPlantilla(e) {
     e.preventDefault();
@@ -1800,19 +1824,26 @@ async function crearPlantilla(e) {
         prioridad: document.getElementById('plt-prioridad').value,
         recurrencia,
         dias_semana,
-        hora_creacion: document.getElementById('plt-hora').value || '08:00',
+        hora_creacion: obtenerHora12a24(),
         tiempo_estimado_minutos: tiempoRaw ? (tiempoRaw * unidad) : undefined,
         incluir_finsemana: document.getElementById('plt-finsemana').checked
     };
 
     try {
-        await fetchAPI('/api/plantillas', { method: 'POST', body: JSON.stringify(datos) });
-        mostrarToast('Plantilla creada exitosamente', 'success');
+        if (PLANTILLA_EDITANDO_ID) {
+            await fetchAPI(`/api/plantillas/${PLANTILLA_EDITANDO_ID}`, { method: 'PUT', body: JSON.stringify(datos) });
+            mostrarToast('Plantilla modificada exitosamente', 'success');
+            PLANTILLA_EDITANDO_ID = null;
+            document.querySelector('#form-plantilla button[type="submit"]').innerHTML = '💾 Guardar';
+        } else {
+            await fetchAPI('/api/plantillas', { method: 'POST', body: JSON.stringify(datos) });
+            mostrarToast('Plantilla creada exitosamente', 'success');
+        }
         document.getElementById('form-plantilla').reset();
         document.getElementById('plt-recurrencia').value = recurrencia;
         cargarPlantillas(recurrencia);
     } catch (err) {
-        mostrarToast(err.message || 'Error al crear plantilla', 'error');
+        mostrarToast(err.message || 'Error al guardar plantilla', 'error');
     }
 }
 
@@ -1836,6 +1867,46 @@ async function ejecutarPlantilla(id) {
     } catch (err) {
         mostrarToast('Error al generar tarea', 'error');
     }
+}
+
+function editarPlantilla(id, tituloEnc, descEnc, prioridad, hora24, empId, supId, minutos, finSemana, dias) {
+    PLANTILLA_EDITANDO_ID = id;
+    document.getElementById('plt-titulo').value = decodeURIComponent(tituloEnc);
+    document.getElementById('plt-descripcion').value = decodeURIComponent(descEnc);
+    document.getElementById('plt-prioridad').value = prioridad || 'media';
+
+    // Setear hora en formato 12h
+    if (hora24) {
+        const [hh, mm] = hora24.split(':');
+        let h = parseInt(hh);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        if (h === 0) h = 12;
+        else if (h > 12) h -= 12;
+        document.getElementById('plt-hora-h').value = h;
+        document.getElementById('plt-hora-m').value = mm || '00';
+        document.getElementById('plt-hora-ampm').value = ampm;
+    }
+
+    if (empId) document.getElementById('plt-empleado').value = empId;
+    if (supId) document.getElementById('plt-supervisor').value = supId;
+    if (minutos) {
+        const m = parseInt(minutos);
+        if (m >= 1440 && m % 1440 === 0) {
+            document.getElementById('plt-tiempo').value = m / 1440;
+            document.getElementById('plt-tiempo-unidad').value = '1440';
+        } else if (m >= 60) {
+            document.getElementById('plt-tiempo').value = m / 60;
+            document.getElementById('plt-tiempo-unidad').value = '60';
+        } else {
+            document.getElementById('plt-tiempo').value = m;
+            document.getElementById('plt-tiempo-unidad').value = '1';
+        }
+    }
+    document.getElementById('plt-finsemana').checked = finSemana === '1';
+
+    document.querySelector('#form-plantilla button[type="submit"]').innerHTML = '✏️ Modificar';
+    document.getElementById('form-plantilla-container').scrollIntoView({ behavior: 'smooth' });
+    mostrarToast('Editando plantilla — modifica los campos y presiona Modificar', 'info');
 }
 
 async function eliminarPlantilla(id) {
