@@ -139,11 +139,13 @@ function abrirPanelPorRol() {
         document.getElementById('sup-user-name').textContent = USUARIO.nombre;
         document.getElementById('sup-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
         cargarDashboardSupervisor();
+        verificarEstadoCheckin();
     } else if (USUARIO.rol === 'EMPLEADO') {
         mostrarPantalla('empleado');
         document.getElementById('emp-panel-user-name').textContent = USUARIO.nombre;
         document.getElementById('emp-panel-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
         cargarTareasEmpleado();
+        verificarEstadoCheckin();
     }
 }
 
@@ -474,6 +476,7 @@ function cambiarPanelAdmin(panel) {
     if (panel === 'ranking') cargarRanking();
     if (panel === 'notificaciones') cargarNotificaciones();
     if (panel === 'auditoria') cargarAuditoria();
+    if (panel === 'asistencia') cargarAsistenciaAdmin();
 }
 
 // ═══════════════════════════════════════════
@@ -1917,5 +1920,200 @@ async function eliminarProgramada(id) {
         cargarTareasProgramadas();
     } catch (err) {
         mostrarToast('Error al cancelar', 'error');
+    }
+}
+
+// ═══════════════════════════════════════════
+// ASISTENCIA (CHECK-IN / CHECK-OUT)
+// ═══════════════════════════════════════════
+let CHECKIN_ACTIVO = false;
+let CHECKIN_HORA_ENTRADA = null;
+let CHECKIN_INTERVAL = null;
+
+async function verificarEstadoCheckin() {
+    try {
+        const res = await fetchAPI('/api/asistencia/estado');
+        if (res.presente && res.registro) {
+            CHECKIN_ACTIVO = true;
+            CHECKIN_HORA_ENTRADA = new Date(res.registro.hora_entrada);
+            actualizarUICheckin(true);
+            iniciarTimerCheckin();
+        } else {
+            CHECKIN_ACTIVO = false;
+            CHECKIN_HORA_ENTRADA = null;
+            actualizarUICheckin(false);
+        }
+    } catch(e) {}
+}
+
+function actualizarUICheckin(presente) {
+    // Actualizar botones según rol (emp o sup)
+    const btnEmp = document.getElementById('emp-btn-checkin');
+    const btnSup = document.getElementById('sup-btn-checkin');
+    const widgetEmp = document.getElementById('emp-checkin-widget');
+    const widgetSup = document.getElementById('sup-checkin-widget');
+    const labelEmp = document.getElementById('emp-checkin-label');
+    const labelSup = document.getElementById('sup-checkin-label');
+
+    const btns = [btnEmp, btnSup].filter(Boolean);
+    const widgets = [widgetEmp, widgetSup].filter(Boolean);
+    const labels = [labelEmp, labelSup].filter(Boolean);
+
+    if (presente) {
+        btns.forEach(btn => {
+            btn.textContent = '🚪 Saliendo del lugar de trabajo';
+            btn.style.background = '#ef4444';
+        });
+        widgets.forEach(w => {
+            w.style.background = 'linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.05))';
+            w.style.borderColor = 'rgba(239,68,68,0.3)';
+        });
+        labels.forEach(l => {
+            l.innerHTML = '✅ <strong style="color:#10b981;">PRESENTE</strong> en lugar de trabajo';
+        });
+    } else {
+        btns.forEach(btn => {
+            btn.textContent = '📍 Reportarme Presente';
+            btn.style.background = '#10b981';
+        });
+        widgets.forEach(w => {
+            w.style.background = 'linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05))';
+            w.style.borderColor = 'rgba(16,185,129,0.3)';
+        });
+        labels.forEach(l => l.textContent = '📍 Control de asistencia');
+        const timerEmp = document.getElementById('emp-checkin-timer');
+        const timerSup = document.getElementById('sup-checkin-timer');
+        [timerEmp, timerSup].filter(Boolean).forEach(t => t.textContent = '');
+    }
+}
+
+function iniciarTimerCheckin() {
+    if (CHECKIN_INTERVAL) clearInterval(CHECKIN_INTERVAL);
+    CHECKIN_INTERVAL = setInterval(() => {
+        if (!CHECKIN_HORA_ENTRADA) return;
+        const ahora = new Date();
+        const diff = Math.floor((ahora - CHECKIN_HORA_ENTRADA) / 1000);
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
+        const texto = `⏱ Tiempo en sitio: ${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+        const timerEmp = document.getElementById('emp-checkin-timer');
+        const timerSup = document.getElementById('sup-checkin-timer');
+        [timerEmp, timerSup].filter(Boolean).forEach(t => t.textContent = texto);
+    }, 1000);
+}
+
+async function toggleCheckin() {
+    // Obtener coordenadas GPS
+    let lat = null, lng = null;
+    try {
+        const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        });
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+    } catch(e) {
+        // GPS no disponible, continuar sin coordenadas
+        console.log('GPS no disponible:', e.message);
+    }
+
+    if (!CHECKIN_ACTIVO) {
+        // CHECK-IN
+        try {
+            const res = await fetchAPI('/api/asistencia/entrada', {
+                method: 'POST',
+                body: JSON.stringify({ lat, lng })
+            });
+            CHECKIN_ACTIVO = true;
+            CHECKIN_HORA_ENTRADA = new Date();
+            actualizarUICheckin(true);
+            iniciarTimerCheckin();
+            mostrarToast('✅ Te reportaste presente correctamente', 'success');
+        } catch(err) {
+            mostrarToast(err.message || 'Error al registrar entrada', 'error');
+        }
+    } else {
+        // CHECK-OUT
+        if (!confirm('¿Confirmas que te retiras del lugar de trabajo?')) return;
+        try {
+            const res = await fetchAPI('/api/asistencia/salida', {
+                method: 'POST',
+                body: JSON.stringify({ lat, lng })
+            });
+            CHECKIN_ACTIVO = false;
+            CHECKIN_HORA_ENTRADA = null;
+            if (CHECKIN_INTERVAL) { clearInterval(CHECKIN_INTERVAL); CHECKIN_INTERVAL = null; }
+            actualizarUICheckin(false);
+            const horas = Math.floor(res.duracion_minutos / 60);
+            const mins = res.duracion_minutos % 60;
+            mostrarToast(`🚪 Salida registrada. Tiempo trabajado: ${horas}h ${mins}m`, 'success');
+        } catch(err) {
+            mostrarToast(err.message || 'Error al registrar salida', 'error');
+        }
+    }
+}
+
+// ═══════════════════════════════════════════
+// ASISTENCIA - VISTA ADMIN
+// ═══════════════════════════════════════════
+async function cargarAsistenciaAdmin() {
+    try {
+        const fecha = document.getElementById('filtro-asistencia-fecha')?.value || '';
+        let url = '/api/asistencia';
+        if (fecha) url += `?fecha=${fecha}`;
+
+        const registros = await fetchAPI(url);
+
+        // Stats
+        const presentes = registros.filter(r => r.estado === 'presente').length;
+        const salieron = registros.filter(r => r.estado === 'salida').length;
+        const elP = document.getElementById('ast-presentes'); if(elP) elP.textContent = presentes;
+        const elS = document.getElementById('ast-salieron'); if(elS) elS.textContent = salieron;
+        const elT = document.getElementById('ast-total'); if(elT) elT.textContent = registros.length;
+
+        const container = document.getElementById('tabla-asistencia');
+        if (!registros.length) {
+            container.innerHTML = '<div class="empty-state"><p>No hay registros de asistencia</p></div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border-color);text-align:left;">
+                        <th style="padding:8px 6px;">👤 Nombre</th>
+                        <th style="padding:8px 6px;">📱 Teléfono</th>
+                        <th style="padding:8px 6px;">📅 Fecha</th>
+                        <th style="padding:8px 6px;">🟢 Entrada</th>
+                        <th style="padding:8px 6px;">🔴 Salida</th>
+                        <th style="padding:8px 6px;">⏱ Duración</th>
+                        <th style="padding:8px 6px;">📍 Ubicación</th>
+                        <th style="padding:8px 6px;">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${registros.map(r => {
+                        const horaEnt = r.hora_entrada ? new Date(r.hora_entrada).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) : '-';
+                        const horaSal = r.hora_salida ? new Date(r.hora_salida).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) : '-';
+                        const duracion = r.duracion_minutos ? `${Math.floor(r.duracion_minutos/60)}h ${r.duracion_minutos%60}m` : '—';
+                        const ubicacion = r.lat_entrada ? `<a href="https://maps.google.com/?q=${r.lat_entrada},${r.lng_entrada}" target="_blank" style="color:#3b82f6;text-decoration:none;">📍 Ver mapa</a>` : '—';
+                        const estadoColor = r.estado === 'presente' ? '#10b981' : '#6366f1';
+                        const estadoTexto = r.estado === 'presente' ? '✅ Presente' : '📤 Salió';
+                        return `<tr style="border-bottom:1px solid var(--border-color);">
+                            <td style="padding:8px 6px;font-weight:500;">${r.nombre_usuario || '—'}</td>
+                            <td style="padding:8px 6px;">${r.telefono || '—'}</td>
+                            <td style="padding:8px 6px;">${formatearFecha(r.fecha)}</td>
+                            <td style="padding:8px 6px;color:#10b981;">${horaEnt}</td>
+                            <td style="padding:8px 6px;color:#ef4444;">${horaSal}</td>
+                            <td style="padding:8px 6px;font-weight:600;">${duracion}</td>
+                            <td style="padding:8px 6px;">${ubicacion}</td>
+                            <td style="padding:8px 6px;"><span style="color:${estadoColor};font-weight:600;font-size:0.72rem;">${estadoTexto}</span></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (err) {
+        console.error('Error cargando asistencia:', err);
     }
 }

@@ -427,6 +427,28 @@ async function inicializarDB() {
         )
     `);
 
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS asistencia (
+            id_asistencia TEXT PRIMARY KEY,
+            id_empresa TEXT NOT NULL,
+            id_usuario TEXT NOT NULL,
+            nombre_usuario TEXT,
+            telefono TEXT,
+            fecha TEXT NOT NULL,
+            hora_entrada TEXT,
+            hora_salida TEXT,
+            lat_entrada REAL,
+            lng_entrada REAL,
+            lat_salida REAL,
+            lng_salida REAL,
+            duracion_minutos INTEGER,
+            estado TEXT DEFAULT 'presente',
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa),
+            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+        )
+    `);
+
     // Índices
     const indices = [
         'CREATE INDEX IF NOT EXISTS idx_tareas_empresa_estado ON tareas(id_empresa, estado)',

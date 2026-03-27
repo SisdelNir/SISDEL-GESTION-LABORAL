@@ -61,6 +61,7 @@ app.use('/api/tareas', require('./routes/tareas'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/auditoria', require('./routes/auditoria'));
 app.use('/api/plantillas', require('./routes/plantillas'));
+app.use('/api/asistencia', require('./routes/asistencia'));
 
 // Ruta principal - SPA
 app.get('/{*path}', (req, res) => {

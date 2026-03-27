@@ -349,6 +349,7 @@
                     <button class="nav-btn" data-panel="tareas" onclick="cambiarPanelAdmin('tareas')">📋 Tareas</button>
                     <button class="nav-btn" data-panel="ranking" onclick="cambiarPanelAdmin('ranking')">🏆 Ranking</button>
                     <button class="nav-btn" data-panel="auditoria" onclick="cambiarPanelAdmin('auditoria')">🛡 Auditoría</button>
+                    <button class="nav-btn" data-panel="asistencia" onclick="cambiarPanelAdmin('asistencia')">📍 Asistencia</button>
                     <button class="nav-btn" data-panel="notificaciones" onclick="cambiarPanelAdmin('notificaciones')">🔔 <span id="notif-badge-header"></span></button>
                 </nav>
             </div>
@@ -520,6 +521,25 @@
                     </div>
                 </div>
 
+                <!-- Asistencia -->
+                <div id="panel-asistencia" class="panel">
+                    <div class="vista-header">
+                        <h3>📍 Control de Asistencia</h3>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="date" id="filtro-asistencia-fecha" onchange="cargarAsistenciaAdmin()" style="padding:8px 12px;font-size:0.82rem;">
+                            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('filtro-asistencia-fecha').value='';cargarAsistenciaAdmin()">Todos</button>
+                        </div>
+                    </div>
+                    <div class="glass" style="padding:16px;border-radius:var(--radius-lg);">
+                        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;" id="asistencia-stats">
+                            <div class="stat-card glass"><div class="stat-icon" style="background:#10b981;">✅</div><div class="stat-info"><span class="stat-value" id="ast-presentes">0</span><span class="stat-label">Presentes Ahora</span></div></div>
+                            <div class="stat-card glass"><div class="stat-icon" style="background:#3b82f6;">📤</div><div class="stat-info"><span class="stat-value" id="ast-salieron">0</span><span class="stat-label">Ya Salieron</span></div></div>
+                            <div class="stat-card glass"><div class="stat-icon" style="background:#f59e0b;">📊</div><div class="stat-info"><span class="stat-value" id="ast-total">0</span><span class="stat-label">Total Registros</span></div></div>
+                        </div>
+                        <div class="tabla-container" id="tabla-asistencia"></div>
+                    </div>
+                </div>
+
                 <!-- Notificaciones -->
                 <div id="panel-notificaciones" class="panel">
                     <div class="vista-header">
@@ -618,6 +638,16 @@
             <div class="content-area full">
                 <!-- Sup Dashboard -->
                 <div id="panel-sup-dashboard" class="panel activa">
+                    <!-- Check-in/Check-out Widget Supervisor -->
+                    <div id="sup-checkin-widget" style="margin-bottom:16px;padding:12px 16px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05));border:1px solid rgba(16,185,129,0.3);">
+                        <div>
+                            <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:2px;" id="sup-checkin-label">📍 Control de asistencia</div>
+                            <div style="font-size:0.72rem;color:var(--text-muted);" id="sup-checkin-timer"></div>
+                        </div>
+                        <button id="sup-btn-checkin" class="btn btn-sm" style="background:#10b981;color:white;font-weight:600;min-width:180px;padding:10px 16px;" onclick="toggleCheckin()">
+                            📍 Reportarme Presente
+                        </button>
+                    </div>
                     <div class="vista-header"><h3>📊 Mi Dashboard</h3></div>
                     <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
                         <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-primary);">👥</div><div class="stat-number" id="sup-stat-empleados">0</div><div class="stat-label">Empleados</div></div>
@@ -690,6 +720,16 @@
             <div class="content-area full">
                 <!-- Emp Mis Tareas -->
                 <div id="panel-emp-mis-tareas" class="panel activa">
+                    <!-- Check-in/Check-out Widget -->
+                    <div id="emp-checkin-widget" style="margin-bottom:16px;padding:12px 16px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05));border:1px solid rgba(16,185,129,0.3);">
+                        <div>
+                            <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:2px;" id="emp-checkin-label">📍 Control de asistencia</div>
+                            <div style="font-size:0.72rem;color:var(--text-muted);" id="emp-checkin-timer"></div>
+                        </div>
+                        <button id="emp-btn-checkin" class="btn btn-sm" style="background:#10b981;color:white;font-weight:600;min-width:180px;padding:10px 16px;" onclick="toggleCheckin()">
+                            📍 Reportarme Presente
+                        </button>
+                    </div>
                     <div class="vista-header"><h3>📋 Mis Tareas</h3></div>
                     <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
                         <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-amber);">🟡</div><div class="stat-number" id="emp-stat-pendientes">0</div><div class="stat-label">Pendientes</div></div>
