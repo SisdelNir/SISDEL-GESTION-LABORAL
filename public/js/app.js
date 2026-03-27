@@ -1106,6 +1106,9 @@ function cerrarModalUsuario() {
             if (panel === 'empleados') cargarEmpleados();
             cargarDashboardAdmin();
         }
+    } else if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
+        cargarEmpleadosSupervisor();
+        cargarDashboardSupervisor();
     }
 }
 
@@ -1153,10 +1156,23 @@ let CRONOMETRO_INTERVAL = null;
 async function cargarEstadisticasTareas() {
     try {
         const stats = await fetchAPI('/api/tareas/estadisticas');
-        document.getElementById('stat-pendientes').textContent = stats.pendientes;
-        document.getElementById('stat-en-proceso').textContent = stats.en_proceso;
-        document.getElementById('stat-finalizadas').textContent = stats.finalizadas;
-        document.getElementById('stat-atrasadas').textContent = stats.atrasadas;
+        if (USUARIO.rol === 'ADMIN') {
+            const elP = document.getElementById('stat-pendientes'); if(elP) elP.textContent = stats.pendientes;
+            const elEp = document.getElementById('stat-en-proceso'); if(elEp) elEp.textContent = stats.en_proceso;
+            const elF = document.getElementById('stat-finalizadas'); if(elF) elF.textContent = stats.finalizadas;
+            const elA = document.getElementById('stat-atrasadas'); if(elA) elA.textContent = stats.atrasadas;
+        } else if (USUARIO.rol === 'SUPERVISOR') {
+            const supStats = document.getElementById('sup-estadisticas-tareas');
+            if (supStats) {
+                supStats.innerHTML = `
+                <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+                    <div class="stat-card glass"><div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🟡</div><div class="stat-info"><span class="stat-value">${stats.pendientes}</span><span class="stat-label">Pendientes</span></div></div>
+                    <div class="stat-card glass"><div class="stat-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">🔵</div><div class="stat-info"><span class="stat-value">${stats.en_proceso}</span><span class="stat-label">En Proceso</span></div></div>
+                    <div class="stat-card glass"><div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">🟢</div><div class="stat-info"><span class="stat-value">${stats.finalizadas}</span><span class="stat-label">Finalizadas</span></div></div>
+                    <div class="stat-card glass"><div class="stat-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">🔴</div><div class="stat-info"><span class="stat-value">${stats.atrasadas}</span><span class="stat-label">Atrasadas</span></div></div>
+                </div>`;
+            }
+        }
     } catch(e) {}
 }
 
@@ -1169,7 +1185,9 @@ async function cargarTareas() {
         if (prioridad) url += `prioridad=${prioridad}&`;
 
         const tareas = await fetchAPI(url);
-        const container = document.getElementById('lista-tareas');
+        const container = document.getElementById(USUARIO.rol === 'SUPERVISOR' ? 'sup-lista-tareas' : 'lista-tareas');
+        
+        if (!container) return;
 
         cargarEstadisticasTareas();
 
