@@ -148,6 +148,7 @@ function abrirPanelPorRol() {
         cargarTareasEmpleado();
         verificarEstadoCheckin();
         verificarUbicacionFija();
+        iniciarAlertasEmpleado();
     }
 }
 
@@ -569,10 +570,169 @@ function cambiarPanelEmpleado(panel) {
 
 // Objeto global para los intervalos de cronómetros
 const cronoIntervalos = {};
+const tareasYaAlertadas = new Set();
+let intervaloAlertasEmpleado = null;
+
+// ═══════════════════════════════════════════
+// SISTEMA DE ALERTAS Y NOTIFICACIONES (EMPLEADO)
+// ═══════════════════════════════════════════
+function alertaSonoraYVibracion(tipo) {
+    // Vibración (móvil)
+    try {
+        if (navigator.vibrate) {
+            if (tipo === 'urgente') {
+                navigator.vibrate([300, 100, 300, 100, 500]); // patrón urgente
+            } else {
+                navigator.vibrate([200, 100, 200]); // patrón normal
+            }
+        }
+    } catch(e) {}
+
+    // Sonido con Web Audio API
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (tipo === 'urgente') {
+            // Alarma urgente: 3 beeps agudos
+            [0, 0.25, 0.5].forEach(delay => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                osc.type = 'square';
+                gain.gain.value = 0.3;
+                osc.start(ctx.currentTime + delay);
+                osc.stop(ctx.currentTime + delay + 0.15);
+            });
+        } else {
+            // Notificación suave: 2 tonos
+            [0, 0.2].forEach((delay, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = i === 0 ? 523 : 659;
+                osc.type = 'sine';
+                gain.gain.value = 0.2;
+                osc.start(ctx.currentTime + delay);
+                osc.stop(ctx.currentTime + delay + 0.15);
+            });
+        }
+    } catch(e) {}
+}
+
+function mostrarAlertaTarea(tarea, tipo) {
+    // Remover alertas previas del mismo tipo
+    const existente = document.getElementById(`alerta-tarea-${tarea.id_tarea}`);
+    if (existente) existente.remove();
+
+    const esUrgente = tipo === 'urgente';
+    const bgGrad = esUrgente
+        ? 'linear-gradient(135deg,rgba(239,68,68,0.95),rgba(220,38,38,0.95))'
+        : 'linear-gradient(135deg,rgba(59,130,246,0.95),rgba(37,99,235,0.95))';
+    const emoji = esUrgente ? '🚨' : '⏰';
+    const titulo = esUrgente ? '¡TAREA URGENTE!' : '¡Tarea programada!';
+    const animName = esUrgente ? 'alertaUrgentePulse' : 'alertaNormalPulse';
+
+    const alerta = document.createElement('div');
+    alerta.id = `alerta-tarea-${tarea.id_tarea}`;
+    alerta.style.cssText = `
+        position:fixed;top:0;left:0;right:0;z-index:9998;padding:14px 20px;
+        background:${bgGrad};color:white;
+        display:flex;align-items:center;gap:12px;
+        box-shadow:0 4px 20px rgba(0,0,0,0.4);
+        animation:${animName} 1s infinite,slideDownAlerta 0.4s ease;
+        cursor:pointer;
+    `;
+    alerta.innerHTML = `
+        <span style="font-size:1.8rem;animation:shakeEmoji 0.5s infinite;">${emoji}</span>
+        <div style="flex:1;">
+            <div style="font-weight:800;font-size:0.9rem;text-transform:uppercase;letter-spacing:1px;">${titulo}</div>
+            <div style="font-size:0.78rem;opacity:0.95;margin-top:2px;">${tarea.titulo}</div>
+        </div>
+        <button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:6px 14px;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.75rem;">✕ Cerrar</button>
+    `;
+    alerta.onclick = (e) => {
+        if (e.target.tagName !== 'BUTTON') alerta.remove();
+    };
+    document.body.appendChild(alerta);
+
+    // Auto-cerrar después de 8 segundos
+    setTimeout(() => { if (alerta.parentElement) alerta.remove(); }, 8000);
+}
+
+// Inyectar estilos de animación
+(function() {
+    if (document.getElementById('alerta-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'alerta-styles';
+    style.textContent = `
+        @keyframes alertaUrgentePulse {
+            0%,100% { box-shadow:0 4px 20px rgba(239,68,68,0.4); }
+            50% { box-shadow:0 4px 35px rgba(239,68,68,0.8),0 0 60px rgba(239,68,68,0.3); }
+        }
+        @keyframes alertaNormalPulse {
+            0%,100% { box-shadow:0 4px 20px rgba(59,130,246,0.3); }
+            50% { box-shadow:0 4px 30px rgba(59,130,246,0.6); }
+        }
+        @keyframes slideDownAlerta {
+            from { transform:translateY(-100%); }
+            to { transform:translateY(0); }
+        }
+        @keyframes shakeEmoji {
+            0%,100% { transform:rotate(0); }
+            25% { transform:rotate(-10deg); }
+            75% { transform:rotate(10deg); }
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
+async function verificarAlertasTareas() {
+    if (!USUARIO || USUARIO.rol !== 'EMPLEADO') return;
+    try {
+        const tareas = await fetchAPI('/api/tareas');
+        const ahora = new Date();
+
+        tareas.forEach(t => {
+            if (tareasYaAlertadas.has(t.id_tarea)) return;
+            if (['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado)) return;
+
+            // Alerta por tarea URGENTE pendiente
+            if (t.prioridad === 'urgente' && t.estado === 'pendiente') {
+                tareasYaAlertadas.add(t.id_tarea);
+                alertaSonoraYVibracion('urgente');
+                mostrarAlertaTarea(t, 'urgente');
+                return;
+            }
+
+            // Alerta por hora programada (si la tarea tiene fecha_programada o fecha_vencimiento)
+            const fechaProg = t.fecha_programada || t.fecha_vencimiento;
+            if (fechaProg && t.estado === 'pendiente') {
+                const prog = new Date(fechaProg);
+                const diffMin = (prog - ahora) / 60000;
+                // Alertar si faltan 5 minutos o menos, o ya pasó la hora
+                if (diffMin <= 5 && diffMin > -30) {
+                    tareasYaAlertadas.add(t.id_tarea);
+                    alertaSonoraYVibracion('normal');
+                    mostrarAlertaTarea(t, 'programada');
+                }
+            }
+        });
+    } catch(e) {}
+}
+
+function iniciarAlertasEmpleado() {
+    if (intervaloAlertasEmpleado) clearInterval(intervaloAlertasEmpleado);
+    // Verificar inmediatamente
+    setTimeout(() => verificarAlertasTareas(), 2000);
+    // Luego cada 60 segundos
+    intervaloAlertasEmpleado = setInterval(verificarAlertasTareas, 60000);
+}
 
 async function cargarTareasEmpleado() {
     try {
-        const tareas = await fetchAPI('/api/tareas');
+        let tareas = await fetchAPI('/api/tareas');
 
         // Cargar config de empresa
         let empPuedeIniciar = true;

@@ -94,7 +94,7 @@ router.get('/', verificarToken, async (req, res) => {
             LEFT JOIN usuarios sup ON t.id_supervisor = sup.id_usuario
             LEFT JOIN usuarios cre ON t.id_creador = cre.id_usuario
             LEFT JOIN tipos_tarea tt ON t.id_tipo = tt.id_tipo
-            WHERE t.id_empresa = ?
+            WHERE t.id_empresa = ? AND t.eliminado = 0
         `;
         const params = [id_empresa];
 
