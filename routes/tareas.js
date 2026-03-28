@@ -79,7 +79,7 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
         if (io) {
             io.to(`empresa_${id_empresa}`).emit('nueva_tarea', {
                 id_tarea, titulo, id_empleado, prioridad,
-                estado: estadoInicial, fecha_creacion: ahoraDate
+                estado: estadoInicial, fecha_creacion: new Date().toISOString()
             });
         }
 
