@@ -316,9 +316,11 @@ router.put('/:id/finalizar', verificarToken, async (req, res) => {
             return res.status(400).json({ error: 'Solo se pueden finalizar tareas en proceso o atrasadas' });
         }
 
-        // Validar si requiere evidencia de IMAGEN
-        if (tarea.requiere_evidencia === 1 || tarea.requiere_evidencia === '1' || tarea.requiere_evidencia === true) {
+        // Validar si requiere evidencia de IMAGEN (compatible con PostgreSQL y SQLite)
+        const reqEv = tarea.requiere_evidencia;
+        if (reqEv && reqEv !== 0 && reqEv !== '0' && reqEv !== false) {
             const evidenciaCount = await db.get("SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_tarea = ? AND tipo = 'imagen'", req.params.id);
+            console.log(`🔍 Verificando evidencias para tarea ${req.params.id}: requiere_evidencia=${JSON.stringify(reqEv)}, imagenes_encontradas=${evidenciaCount ? evidenciaCount.total : 0}`);
             if (!evidenciaCount || evidenciaCount.total === 0) {
                 return res.status(400).json({ 
                     error: 'Esta tarea requiere evidencias para finalizar',
@@ -475,7 +477,19 @@ router.post('/:id/evidencias', verificarToken, setUploadTipo('evidencias'), uplo
     try {
         const tipo = req.body.tipo || (req.file ? 'imagen' : 'texto');
         let contenido = req.body.contenido || '';
-        if (req.file) contenido = `/uploads/evidencias/${req.file.filename}`;
+        
+        // Convertir archivo a base64 para persistir en la BD (Render pierde archivos en disco)
+        if (req.file) {
+            const fs = require('fs');
+            const filePath = req.file.path;
+            const fileBuffer = fs.readFileSync(filePath);
+            const base64 = fileBuffer.toString('base64');
+            const mimeType = req.file.mimetype || 'image/jpeg';
+            contenido = `data:${mimeType};base64,${base64}`;
+            // Eliminar archivo temporal del disco
+            try { fs.unlinkSync(filePath); } catch(e) {}
+        }
+        
         if (!contenido) return res.status(400).json({ error: 'Contenido o archivo requerido' });
 
         const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
@@ -487,8 +501,9 @@ router.post('/:id/evidencias', verificarToken, setUploadTipo('evidencias'), uplo
 
         const io = req.app.get('io');
         if (io) io.to(`empresa_${tarea.id_empresa}`).emit('nueva_evidencia', { id_tarea: req.params.id, tipo });
-        res.status(201).json({ mensaje: 'Evidencia agregada', id_evidencia, tipo, contenido });
+        res.status(201).json({ mensaje: 'Evidencia agregada', id_evidencia, tipo, contenido: contenido.substring(0, 50) + '...' });
     } catch (err) {
+        console.error('Error subiendo evidencia:', err);
         res.status(500).json({ error: 'Error al agregar evidencia' });
     }
 });
