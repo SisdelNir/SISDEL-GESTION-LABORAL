@@ -1022,8 +1022,13 @@ async function completarTareaEmpleado(idTarea) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Faltan Evidencias',
-                text: 'Esta tarea requiere que subas imágenes de constancia antes de poder finalizarla. Por favor usa el botón de detalles y sube tus archivos.',
-                confirmButtonColor: '#6366f1'
+                text: 'Esta tarea requiere que subas imágenes de constancia antes de poder finalizarla.',
+                confirmButtonText: '📸 Subir Imágen Ahora',
+                confirmButtonColor: '#3b82f6',
+                showCancelButton: true,
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) subirImagenRapida(idTarea);
             });
         } else {
             mostrarToast(err.message || 'Error al completar tarea', 'error');
@@ -2073,12 +2078,52 @@ async function finalizarTarea(id) {
                 icon: 'warning',
                 title: 'Faltan Evidencias',
                 text: 'Esta tarea requiere evidencias fotográficas antes de poder finalizarse.',
-                confirmButtonColor: '#6366f1'
+                confirmButtonText: '📸 Subir Imágen Ahora',
+                confirmButtonColor: '#3b82f6',
+                showCancelButton: true,
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) subirImagenRapida(id);
             });
         } else {
             mostrarToast(err.message, 'error');
         }
     }
+}
+
+async function subirImagenRapida(idTarea) {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    // try to trigger camera on mobile explicitly if supported
+    fileInput.capture = 'environment';
+    
+    fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        Swal.fire({ title: 'Subiendo...', text: 'Enviando imagen al servidor', allowOutsideClick:false, didOpen:()=>{Swal.showLoading()} });
+        
+        const formData = new FormData();
+        formData.append('archivo', file);
+        formData.append('tipo', 'imagen');
+        try {
+            const resp = await fetch(`/api/tareas/${idTarea}/evidencias`, {
+                method: 'POST', headers: { 'Authorization': `Bearer ${TOKEN}` }, body: formData
+            });
+            if (!resp.ok) throw new Error('Error subiendo imagen');
+            Swal.close();
+            mostrarToast('📸 Imagen subida exitosamente. Ya puedes finalizar.', 'success');
+            // Si estaba viendo el detalle abierto, recargar
+            if(TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
+            // Intentar re-finalizar automáticamente
+            finalizarTarea(idTarea); 
+        } catch(err) { 
+            Swal.close();
+            mostrarToast('Error al subir imagen', 'error'); 
+        }
+    };
+    fileInput.click();
 }
 
 async function eliminarTarea(id) {
