@@ -929,6 +929,27 @@ async function cargarTareasEmpleado() {
                 }
             }
 
+            // Evidencia: mostrar botón de subir foto si la tarea lo requiere y está activa
+            let evidenciaBtns = '';
+            const reqEv = t.requiere_evidencia === 1 || t.requiere_evidencia === '1' || t.requiere_evidencia === true;
+            if (reqEv && enProcesoActivo) {
+                const cantEv = t.total_evidencias || 0;
+                evidenciaBtns = `
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;">
+                        <button class="btn-crono" onclick="event.stopPropagation(); subirImagenRapida('${t.id_tarea}')" style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:8px;font-size:0.75rem;border:none;cursor:pointer;">
+                            📸 Subir Foto
+                        </button>
+                        <span style="font-size:0.7rem;color:${cantEv > 0 ? '#10b981' : '#ef4444'};font-weight:700;">
+                            ${cantEv > 0 ? '✅ ' + cantEv + ' foto(s)' : '⚠️ Sin fotos (obligatorio)'}
+                        </span>
+                    </div>
+                `;
+            } else if (reqEv && esPendiente) {
+                evidenciaBtns = `
+                    <div style="margin-top:6px;font-size:0.7rem;color:#f59e0b;font-weight:600;">📸 Esta tarea requiere fotos de constancia</div>
+                `;
+            }
+
             return `
                 <div class="emp-tarea-card" id="emp-card-${t.id_tarea}">
                     <div class="tarea-info">
@@ -943,6 +964,7 @@ async function cargarTareasEmpleado() {
                             ${t.fecha_vencimiento ? `<span style="font-size:0.7rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_vencimiento)}</span>` : ''}
                             ${t.fecha_creacion ? `<span style="font-size:0.65rem;color:#a78bfa;">🕐 ${formatearHoraEmpresa(t.fecha_creacion)}</span>` : ''}
                         </div>
+                        ${evidenciaBtns}
                     </div>
                     <div class="crono-container" style="flex-shrink:0;margin:0;padding:10px 14px;min-width:auto;flex-wrap:wrap;justify-content:center;">
                         <span style="font-size:1rem;">⏱</span>
@@ -2119,10 +2141,10 @@ async function subirImagenRapida(idTarea) {
             if (!resp.ok) throw new Error('Error subiendo imagen');
             Swal.close();
             mostrarToast('📸 Imagen subida exitosamente. Ya puedes finalizar.', 'success');
+            // Recargar la lista de tareas del empleado para actualizar el contador de fotos
+            if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
             // Si estaba viendo el detalle abierto, recargar
             if(TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
-            // Intentar re-finalizar automáticamente
-            finalizarTarea(idTarea); 
         } catch(err) { 
             Swal.close();
             mostrarToast('Error al subir imagen', 'error'); 
