@@ -31,9 +31,66 @@ function inicializarSocket() {
         socket = io();
         socket.on('connect', () => console.log('🔌 Socket conectado'));
         socket.on('disconnect', () => console.log('❌ Socket desconectado'));
+        
+        socket.on('nueva_tarea', (data) => {
+            if (USUARIO && USUARIO.rol === 'EMPLEADO' && data.id_empleado === USUARIO.id_usuario) {
+                lanzarAlertaNuevaTarea(data);
+                cargarTareas(); // recargar la lista de tareas del empleado
+            } else if (USUARIO && (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'SUPERVISOR')) {
+                // los admin y supervisores solo recargan para ver la fila nueva si están en panel correspondiente
+                if(typeof cargarTareas === 'function') cargarTareas();
+            }
+        });
     } catch(e) {
         console.log('Socket no disponible');
     }
+}
+
+function lanzarAlertaNuevaTarea(data) {
+    // 1. Vibración intensa si es compatible
+    if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+    
+    // 2. Beep llamativo sintetizado (así no dependemos de cargar archivo externo)
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.type = 'sine'; // tono puro y claro
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz (nota A5)
+        oscillator.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.3);
+        
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.7);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.8);
+    } catch(e) {}
+    
+    // 3. Alerta Visual Gigante Inmersiva con SweetAlert
+    const pLabel = (data.prioridad === 'urgente') ? '🚨' : '⚡';
+    const cColor = (data.prioridad === 'urgente') ? '#ef4444' : '#6366f1';
+    
+    Swal.fire({
+        title: `${pLabel} ¡NUEVA TAREA ASIGNADA!`,
+        html: `
+            <div style="font-size:1.2rem;font-weight:700;margin:15px 0;">${data.titulo}</div>
+            <p style="font-size:0.95rem;color:var(--text-secondary);">Debes revisarla e iniciarla lo antes posible.</p>
+        `,
+        icon: 'info',
+        iconColor: cColor,
+        background: 'var(--bg-card)',
+        color: '#fff',
+        confirmButtonText: '👍 Entendido',
+        confirmButtonColor: cColor,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        customClass: {
+            popup: 'animated tada'
+        }
+    });
 }
 
 // ═══════════════════════════════════════════
