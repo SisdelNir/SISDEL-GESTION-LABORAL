@@ -1399,7 +1399,6 @@ async function cargarTareas() {
         const estado = document.getElementById('filtro-estado')?.value || '';
         const prioridad = document.getElementById('filtro-prioridad')?.value || '';
 
-        // Si el filtro es "finalizadas", incluir también finalizada_atrasada
         let url = '/api/tareas?';
         if (estado === 'finalizada') {
             url += `estado=finalizada&`;
@@ -1415,11 +1414,9 @@ async function cargarTareas() {
 
         cargarEstadisticasTareas();
 
-        // Si no hay filtro de estado, mostrar solo activas (no finalizadas/canceladas) por defecto
         if (!estado) {
             tareas = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
         }
-        // Si el filtro es "finalizada", incluir también finalizada_atrasada
         if (estado === 'finalizada') {
             const urlAtrasada = '/api/tareas?estado=finalizada_atrasada' + (prioridad ? `&prioridad=${prioridad}` : '');
             try {
@@ -1430,61 +1427,71 @@ async function cargarTareas() {
         }
 
         if (!tareas.length) {
-            container.innerHTML = '<div class="empty-state"><p>No hay tareas' + (estado ? ` con estado "${estado.replace('_',' ')}"` : '') + '</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>No hay tareas' + (estado ? ` "${estado.replace('_',' ')}"` : '') + '</p></div>';
             return;
         }
 
-        // Render horizontal rows con toda la info
         container.innerHTML = tareas.map(t => {
             const prioridadColor = {
                 'urgente': '#ef4444', 'alta': '#f97316', 'media': '#6366f1', 'baja': '#10b981'
             }[t.prioridad] || '#6366f1';
             const estadoBadgeClass = {
-                'pendiente': 'badge-warning',
-                'en_proceso': 'badge-primary',
-                'finalizada': 'badge-success',
-                'atrasada': 'badge-danger',
-                'finalizada_atrasada': 'badge-warning',
-                'cancelada': 'badge-info'
+                'pendiente': 'badge-warning', 'en_proceso': 'badge-primary',
+                'finalizada': 'badge-success', 'atrasada': 'badge-danger',
+                'finalizada_atrasada': 'badge-warning', 'cancelada': 'badge-info'
             }[t.estado] || 'badge-info';
             const estadoTexto = {
-                'pendiente': '🟡 Pendiente',
-                'en_proceso': '🔵 En Proceso',
-                'finalizada': '🟢 Finalizada',
-                'atrasada': '🔴 Atrasada',
-                'finalizada_atrasada': '🟠 Fin. Atrasada',
-                'cancelada': '⬜ Cancelada'
+                'pendiente': '🟡 Pendiente', 'en_proceso': '🔵 En Proceso',
+                'finalizada': '🟢 Finalizada', 'atrasada': '🔴 Atrasada',
+                'finalizada_atrasada': '🟠 Fin. Atrasada', 'cancelada': '⬜ Cancelada'
             }[t.estado] || t.estado;
 
-            // Calcular tiempo real si está finalizada
-            let tiempoReal = '';
+            let tiempoRealStr = '';
             if ((t.estado === 'finalizada' || t.estado === 'finalizada_atrasada') && t.fecha_inicio && t.fecha_fin) {
                 const segs = Math.round((new Date(t.fecha_fin) - new Date(t.fecha_inicio)) / 1000);
-                tiempoReal = `<span class="empresa-stat">⏱ Real: ${formatearCronoAdmin(segs)}</span>`;
+                tiempoRealStr = formatearCronoAdmin(segs);
             }
 
+            const hasBadge = t.total_evidencias > 0 || t.total_comentarios > 0;
+
             return `
-            <div class="tarea-row glass" onclick="verDetalleTarea('${t.id_tarea}')" style="border-left:4px solid ${prioridadColor};">
-                <div class="tarea-row-prioridad" style="background:${prioridadColor}22;color:${prioridadColor};font-size:0.68rem;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;">${t.prioridad.toUpperCase()}</div>
-                <div class="tarea-row-main">
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <span style="font-size:0.95rem;font-weight:700;">${t.titulo}</span>
-                        <span class="badge ${estadoBadgeClass}" style="font-size:0.68rem;">${estadoTexto}</span>
-                        ${t.nombre_tipo ? `<span style="font-size:0.72rem;color:var(--text-muted);">${t.nombre_tipo}</span>` : ''}
+            <div class="tarea-row-wrap" id="wrap-${t.id_tarea}">
+                <div class="tarea-row glass" style="border-left:4px solid ${prioridadColor};">
+                    <!-- Prioridad -->
+                    <div class="tarea-row-prioridad" style="background:${prioridadColor}22;color:${prioridadColor};">${t.prioridad.toUpperCase()}</div>
+
+                    <!-- Info principal -->
+                    <div class="tarea-row-main">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <span style="font-size:0.95rem;font-weight:700;">${t.titulo}</span>
+                            <span class="badge ${estadoBadgeClass}" style="font-size:0.65rem;">${estadoTexto}</span>
+                            ${t.nombre_tipo ? `<span style="font-size:0.7rem;color:var(--text-muted);background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:10px;">${t.nombre_tipo}</span>` : ''}
+                        </div>
+                        ${t.descripcion ? `<div style="font-size:0.77rem;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:350px;" title="${t.descripcion}">${t.descripcion}</div>` : ''}
                     </div>
-                    ${t.descripcion ? `<div style="font-size:0.78rem;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px;">${t.descripcion}</div>` : ''}
+
+                    <!-- Info rápida -->
+                    <div class="tarea-row-info">
+                        ${t.nombre_empleado ? `<span class="empresa-stat">👤 ${t.nombre_empleado}</span>` : '<span class="empresa-stat" style="opacity:0.4;">Sin asignar</span>'}
+                        ${t.nombre_supervisor ? `<span class="empresa-stat">👁 ${t.nombre_supervisor}</span>` : ''}
+                        ${tiempoRealStr ? `<span class="empresa-stat" style="color:#00ff88;font-weight:600;">⏱ ${tiempoRealStr}</span>` : (t.tiempo_estimado_minutos ? `<span class="empresa-stat">⏳ ${formatearTiempo(t.tiempo_estimado_minutos)}</span>` : '')}
+                        ${t.total_evidencias > 0 ? `<span class="empresa-stat" style="color:#a78bfa;">📸 ${t.total_evidencias}</span>` : ''}
+                        ${t.total_comentarios > 0 ? `<span class="empresa-stat" style="color:#60a5fa;">💬 ${t.total_comentarios}</span>` : ''}
+                    </div>
+
+                    <!-- Fecha + botón expand -->
+                    <div class="tarea-row-fecha">
+                        <span style="font-size:0.7rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_creacion)}</span>
+                        ${t.fecha_fin ? `<span style="font-size:0.68rem;color:#10b981;">✅ ${formatearFecha(t.fecha_fin)}</span>` : ''}
+                        <button class="btn-expand-tarea" onclick="event.stopPropagation();toggleDetalleTarea('${t.id_tarea}')" title="Ver detalles">
+                            <span id="icon-expand-${t.id_tarea}">▼</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="tarea-row-info">
-                    ${t.nombre_empleado ? `<span class="empresa-stat">👤 ${t.nombre_empleado}</span>` : '<span class="empresa-stat" style="opacity:0.4;">Sin asignar</span>'}
-                    ${t.nombre_supervisor ? `<span class="empresa-stat">👁 ${t.nombre_supervisor}</span>` : ''}
-                    ${t.tiempo_estimado_minutos ? `<span class="empresa-stat">⏳ ${formatearTiempo(t.tiempo_estimado_minutos)}</span>` : ''}
-                    ${tiempoReal}
-                    ${t.total_evidencias > 0 ? `<span class="empresa-stat">📸 ${t.total_evidencias}</span>` : ''}
-                    ${t.total_comentarios > 0 ? `<span class="empresa-stat">💬 ${t.total_comentarios}</span>` : ''}
-                </div>
-                <div class="tarea-row-fecha">
-                    <span style="font-size:0.72rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_creacion)}</span>
-                    ${t.fecha_fin ? `<span style="font-size:0.7rem;color:#10b981;">✅ ${formatearFecha(t.fecha_fin)}</span>` : ''}
+
+                <!-- Panel expandible (oculto por defecto) -->
+                <div id="detalle-${t.id_tarea}" class="tarea-detalle-panel" style="display:none;">
+                    <div class="tarea-detalle-loading">⏳ Cargando detalles...</div>
                 </div>
             </div>`;
         }).join('');
@@ -1492,6 +1499,161 @@ async function cargarTareas() {
         console.error('Error cargando tareas:', err);
     }
 }
+
+// Toggle panel de detalles inline
+async function toggleDetalleTarea(idTarea) {
+    const panel = document.getElementById(`detalle-${idTarea}`);
+    const icon = document.getElementById(`icon-expand-${idTarea}`);
+    const wrap = document.getElementById(`wrap-${idTarea}`);
+    if (!panel) return;
+
+    const isOpen = panel.style.display !== 'none';
+    if (isOpen) {
+        panel.style.display = 'none';
+        icon.textContent = '▼';
+        wrap.classList.remove('expanded');
+        return;
+    }
+
+    // Abrir y cargar
+    panel.style.display = 'block';
+    icon.textContent = '▲';
+    wrap.classList.add('expanded');
+    panel.innerHTML = '<div class="tarea-detalle-loading">⏳ Cargando detalles...</div>';
+
+    try {
+        const data = await fetchAPI(`/api/tareas/${idTarea}`);
+        const t = data;
+
+        // Timestamps
+        const fmtDT = (d) => d ? `${formatearFecha(d)} · ${formatearHoraEmpresa(d)}` : '<em style="color:var(--text-muted)">—</em>';
+
+        // Calcular duración real
+        let duracionHTML = '';
+        if (t.fecha_inicio && t.fecha_fin) {
+            const segs = Math.round((new Date(t.fecha_fin) - new Date(t.fecha_inicio)) / 1000);
+            duracionHTML = `<span style="color:#00ff88;font-weight:700;">${formatearCronoAdmin(segs)}</span>`;
+        }
+
+        // ¿A tiempo o tarde?
+        let eficienciaHTML = '';
+        if (t.estado === 'finalizada') eficienciaHTML = `<span class="badge badge-success">✅ A tiempo</span>`;
+        else if (t.estado === 'finalizada_atrasada') eficienciaHTML = `<span class="badge badge-danger">⚠️ Con atraso</span>`;
+
+        // Evidencias
+        let evidenciasHTML = '';
+        if (t.evidencias && t.evidencias.length > 0) {
+            evidenciasHTML = `
+            <div class="detalle-seccion">
+                <div class="detalle-seccion-titulo">📸 Evidencias (${t.evidencias.length})</div>
+                <div class="detalle-evidencias-grid">
+                    ${t.evidencias.map(ev => {
+                        const isImg = ev.tipo === 'imagen' || /\.(jpg|jpeg|png|gif|webp)$/i.test(ev.contenido || '');
+                        if (isImg && ev.contenido) {
+                            return `<div class="evidencia-thumb" onclick="abrirImagenCompleta('${ev.contenido}')">
+                                <img src="${ev.contenido}" alt="evidencia" loading="lazy">
+                                <div class="evidencia-overlay">🔍 Ver</div>
+                            </div>`;
+                        } else if (ev.contenido) {
+                            return `<a href="${ev.contenido}" target="_blank" class="evidencia-archivo">📎 ${ev.tipo || 'Archivo'}</a>`;
+                        } else if (ev.texto) {
+                            return `<div class="evidencia-texto">📝 ${ev.texto}</div>`;
+                        }
+                        return '';
+                    }).join('')}
+                </div>
+            </div>`;
+        } else {
+            evidenciasHTML = `<div class="detalle-seccion"><div class="detalle-seccion-titulo">📸 Evidencias</div><p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Sin evidencias registradas</p></div>`;
+        }
+
+        // Comentarios
+        let comentariosHTML = '';
+        if (t.comentarios && t.comentarios.length > 0) {
+            comentariosHTML = `
+            <div class="detalle-seccion">
+                <div class="detalle-seccion-titulo">💬 Comentarios (${t.comentarios.length})</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    ${t.comentarios.map(c => `
+                    <div style="padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:2px solid rgba(99,102,241,0.4);">
+                        <div style="font-size:0.75rem;color:var(--accent-primary-hover);font-weight:600;margin-bottom:3px;">
+                            ${c.nombre_usuario || 'Usuario'} · <span style="color:var(--text-muted);font-weight:400;">${formatearFechaHora(c.fecha)}</span>
+                        </div>
+                        <div style="font-size:0.82rem;color:var(--text-secondary);">${c.comentario}</div>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        // Historial de estados
+        let historialHTML = '';
+        if (t.historial && t.historial.length > 0) {
+            historialHTML = `
+            <div class="detalle-seccion">
+                <div class="detalle-seccion-titulo">📋 Historial de estados</div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                    ${t.historial.slice(0,5).map(h => `
+                    <div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;">
+                        <span style="color:var(--text-muted);min-width:140px;">${formatearFechaHora(h.fecha)}</span>
+                        <span class="badge ${h.estado_nuevo==='finalizada'?'badge-success':h.estado_nuevo==='en_proceso'?'badge-primary':h.estado_nuevo==='atrasada'?'badge-danger':'badge-warning'}" style="font-size:0.65rem;">${h.estado_nuevo}</span>
+                        <span style="color:var(--text-secondary);">${h.nombre_usuario || 'Sistema'}</span>
+                        ${h.comentario ? `<span style="color:var(--text-muted);font-style:italic;">— ${h.comentario}</span>` : ''}
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        panel.innerHTML = `
+        <div class="tarea-detalle-content">
+            <!-- Fila de timestamps -->
+            <div class="detalle-timestamps">
+                <div class="detalle-ts-item">
+                    <div class="detalle-ts-label">📋 Asignada</div>
+                    <div class="detalle-ts-val">${fmtDT(t.fecha_creacion)}</div>
+                </div>
+                <div class="detalle-ts-sep">→</div>
+                <div class="detalle-ts-item">
+                    <div class="detalle-ts-label">▶ Iniciada</div>
+                    <div class="detalle-ts-val">${fmtDT(t.fecha_inicio)}</div>
+                </div>
+                <div class="detalle-ts-sep">→</div>
+                <div class="detalle-ts-item">
+                    <div class="detalle-ts-label">✅ Terminada</div>
+                    <div class="detalle-ts-val">${fmtDT(t.fecha_fin)}</div>
+                </div>
+                ${duracionHTML ? `
+                <div class="detalle-ts-sep">⏱</div>
+                <div class="detalle-ts-item">
+                    <div class="detalle-ts-label">Duración real</div>
+                    <div class="detalle-ts-val">${duracionHTML} ${eficienciaHTML}</div>
+                </div>` : ''}
+            </div>
+
+            <!-- Descripción completa -->
+            ${t.descripcion ? `<div class="detalle-seccion"><div class="detalle-seccion-titulo">📝 Descripción</div><p style="font-size:0.85rem;color:var(--text-secondary);margin:0;line-height:1.6;">${t.descripcion}</p></div>` : ''}
+
+            <!-- Evidencias + Comentarios en 2 col -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0;">
+                ${evidenciasHTML}
+                ${comentariosHTML || '<div></div>'}
+            </div>
+
+            ${historialHTML}
+        </div>`;
+    } catch(err) {
+        panel.innerHTML = '<div style="padding:12px;color:var(--accent-red);font-size:0.85rem;">Error al cargar detalles</div>';
+    }
+}
+
+// Abrir imagen a pantalla completa
+function abrirImagenCompleta(src) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(8px);';
+    overlay.innerHTML = `<img src="${src}" style="max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:fadeInUp 0.3s ease;">`;
+    overlay.onclick = () => overlay.remove();
+    document.body.appendChild(overlay);
+}
+
 
 async function mostrarFormularioTarea() {
     document.getElementById('form-tarea').reset();
