@@ -175,45 +175,7 @@ router.get('/estadisticas', verificarToken, async (req, res) => {
     }
 });
 
-/**
- * GET /api/tareas/historial — Historial completo de tareas (Admin)
- * IMPORTANTE: debe estar ANTES de /:id
- */
-router.get('/historial', verificarToken, verificarRol('ADMIN'), async (req, res) => {
-    try {
-        const { desde, hasta } = req.query;
-        let query = `
-            SELECT t.*,
-                ue.nombre AS nombre_empleado,
-                ue.codigo_acceso AS codigo_empleado,
-                ue.telefono AS telefono_empleado,
-                us.nombre AS nombre_supervisor,
-                uc.nombre AS nombre_creador,
-                (SELECT hora_inicio FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea ORDER BY hora_inicio ASC LIMIT 1) AS hora_inicio_real,
-                (SELECT hora_fin FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea AND hora_fin IS NOT NULL ORDER BY hora_fin DESC LIMIT 1) AS hora_fin_real,
-                (SELECT SUM(COALESCE(duracion_segundos, tiempo_real_segundos, 0)) FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea) AS tiempo_total_segundos,
-                (SELECT COUNT(*) FROM evidencias_tarea WHERE id_tarea = t.id_tarea) AS total_evidencias
-            FROM tareas t
-            LEFT JOIN usuarios ue ON t.id_empleado = ue.id_usuario
-            LEFT JOIN usuarios us ON t.id_supervisor = us.id_usuario
-            LEFT JOIN usuarios uc ON t.id_creador = uc.id_usuario
-            WHERE t.id_empresa = ?
-              AND t.estado IN ('finalizada', 'finalizada_atrasada', 'cancelada')
-        `;
-        const params = [req.usuario.id_empresa];
 
-        if (desde) { query += ' AND t.fecha_creacion >= ?'; params.push(desde); }
-        if (hasta) { query += ' AND t.fecha_creacion <= ?'; params.push(hasta + ' 23:59:59'); }
-
-        query += ' ORDER BY t.fecha_creacion DESC';
-
-        const tareas = await db.all(query, ...params);
-        res.json(tareas);
-    } catch (err) {
-        console.error('Error historial:', err);
-        res.status(500).json({ error: 'Error al obtener historial' });
-    }
-});
 
 /**
  * GET /api/tareas/tipos/lista
@@ -254,37 +216,6 @@ router.put('/notificaciones/:id/leer', verificarToken, async (req, res) => {
 });
 
 /**
- * DELETE /api/tareas/limpiar — Eliminar TODAS las tareas de la empresa (Admin)
- * IMPORTANTE: debe estar ANTES de /:id
- */
-router.delete('/limpiar', verificarToken, verificarRol('ADMIN'), async (req, res) => {
-    try {
-        const id_empresa = req.usuario.id_empresa;
-        const tareas = await db.all('SELECT id_tarea FROM tareas WHERE id_empresa = ?', id_empresa);
-        const ids = tareas.map(t => t.id_tarea);
-        
-        if (ids.length === 0) {
-            return res.json({ mensaje: 'No hay tareas que eliminar', eliminadas: 0 });
-        }
-        
-        for (const id of ids) {
-            await db.run('DELETE FROM seguimiento_tiempo WHERE id_tarea = ?', id);
-            await db.run('DELETE FROM evidencias_tarea WHERE id_tarea = ?', id);
-            await db.run('DELETE FROM comentarios_tarea WHERE id_tarea = ?', id);
-            await db.run('DELETE FROM historial_estados_tarea WHERE id_tarea = ?', id);
-            await db.run('DELETE FROM movimientos_puntos WHERE id_tarea = ?', id);
-        }
-        
-        await db.run('DELETE FROM tareas WHERE id_empresa = ?', id_empresa);
-        await db.run("DELETE FROM notificaciones WHERE id_usuario IN (SELECT id_usuario FROM usuarios WHERE id_empresa = ?) AND tipo IN ('nueva_tarea', 'tarea_finalizada')", id_empresa);
-        
-        registrarAuditoria(id_empresa, req.usuario.id_usuario, 'LIMPIAR_TAREAS', `Se eliminaron ${ids.length} tareas y datos relacionados`);
-        res.json({ mensaje: `Se eliminaron ${ids.length} tareas exitosamente`, eliminadas: ids.length });
-    } catch (err) {
-        console.error('Error limpiando tareas:', err);
-        res.status(500).json({ error: 'Error al limpiar tareas: ' + err.message });
-    }
-});
 
 /**
  * GET /api/tareas/:id
