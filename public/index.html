@@ -238,15 +238,41 @@
                             <div class="form-section">
                                 <h4 class="section-title">
                                     <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.6 3.6 0 0112 15.6z"/></svg>
-                                    Permisos del Supervisor
+                                    Configuración General
                                 </h4>
                                 <div class="form-grid">
+                                    <!-- Formato de hora -->
+                                    <div class="form-group full-width">
+                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(59,130,246,0.08);border-radius:8px;border:1px solid rgba(59,130,246,0.2);">
+                                            <label style="margin:0;font-size:0.85rem;text-transform:none;flex:1;">
+                                                <strong>🕐 Formato de Hora</strong>
+                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Cómo se mostrarán las horas en toda la plataforma</div>
+                                            </label>
+                                            <select id="cfg-formato-hora" style="width:140px;">
+                                                <option value="12h" selected>12 Horas (AM/PM)</option>
+                                                <option value="24h">24 Horas</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Supervisor puede asignar tareas -->
                                     <div class="form-group full-width">
                                         <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(139,92,246,0.08);border-radius:8px;border:1px solid rgba(139,92,246,0.2);">
                                             <input type="checkbox" id="cfg-sup-asignar" checked style="width:auto;margin:0;transform:scale(1.2);">
                                             <label for="cfg-sup-asignar" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;">
-                                                <strong>Supervisor puede asignar nuevas tareas</strong>
+                                                <strong>📋 Supervisor puede asignar nuevas tareas</strong>
                                                 <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Si se desactiva, solo el Administrador podrá crear y asignar tareas</div>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Supervisor puede ver tareas terminadas -->
+                                    <div class="form-group full-width">
+                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;border:1px solid rgba(16,185,129,0.2);">
+                                            <input type="checkbox" id="cfg-sup-ver-terminadas" checked style="width:auto;margin:0;transform:scale(1.2);">
+                                            <label for="cfg-sup-ver-terminadas" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;">
+                                                <strong>✅ Supervisor ve tareas terminadas y status</strong>
+                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Si se desactiva, el supervisor no verá el listado de tareas finalizadas ni su estado</div>
                                             </label>
                                         </div>
                                     </div>

@@ -264,7 +264,9 @@ async function crearEmpresa(e) {
         admin_identificacion: document.getElementById('admin-identificacion').value.trim(),
         admin_telefono: telAdmin ? `${ladaAdmin} ${telAdmin}` : '',
         admin_correo: document.getElementById('admin-correo').value.trim(),
-        permite_supervisor_asignar: document.getElementById('cfg-sup-asignar').checked
+        permite_supervisor_asignar: document.getElementById('cfg-sup-asignar').checked,
+        formato_hora: document.getElementById('cfg-formato-hora').value,
+        supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked
     };
 
     try {
@@ -2161,15 +2163,21 @@ async function cargarAsistenciaAdmin() {
 }
 
 // ═══════════════════════════════════════════
-// PERMISOS SUPERVISOR
+// CONFIGURACIÓN EMPRESA Y PERMISOS
 // ═══════════════════════════════════════════
+window.FORMATO_HORA_EMPRESA = '12h'; // default
+
 async function verificarPermisosSupervisor() {
     try {
         const config = await fetchAPI('/api/empresas/mi-config');
+
+        // Guardar formato de hora globalmente
+        window.FORMATO_HORA_EMPRESA = config.formato_hora || '12h';
+
         const supContainer = document.getElementById('pantalla-supervisor');
         if (!supContainer) return;
 
-        // Buscar todos los botones de nueva tarea y repetitivas en el panel supervisor
+        // Permisos de asignación de tareas
         const botonesNuevaTarea = supContainer.querySelectorAll('button[onclick*="mostrarFormularioTarea"]');
         const botonesRepetitivas = supContainer.querySelectorAll('button[onclick*="abrirModalPlantillas"]');
 
@@ -2180,9 +2188,26 @@ async function verificarPermisosSupervisor() {
             botonesNuevaTarea.forEach(btn => btn.style.display = '');
             botonesRepetitivas.forEach(btn => btn.style.display = '');
         }
+
+        // Visibilidad de tareas terminadas para supervisor
+        const tareasTerminadas = supContainer.querySelectorAll('.tarea-finalizada, .tarea-completada');
+        const btnTerminadas = supContainer.querySelector('button[onclick*="terminadas"], button[onclick*="finalizadas"]');
+        if (!config.supervisor_ve_terminadas) {
+            tareasTerminadas.forEach(el => el.style.display = 'none');
+            if (btnTerminadas) btnTerminadas.style.display = 'none';
+        }
     } catch(e) {
         console.log('No se pudo verificar permisos:', e);
     }
+}
+
+function formatearHoraEmpresa(fechaStr) {
+    if (!fechaStr) return '—';
+    const d = new Date(fechaStr);
+    if (window.FORMATO_HORA_EMPRESA === '24h') {
+        return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
 // ═══════════════════════════════════════════

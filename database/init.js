@@ -410,11 +410,22 @@ async function inicializarDB() {
             usa_evidencias INTEGER DEFAULT 1,
             tolerancia_tiempo INTEGER DEFAULT 10,
             permite_supervisor_asignar INTEGER DEFAULT 1,
+            formato_hora TEXT DEFAULT '12h',
+            supervisor_ve_terminadas INTEGER DEFAULT 1,
             usa_gamificacion INTEGER DEFAULT 1,
             usa_geolocalizacion INTEGER DEFAULT 1,
             personalizacion_json TEXT DEFAULT '{}'
         )
     `);
+
+    // Migración: nuevas columnas en configuraciones_empresa
+    const migracionesConfig = [
+        "ALTER TABLE configuraciones_empresa ADD COLUMN formato_hora TEXT DEFAULT '12h'",
+        "ALTER TABLE configuraciones_empresa ADD COLUMN supervisor_ve_terminadas INTEGER DEFAULT 1"
+    ];
+    for (const mig of migracionesConfig) {
+        try { await db.run(mig); } catch(e) { /* ya existe */ }
+    }
 
     await db.exec(`
         CREATE TABLE IF NOT EXISTS auditoria (
