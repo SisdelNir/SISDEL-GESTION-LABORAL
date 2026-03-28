@@ -13,13 +13,22 @@ const { verificarToken, verificarRol, registrarAuditoria } = require('../middlew
  */
 router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
     try {
-        const { titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos } = req.body;
+        const { titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia } = req.body;
         if (!titulo) return res.status(400).json({ error: 'El título es requerido' });
 
         const id_empresa = req.usuario.id_empresa;
         const id_tarea = uuidv4();
         const id_creador = req.usuario.id_usuario;
-        const supervisorFinal = id_supervisor || (req.usuario.rol === 'SUPERVISOR' ? req.usuario.id_usuario : null);
+        
+        let supervisorFinal = id_supervisor || (req.usuario.rol === 'SUPERVISOR' ? req.usuario.id_usuario : null);
+
+        // Auto-asignación de supervisor: si hay empleado, buscar su supervisor asignado en la BD
+        if (id_empleado) {
+            const rel = await db.get('SELECT id_supervisor FROM supervisores_empleados WHERE id_empleado = ?', id_empleado);
+            if (rel && rel.id_supervisor) {
+                supervisorFinal = rel.id_supervisor;
+            }
+        }
 
         // Verificar config de empresa: ¿el empleado puede presionar botón iniciar?
         const config = await db.get('SELECT empleado_puede_iniciar FROM configuraciones_empresa WHERE id_empresa = ?', id_empresa);
@@ -40,12 +49,13 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
             estadoInicial = 'pendiente';
             fechaInic = null;
         }
-        const ahoraDate = new Date().toISOString();
+
+        const reqEvidenciaNum = requiere_evidencia ? 1 : 0;
 
         await db.run(`
-            INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos, estado, fecha_inicio)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_tarea, id_empresa, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null, estadoInicial, fechaInic);
+            INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, id_tarea, id_empresa, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null, reqEvidenciaNum, estadoInicial, fechaInic);
 
         await db.run(`
             INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)
@@ -369,6 +379,17 @@ router.put('/:id/finalizar', verificarToken, async (req, res) => {
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
         if (tarea.estado !== 'en_proceso' && tarea.estado !== 'atrasada') {
             return res.status(400).json({ error: 'Solo se pueden finalizar tareas en proceso o atrasadas' });
+        }
+
+        // Validar si requiere evidencia
+        if (tarea.requiere_evidencia === 1 || tarea.requiere_evidencia === '1' || tarea.requiere_evidencia === true) {
+            const evidenciaCount = await db.get('SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_tarea = ?', req.params.id);
+            if (!evidenciaCount || evidenciaCount.total === 0) {
+                return res.status(400).json({ 
+                    error: 'Esta tarea requiere evidencias para finalizar',
+                    reqEvidencia: true 
+                });
+            }
         }
 
         const ahora = new Date().toISOString();

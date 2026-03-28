@@ -380,6 +380,22 @@ async function editarEmpresa(id) {
         if (document.getElementById('admin-correo'))
             document.getElementById('admin-correo').value = '';
 
+        // Pre-llenar configuraciones
+        if (empresa.configuracion) {
+            const conf = empresa.configuracion;
+            const cbSupAsignar = document.getElementById('cfg-sup-asignar');
+            const cbSupTerminadas = document.getElementById('cfg-sup-ver-terminadas');
+            const cbEmpIniciar = document.getElementById('cfg-emp-iniciar-tarea');
+            const selFormatoHora = document.getElementById('cfg-formato-hora');
+            const selModalidad = document.getElementById('cfg-modalidad-trabajo');
+
+            if (cbSupAsignar) cbSupAsignar.checked = conf.permite_supervisor_asignar !== 0;
+            if (cbSupTerminadas) cbSupTerminadas.checked = conf.supervisor_ve_terminadas !== 0;
+            if (cbEmpIniciar) cbEmpIniciar.checked = conf.empleado_puede_iniciar !== 0;
+            if (selFormatoHora) selFormatoHora.value = conf.formato_hora || '12h';
+            if (selModalidad) selModalidad.value = conf.modalidad_trabajo || 'fijo';
+        }
+
         // Cambiar el handler del formulario
         const form = document.getElementById('form-empresa');
         form.onsubmit = async function(ev) {
@@ -400,9 +416,21 @@ async function editarEmpresa(id) {
             };
 
             try {
+                // 1. Guardar info de la empresa
                 const res = await fetchAPI(`/api/empresas/${id}`, { method: 'PUT', body: JSON.stringify(body) });
                 if (res.error) return mostrarToast(res.error, 'error');
-                mostrarToast('✅ Empresa actualizada exitosamente', 'success');
+
+                // 2. Guardar configuración general
+                const configBody = {
+                    permite_supervisor_asignar: document.getElementById('cfg-sup-asignar').checked,
+                    formato_hora: document.getElementById('cfg-formato-hora').value,
+                    supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked,
+                    empleado_puede_iniciar: document.getElementById('cfg-emp-iniciar-tarea').checked,
+                    modalidad_trabajo: document.getElementById('cfg-modalidad-trabajo').value
+                };
+                await fetchAPI(`/api/empresas/${id}/configuracion`, { method: 'PUT', body: JSON.stringify(configBody) });
+
+                mostrarToast('✅ Empresa y configuración actualizadas exitosamente', 'success');
 
                 // Restaurar formulario a modo crear
                 restaurarFormularioCrear();
@@ -929,7 +957,16 @@ async function completarTareaEmpleado(idTarea) {
         mostrarToast('✅ ¡Tarea completada! Buen trabajo', 'success');
         cargarTareasEmpleado();
     } catch(err) {
-        mostrarToast(err.message || 'Error al completar tarea', 'error');
+        if (err.message && err.message.includes('evidencias para finalizar')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Faltan Evidencias',
+                text: 'Esta tarea requiere que subas imágenes de constancia antes de poder finalizarla. Por favor usa el botón de detalles y sube tus archivos.',
+                confirmButtonColor: '#6366f1'
+            });
+        } else {
+            mostrarToast(err.message || 'Error al completar tarea', 'error');
+        }
     }
 }
 
@@ -1225,6 +1262,7 @@ async function cargarSupervisores() {
                         <th>Correo</th>
                         <th>Empleados</th>
                         <th>Estado</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1236,6 +1274,9 @@ async function cargarSupervisores() {
                             <td>${u.correo || '-'}</td>
                             <td><span class="badge badge-info">${u.total_empleados || 0}</span></td>
                             <td><span class="badge ${u.estado ? 'badge-success' : 'badge-danger'}">${u.estado ? 'Activo' : 'Inactivo'}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignarEmpleados('${u.id_usuario}', '${u.nombre}')">👥 Asignar Empleados</button>
+                            </td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -1243,6 +1284,81 @@ async function cargarSupervisores() {
         `;
     } catch(err) {
         console.error('Error cargando supervisores:', err);
+    }
+}
+
+// ----------------------------------------------------
+// ASIGNAR EMPLEADOS A SUPERVISOR
+// ----------------------------------------------------
+async function abrirModalAsignarEmpleados(idSupervisor, nombreSupervisor) {
+    document.getElementById('asignar-emp-id-supervisor').value = idSupervisor;
+    document.getElementById('asignar-emp-nombre').textContent = nombreSupervisor;
+    document.getElementById('modal-asignar-empleados').style.display = 'flex';
+    document.getElementById('lista-checks-empleados').innerHTML = '<div style="text-align:center;padding:20px;">Cargando empleados... ⏳</div>';
+    document.getElementById('btn-submit-asignar').disabled = true;
+
+    try {
+        // Obtener todos los empleados de la empresa
+        const empleados = await fetchAPI('/api/usuarios?rol=EMPLEADO');
+        // Obtener los asignados actualmente a este supervisor
+        const asignados = await fetchAPI(`/api/empresas/supervisores/${idSupervisor}/empleados`);
+        
+        let html = '';
+        if (empleados.length === 0) {
+            html = '<div style="text-align:center;padding:10px;color:var(--text-muted)">No hay empleados registrados en la empresa.</div>';
+        } else {
+            empleados.forEach(emp => {
+                const checked = asignados.includes(emp.id_usuario) ? 'checked' : '';
+                html += `
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:6px;transition:0.2s;cursor:pointer;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" name="emp_asignado" value="${emp.id_usuario}" ${checked} style="width:18px;height:18px;accent-color:var(--primary);">
+                        <div style="display:flex;flex-direction:column;">
+                            <span style="font-weight:600;font-size:0.95rem;">${emp.nombre}</span>
+                            <span style="font-size:0.75rem;color:var(--text-muted);">Cód: ${emp.codigo_acceso}</span>
+                        </div>
+                    </label>
+                `;
+            });
+        }
+        document.getElementById('lista-checks-empleados').innerHTML = html;
+        document.getElementById('btn-submit-asignar').disabled = false;
+    } catch(err) {
+        document.getElementById('lista-checks-empleados').innerHTML = `<div style="color:var(--danger);padding:10px;text-align:center;">Error: ${err.message}</div>`;
+    }
+}
+
+function cerrarModalAsignarEmpleados() {
+    document.getElementById('modal-asignar-empleados').style.display = 'none';
+}
+
+async function guardarAsignacionEmpleados(e) {
+    e.preventDefault();
+    const idSupervisor = document.getElementById('asignar-emp-id-supervisor').value;
+    const btnSubmit = document.getElementById('btn-submit-asignar');
+    
+    // Recopilar checkboxes seleccionados
+    const checkboxes = document.querySelectorAll('input[name="emp_asignado"]:checked');
+    const empleadosSeleccionados = Array.from(checkboxes).map(chk => chk.value);
+
+    try {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = 'Guardando... <span class="spinner"></span>';
+        
+        await fetchAPI(`/api/empresas/supervisores/${idSupervisor}/empleados`, {
+            method: 'POST',
+            body: JSON.stringify({ empleados: empleadosSeleccionados })
+        });
+        
+        mostrarToast('Empleados asignados correctamente', 'success');
+        cerrarModalAsignarEmpleados();
+        
+        // Refrescar la tabla para actualizar la columna "Empleados"
+        cargarSupervisores();
+    } catch(err) {
+        mostrarToast(err.message || 'Error al guardar asignación', 'error');
+    } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = 'Guardar Cambios';
     }
 }
 
@@ -1750,7 +1866,8 @@ async function crearTarea(e) {
         id_supervisor: document.getElementById('tarea-supervisor').value || undefined,
         id_tipo: document.getElementById('tarea-tipo').value || undefined,
         prioridad: document.getElementById('tarea-prioridad').value,
-        tiempo_estimado_minutos: tiempoEstFinal
+        tiempo_estimado_minutos: tiempoEstFinal,
+        requiere_evidencia: document.getElementById('tarea-req-evidencia') ? document.getElementById('tarea-req-evidencia').checked : false
     };
     try {
         await fetchAPI('/api/tareas', { method: 'POST', body: JSON.stringify(datos) });
@@ -1853,7 +1970,16 @@ async function finalizarTarea(id) {
         mostrarToast(`Tarea finalizada en ${res.tiempo_formateado} · +${res.puntos_ganados} pts`, 'success');
         verDetalleTarea(id);
     } catch(err) {
-        mostrarToast(err.message, 'error');
+        if (err.message && err.message.includes('evidencias para finalizar')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Faltan Evidencias',
+                text: 'Esta tarea requiere evidencias fotográficas antes de poder finalizarse.',
+                confirmButtonColor: '#6366f1'
+            });
+        } else {
+            mostrarToast(err.message, 'error');
+        }
     }
 }
 

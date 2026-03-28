@@ -271,6 +271,7 @@ async function inicializarDB() {
             id_tipo TEXT,
             prioridad TEXT DEFAULT 'media',
             tiempo_estimado_minutos INTEGER,
+            requiere_evidencia INTEGER DEFAULT 0,
             estado TEXT DEFAULT 'pendiente',
             fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
             fecha_inicio TEXT,
@@ -440,6 +441,11 @@ async function inicializarDB() {
     for (const mig of migracionesUsuarios) {
         try { await db.run(mig); } catch(e) { /* ya existe */ }
     }
+
+    // Migración: requerir evidencia en tareas
+    try {
+        await db.run("ALTER TABLE tareas ADD COLUMN requiere_evidencia INTEGER DEFAULT 0");
+    } catch(e) { /* ya existe */ }
 
     await db.exec(`
         CREATE TABLE IF NOT EXISTS auditoria (

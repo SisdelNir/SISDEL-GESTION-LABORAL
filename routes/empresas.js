@@ -196,7 +196,7 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
             return res.status(403).json({ error: 'No tienes acceso a esta empresa' });
         }
 
-        const { usa_evidencias, tolerancia_tiempo, permite_supervisor_asignar, usa_gamificacion, usa_geolocalizacion } = req.body;
+        const { usa_evidencias, tolerancia_tiempo, permite_supervisor_asignar, usa_gamificacion, usa_geolocalizacion, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, modalidad_trabajo } = req.body;
 
         await db.run(`
             UPDATE configuraciones_empresa SET
@@ -204,7 +204,11 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
                 tolerancia_tiempo = COALESCE(?, tolerancia_tiempo),
                 permite_supervisor_asignar = COALESCE(?, permite_supervisor_asignar),
                 usa_gamificacion = COALESCE(?, usa_gamificacion),
-                usa_geolocalizacion = COALESCE(?, usa_geolocalizacion)
+                usa_geolocalizacion = COALESCE(?, usa_geolocalizacion),
+                formato_hora = COALESCE(?, formato_hora),
+                supervisor_ve_terminadas = COALESCE(?, supervisor_ve_terminadas),
+                empleado_puede_iniciar = COALESCE(?, empleado_puede_iniciar),
+                modalidad_trabajo = COALESCE(?, modalidad_trabajo)
             WHERE id_empresa = ?
         `,
             usa_evidencias !== undefined ? (usa_evidencias ? 1 : 0) : null,
@@ -212,6 +216,10 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
             permite_supervisor_asignar !== undefined ? (permite_supervisor_asignar ? 1 : 0) : null,
             usa_gamificacion !== undefined ? (usa_gamificacion ? 1 : 0) : null,
             usa_geolocalizacion !== undefined ? (usa_geolocalizacion ? 1 : 0) : null,
+            formato_hora || null,
+            supervisor_ve_terminadas !== undefined ? (supervisor_ve_terminadas ? 1 : 0) : null,
+            empleado_puede_iniciar !== undefined ? (empleado_puede_iniciar ? 1 : 0) : null,
+            modalidad_trabajo || null,
             idEmpresa
         );
 
@@ -236,6 +244,61 @@ router.delete('/:id', verificarToken, verificarRoot, async (req, res) => {
         res.json({ mensaje: 'Empresa eliminada correctamente' });
     } catch (err) {
         res.status(500).json({ error: 'Error al eliminar empresa' });
+    }
+});
+
+/**
+ * GET /api/empresas/supervisores/:id/empleados
+ * Obtiene los empleados asignados a un supervisor
+ */
+router.get('/supervisores/:id/empleados', verificarToken, async (req, res) => {
+    try {
+        const idSupervisor = req.params.id;
+        const relaciones = await db.all('SELECT id_empleado FROM supervisores_empleados WHERE id_supervisor = ?', idSupervisor);
+        res.json(relaciones.map(r => r.id_empleado));
+    } catch (err) {
+        res.status(500).json({ error: 'Error al obtener empleados asignados' });
+    }
+});
+
+/**
+ * POST /api/empresas/supervisores/:id/empleados
+ * Asigna empleados a un supervisor (requiere ROOT o ADMIN)
+ */
+router.post('/supervisores/:id/empleados', verificarToken, async (req, res) => {
+    try {
+        const idSupervisor = req.params.id;
+        const { empleados } = req.body; // Array de IDs de empleados
+        
+        if (req.usuario.rol !== 'ROOT' && req.usuario.rol !== 'ADMIN') {
+            return res.status(403).json({ error: 'No tienes permisos para asignar empleados' });
+        }
+
+        if (!Array.isArray(empleados)) {
+            return res.status(400).json({ error: 'Lista de empleados inválida' });
+        }
+
+        // 1. Eliminar relaciones existentes DE ESTE supervisor
+        await db.run('DELETE FROM supervisores_empleados WHERE id_supervisor = ?', idSupervisor);
+
+        // 2. Si se están enviando empleados nuevos, también eliminarlos de otros supervisores para que solo tengan uno
+        if (empleados.length > 0) {
+            const placeholders = empleados.map(() => '?').join(',');
+            await db.run(`DELETE FROM supervisores_empleados WHERE id_empleado IN (${placeholders})`, ...empleados);
+
+            // 3. Insertar las nuevas asociaciones
+            for (const id_empleado of empleados) {
+                await db.run(`
+                    INSERT INTO supervisores_empleados (id_relacion, id_supervisor, id_empleado)
+                    VALUES (?, ?, ?)
+                `, uuidv4(), idSupervisor, id_empleado);
+            }
+        }
+
+        res.json({ mensaje: 'Empleados asignados exitosamente al supervisor' });
+    } catch (err) {
+        console.error('Error asignando empleados:', err);
+        res.status(500).json({ error: 'Error al asignar empleados' });
     }
 });
 

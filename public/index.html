@@ -972,6 +972,12 @@
                                 <input type="checkbox" id="tarea-fin-semana" checked style="width:auto;margin:0;">
                                 <label for="tarea-fin-semana" style="margin:0;font-size:0.8rem;text-transform:none;cursor:pointer;">Incluir fin de semana</label>
                             </div>
+                            <div style="margin-top:10px;display:flex;align-items:center;gap:6px;background:rgba(99,102,241,0.1);padding:8px 10px;border-radius:6px;border:1px solid rgba(99,102,241,0.2);">
+                                <input type="checkbox" id="tarea-req-evidencia" style="width:auto;margin:0;accent-color:var(--accent-primary-hover);">
+                                <label for="tarea-req-evidencia" style="margin:0;font-size:0.82rem;font-weight:600;color:var(--accent-primary-hover);text-transform:none;cursor:pointer;" title="El empleado no podrá finalizar la tarea si no adjunta fotos u otro archivo">
+                                    📸 Requiere imágenes de constancia para terminar
+                                </label>
+                            </div>
                             <div id="tarea-tiempo-preview" style="margin-top:12px; font-size:0.85rem; color:#f59e0b; font-weight:600; text-align:center; padding:8px; background:rgba(245,158,11,0.1); border-radius:6px; border:1px solid rgba(245,158,11,0.2); display:none;">
                                 ⏱ Tiempo límite asignado: <span id="tarea-preview-val">0h</span>
                             </div>
@@ -1038,6 +1044,35 @@
                 <div id="tab-historial" class="tab-detalle" style="display:none;">
                     <div id="lista-historial"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Asignar Empleados a Supervisor  -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="modal-asignar-empleados" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="cerrarModalAsignarEmpleados()"></div>
+        <div class="modal-content glass" style="max-width:500px;">
+            <div class="modal-header">
+                <h3>👥 Asignar Empleados</h3>
+                <button class="btn-close" onclick="cerrarModalAsignarEmpleados()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:16px;">
+                <p style="margin-bottom:15px;font-size:0.9rem;color:var(--text-muted);">
+                    Seleccione los empleados que estarán a cargo del supervisor <strong id="asignar-emp-nombre" style="color:var(--text-main);"></strong>:
+                </p>
+                <form id="form-asignar-empleados" onsubmit="guardarAsignacionEmpleados(event)">
+                    <input type="hidden" id="asignar-emp-id-supervisor">
+                    <div id="lista-checks-empleados" style="max-height:300px;overflow-y:auto;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--bg-card);display:flex;flex-direction:column;gap:8px;">
+                        <!-- Checkboxes dinámicos -->
+                    </div>
+                    
+                    <div class="form-actions" style="margin-top:20px;">
+                        <button type="button" class="btn btn-secondary" onclick="cerrarModalAsignarEmpleados()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-asignar">Guardar Cambios</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
