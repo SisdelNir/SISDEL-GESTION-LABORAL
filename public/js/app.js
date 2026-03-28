@@ -624,6 +624,9 @@ async function cargarTareasEmpleado() {
                         ${tiempoEst ? `<span class="badge badge-info">${tiempoEst}</span>` : ''}
                         ${t.fecha_vencimiento ? `<span style="font-size:0.75rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_vencimiento)}</span>` : ''}
                     </div>
+                    ${t.fecha_creacion ? `<div style="font-size:0.68rem;margin:6px 0 2px;padding:4px 8px;border-left:2px solid #8b5cf6;color:#a78bfa;letter-spacing:0.3px;">
+                        📅 Asignada: ${new Date(t.fecha_creacion).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})} · 🕐 ${formatearHoraEmpresa(t.fecha_creacion)}
+                    </div>` : ''}
                     <div class="crono-container">
                         <span style="font-size:1.2rem;">⏱</span>
                         <span class="crono-display ${cronoClase}" id="crono-${t.id_tarea}" data-inicio="${t.fecha_inicio || ''}" data-fin="${t.fecha_fin || ''}">00:00:00</span>
