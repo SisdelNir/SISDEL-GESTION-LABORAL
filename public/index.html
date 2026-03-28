@@ -287,6 +287,20 @@
                                             </label>
                                         </div>
                                     </div>
+
+                                    <!-- Modalidad de trabajo -->
+                                    <div class="form-group full-width">
+                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(59,130,246,0.08);border-radius:8px;border:1px solid rgba(59,130,246,0.2);">
+                                            <label style="margin:0;font-size:0.85rem;text-transform:none;flex:1;">
+                                                <strong>📌 Modalidad de trabajo</strong>
+                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Cómo trabajan los empleados de esta empresa</div>
+                                            </label>
+                                            <select id="cfg-modalidad-trabajo" style="width:160px;">
+                                                <option value="fijo" selected>📍 Lugar Fijo</option>
+                                                <option value="ruta">🚗 Ruta / Móvil</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -802,6 +816,7 @@
                             📍 Reportarme Presente
                         </button>
                     </div>
+                    <div id="emp-ubicacion-info"></div>
                     <div class="vista-header"><h3>📋 Mis Tareas</h3></div>
                     <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
                         <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-amber);">🟡</div><div class="stat-number" id="emp-stat-pendientes">0</div><div class="stat-label">Pendientes</div></div>

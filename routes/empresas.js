@@ -15,7 +15,7 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
             nombre, identificacion_empresa, nombre_administrador,
             pais, moneda, zona_horaria, telefono, correo, direccion,
             admin_identificacion, admin_telefono, admin_correo,
-            permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar
+            permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, modalidad_trabajo
         } = req.body;
 
         if (!nombre || !nombre_administrador) {
@@ -38,12 +38,13 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
         `, id_usuario, id_empresa, admin_identificacion || identificacion_empresa || '', nombre_administrador, admin_telefono || telefono || '', admin_correo || correo || '', codigo_admin);
 
         await db.run(`
-            INSERT INTO configuraciones_empresa (id_config, id_empresa, permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar) VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO configuraciones_empresa (id_config, id_empresa, permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, modalidad_trabajo) VALUES (?, ?, ?, ?, ?, ?, ?)
         `, id_config, id_empresa,
            permite_supervisor_asignar !== undefined ? (permite_supervisor_asignar ? 1 : 0) : 1,
            formato_hora || '12h',
            supervisor_ve_terminadas !== undefined ? (supervisor_ve_terminadas ? 1 : 0) : 1,
-           empleado_puede_iniciar !== undefined ? (empleado_puede_iniciar ? 1 : 0) : 1);
+           empleado_puede_iniciar !== undefined ? (empleado_puede_iniciar ? 1 : 0) : 1,
+           modalidad_trabajo || 'fijo');
 
         const tiposDefault = [
             { nombre: 'Operativa', descripcion: 'Tareas operativas del día a día', peso: 1 },

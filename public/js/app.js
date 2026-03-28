@@ -147,6 +147,7 @@ function abrirPanelPorRol() {
         document.getElementById('emp-panel-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
         cargarTareasEmpleado();
         verificarEstadoCheckin();
+        verificarUbicacionFija();
     }
 }
 
@@ -267,7 +268,8 @@ async function crearEmpresa(e) {
         permite_supervisor_asignar: document.getElementById('cfg-sup-asignar').checked,
         formato_hora: document.getElementById('cfg-formato-hora').value,
         supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked,
-        empleado_puede_iniciar: document.getElementById('cfg-emp-iniciar-tarea').checked
+        empleado_puede_iniciar: document.getElementById('cfg-emp-iniciar-tarea').checked,
+        modalidad_trabajo: document.getElementById('cfg-modalidad-trabajo').value
     };
 
     try {
@@ -2137,6 +2139,83 @@ async function registrarPresenteDesdeOverlay() {
             btn.disabled = false;
         }
         mostrarToast('Error al registrar asistencia', 'error');
+    }
+}
+
+// ═══════════════════════════════════════════
+// UBICACIÓN FIJA DEL EMPLEADO
+// ═══════════════════════════════════════════
+async function verificarUbicacionFija() {
+    try {
+        const config = await fetchAPI('/api/empresas/mi-config');
+        if (config.modalidad_trabajo !== 'fijo') return;
+
+        const ubicacion = await fetchAPI('/api/usuarios/mi-ubicacion');
+        if (ubicacion.lat && ubicacion.lng) {
+            // Ya tiene ubicación registrada - mostrar badge
+            const container = document.getElementById('emp-ubicacion-info');
+            if (container) {
+                container.innerHTML = `
+                    <div style="font-size:0.7rem;color:#10b981;padding:6px 10px;background:rgba(16,185,129,0.1);border-radius:8px;border:1px solid rgba(16,185,129,0.2);margin:8px 0;display:flex;align-items:center;gap:6px;">
+                        📍 <strong>${ubicacion.nombre || 'Ubicación registrada'}</strong>
+                        <button onclick="configurarUbicacionFija()" style="margin-left:auto;background:none;border:none;color:#a78bfa;font-size:0.65rem;cursor:pointer;text-decoration:underline;">Actualizar</button>
+                    </div>
+                `;
+            }
+        } else {
+            // No tiene ubicación - mostrar botón obligatorio
+            const container = document.getElementById('emp-ubicacion-info');
+            if (container) {
+                container.innerHTML = `
+                    <div style="padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;border:1px solid rgba(245,158,11,0.3);margin:8px 0;text-align:center;">
+                        <p style="font-size:0.75rem;color:#f59e0b;margin-bottom:8px;">⚠️ Debes registrar tu ubicación de trabajo</p>
+                        <button onclick="configurarUbicacionFija()" style="padding:8px 20px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:0.8rem;">
+                            📍 Registrar mi ubicación
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    } catch(e) {
+        console.log('Error verificando ubicación:', e);
+    }
+}
+
+async function configurarUbicacionFija() {
+    mostrarToast('📡 Obteniendo tu ubicación GPS...', 'info');
+    
+    let lat = null, lng = null;
+    try {
+        const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true });
+        });
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+    } catch(e) {
+        mostrarToast('❌ No se pudo obtener tu ubicación. Permite el acceso GPS.', 'error');
+        return;
+    }
+
+    // Reverse geocoding para obtener nombre del lugar
+    let nombreLugar = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`);
+        const geoData = await geoRes.json();
+        if (geoData.display_name) {
+            const parts = geoData.display_name.split(',');
+            nombreLugar = parts.slice(0, 3).join(',').trim();
+        }
+    } catch(e) {}
+
+    try {
+        await fetchAPI('/api/usuarios/mi-ubicacion', {
+            method: 'PUT',
+            body: JSON.stringify({ lat, lng, nombre: nombreLugar })
+        });
+        mostrarToast(`✅ Ubicación registrada: ${nombreLugar}`, 'success');
+        verificarUbicacionFija();
+    } catch(err) {
+        mostrarToast('Error al guardar ubicación', 'error');
     }
 }
 

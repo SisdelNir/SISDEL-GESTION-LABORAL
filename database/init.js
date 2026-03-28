@@ -413,6 +413,7 @@ async function inicializarDB() {
             formato_hora TEXT DEFAULT '12h',
             supervisor_ve_terminadas INTEGER DEFAULT 1,
             empleado_puede_iniciar INTEGER DEFAULT 1,
+            modalidad_trabajo TEXT DEFAULT 'fijo',
             usa_gamificacion INTEGER DEFAULT 1,
             usa_geolocalizacion INTEGER DEFAULT 1,
             personalizacion_json TEXT DEFAULT '{}'
@@ -423,9 +424,20 @@ async function inicializarDB() {
     const migracionesConfig = [
         "ALTER TABLE configuraciones_empresa ADD COLUMN formato_hora TEXT DEFAULT '12h'",
         "ALTER TABLE configuraciones_empresa ADD COLUMN supervisor_ve_terminadas INTEGER DEFAULT 1",
-        "ALTER TABLE configuraciones_empresa ADD COLUMN empleado_puede_iniciar INTEGER DEFAULT 1"
+        "ALTER TABLE configuraciones_empresa ADD COLUMN empleado_puede_iniciar INTEGER DEFAULT 1",
+        "ALTER TABLE configuraciones_empresa ADD COLUMN modalidad_trabajo TEXT DEFAULT 'fijo'"
     ];
     for (const mig of migracionesConfig) {
+        try { await db.run(mig); } catch(e) { /* ya existe */ }
+    }
+
+    // Migración: ubicación fija del empleado
+    const migracionesUsuarios = [
+        'ALTER TABLE usuarios ADD COLUMN ubicacion_fija_lat REAL',
+        'ALTER TABLE usuarios ADD COLUMN ubicacion_fija_lng REAL',
+        "ALTER TABLE usuarios ADD COLUMN ubicacion_fija_nombre TEXT DEFAULT ''"
+    ];
+    for (const mig of migracionesUsuarios) {
         try { await db.run(mig); } catch(e) { /* ya existe */ }
     }
 

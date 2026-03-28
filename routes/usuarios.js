@@ -225,5 +225,44 @@ router.post('/asignar-supervisor', verificarToken, verificarRol('ADMIN'), async 
         res.status(500).json({ error: 'Error al asignar supervisor' });
     }
 });
+/**
+ * PUT /api/usuarios/mi-ubicacion — Guardar ubicación fija del empleado
+ */
+router.put('/mi-ubicacion', verificarToken, async (req, res) => {
+    try {
+        const { lat, lng, nombre } = req.body;
+        if (!lat || !lng) return res.status(400).json({ error: 'Se requiere latitud y longitud' });
+
+        await db.run(`
+            UPDATE usuarios SET ubicacion_fija_lat = ?, ubicacion_fija_lng = ?, ubicacion_fija_nombre = ? WHERE id_usuario = ?
+        `, lat, lng, nombre || '', req.usuario.id_usuario);
+
+        registrarAuditoria(req.usuario.id_empresa, req.usuario.id_usuario, 'UBICACION_FIJA', `Ubicación de trabajo registrada: ${nombre || 'GPS'} (${lat}, ${lng})`);
+
+        res.json({ mensaje: 'Ubicación registrada', lat, lng, nombre });
+    } catch (err) {
+        console.error('Error guardando ubicación:', err);
+        res.status(500).json({ error: 'Error al guardar ubicación' });
+    }
+});
+
+/**
+ * GET /api/usuarios/mi-ubicacion — Obtener ubicación fija del empleado
+ */
+router.get('/mi-ubicacion', verificarToken, async (req, res) => {
+    try {
+        const usuario = await db.get(
+            'SELECT ubicacion_fija_lat, ubicacion_fija_lng, ubicacion_fija_nombre FROM usuarios WHERE id_usuario = ?',
+            req.usuario.id_usuario
+        );
+        res.json({
+            lat: usuario?.ubicacion_fija_lat || null,
+            lng: usuario?.ubicacion_fija_lng || null,
+            nombre: usuario?.ubicacion_fija_nombre || ''
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Error al obtener ubicación' });
+    }
+});
 
 module.exports = router;
