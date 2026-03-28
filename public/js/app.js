@@ -600,8 +600,12 @@ async function cargarTareasEmpleado() {
         });
 
         const container = document.getElementById('emp-lista-tareas');
+
+        // Solo tareas no completadas
+        tareas = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
+
         if (!tareas.length) {
-            container.innerHTML = '<div class="empty-state"><p>No tienes tareas asignadas</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>No tienes tareas pendientes</p></div>';
             return;
         }
 
