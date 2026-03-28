@@ -266,7 +266,8 @@ async function crearEmpresa(e) {
         admin_correo: document.getElementById('admin-correo').value.trim(),
         permite_supervisor_asignar: document.getElementById('cfg-sup-asignar').checked,
         formato_hora: document.getElementById('cfg-formato-hora').value,
-        supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked
+        supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked,
+        empleado_puede_iniciar: document.getElementById('cfg-emp-iniciar-tarea').checked
     };
 
     try {
@@ -570,6 +571,15 @@ const cronoIntervalos = {};
 async function cargarTareasEmpleado() {
     try {
         const tareas = await fetchAPI('/api/tareas');
+
+        // Cargar config de empresa
+        let empPuedeIniciar = true;
+        try {
+            const config = await fetchAPI('/api/empresas/mi-config');
+            empPuedeIniciar = config.empleado_puede_iniciar !== 0 && config.empleado_puede_iniciar !== false;
+            window.FORMATO_HORA_EMPRESA = config.formato_hora || '12h';
+        } catch(e) {}
+
         // Estadísticas
         const pendientes = tareas.filter(t => t.estado === 'pendiente').length;
         const enProceso = tareas.filter(t => t.estado === 'en_proceso').length;
@@ -593,6 +603,21 @@ async function cargarTareasEmpleado() {
             return;
         }
 
+        // Si empleado NO puede iniciar → auto-iniciar tareas pendientes
+        if (!empPuedeIniciar) {
+            const pendientesArr = tareas.filter(t => t.estado === 'pendiente');
+            for (const t of pendientesArr) {
+                try {
+                    await fetchAPI(`/api/tareas/${t.id_tarea}/estado`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ estado: 'en_proceso' })
+                    });
+                    t.estado = 'en_proceso';
+                    t.fecha_inicio = t.fecha_creacion; // cronómetro desde asignación
+                } catch(e) {}
+            }
+        }
+
         container.innerHTML = tareas.map(t => {
             const esFinalizada = t.estado === 'finalizada' || t.estado === 'finalizada_atrasada';
             const enProcesoActivo = t.estado === 'en_proceso' || t.estado === 'atrasada';
@@ -604,12 +629,20 @@ async function cargarTareasEmpleado() {
             if (enProcesoActivo) cronoClase = 'corriendo';
             else if (esFinalizada) cronoClase = 'detenido';
 
-            // Botones de acción
+            // Botones de acción según config
             let acciones = '';
-            if (esPendiente) {
-                acciones = `<button class="btn-crono btn-iniciar" onclick="event.stopPropagation(); iniciarTareaEmpleado('${t.id_tarea}')">▶ Iniciar</button>`;
-            } else if (enProcesoActivo) {
-                acciones = `<button class="btn-crono btn-completar" onclick="event.stopPropagation(); completarTareaEmpleado('${t.id_tarea}')">✅ Completar</button>`;
+            if (empPuedeIniciar) {
+                // Modo manual: Iniciar → Completar
+                if (esPendiente) {
+                    acciones = `<button class="btn-crono btn-iniciar" onclick="event.stopPropagation(); iniciarTareaEmpleado('${t.id_tarea}')">▶ Iniciar</button>`;
+                } else if (enProcesoActivo) {
+                    acciones = `<button class="btn-crono btn-completar" onclick="event.stopPropagation(); completarTareaEmpleado('${t.id_tarea}')">✅ Completar</button>`;
+                }
+            } else {
+                // Modo automático: solo botón Terminada
+                if (enProcesoActivo) {
+                    acciones = `<button class="btn-crono btn-completar" onclick="event.stopPropagation(); completarTareaEmpleado('${t.id_tarea}')">✅ Terminada</button>`;
+                }
             }
 
             return `
