@@ -468,6 +468,7 @@ router.get('/historial', verificarToken, verificarRol('ADMIN'), async (req, res)
             LEFT JOIN usuarios us ON t.id_supervisor = us.id_usuario
             LEFT JOIN usuarios uc ON t.id_creador = uc.id_usuario
             WHERE t.id_empresa = ?
+              AND t.estado IN ('finalizada', 'finalizada_atrasada', 'cancelada')
         `;
         const params = [req.usuario.id_empresa];
 

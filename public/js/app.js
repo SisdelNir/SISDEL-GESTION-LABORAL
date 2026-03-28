@@ -1234,15 +1234,20 @@ async function cargarTareas() {
         if (estado) url += `estado=${estado}&`;
         if (prioridad) url += `prioridad=${prioridad}&`;
 
-        const tareas = await fetchAPI(url);
+        let tareas = await fetchAPI(url);
         const container = document.getElementById(USUARIO.rol === 'SUPERVISOR' ? 'sup-lista-tareas' : 'lista-tareas');
         
         if (!container) return;
 
         cargarEstadisticasTareas();
 
+        // En panel central: solo tareas activas (no finalizadas) a menos que se filtre por estado específico
+        if (!estado && USUARIO.rol !== 'SUPERVISOR') {
+            tareas = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
+        }
+
         if (!tareas.length) {
-            container.innerHTML = '<div class="empty-state"><p>No hay tareas que mostrar</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>No hay tareas pendientes</p></div>';
             return;
         }
 
