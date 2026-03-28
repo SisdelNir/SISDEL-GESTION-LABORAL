@@ -554,19 +554,19 @@
 
                     <!-- Stats rápidos de tareas -->
                     <div class="stats-grid" style="margin-bottom:16px;">
-                        <div class="stat-card glass">
+                        <div class="stat-card glass" onclick="filtrarTareasPorEstado('pendiente')" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 0 15px rgba(245,158,11,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
                             <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🟡</div>
                             <div class="stat-info"><span class="stat-value" id="stat-pendientes">0</span><span class="stat-label">Pendientes</span></div>
                         </div>
-                        <div class="stat-card glass">
+                        <div class="stat-card glass" onclick="filtrarTareasPorEstado('en_proceso')" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 0 15px rgba(59,130,246,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
                             <div class="stat-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">🔵</div>
                             <div class="stat-info"><span class="stat-value" id="stat-en-proceso">0</span><span class="stat-label">En Proceso</span></div>
                         </div>
-                        <div class="stat-card glass">
+                        <div class="stat-card glass" onclick="filtrarTareasPorEstado('finalizada')" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 0 15px rgba(16,185,129,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
                             <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">🟢</div>
                             <div class="stat-info"><span class="stat-value" id="stat-finalizadas">0</span><span class="stat-label">Finalizadas</span></div>
                         </div>
-                        <div class="stat-card glass">
+                        <div class="stat-card glass" onclick="filtrarTareasPorEstado('atrasada')" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 0 15px rgba(239,68,68,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
                             <div class="stat-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">🔴</div>
                             <div class="stat-info"><span class="stat-value" id="stat-atrasadas">0</span><span class="stat-label">Atrasadas</span></div>
                         </div>

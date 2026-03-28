@@ -2425,6 +2425,32 @@ function formatearHoraEmpresa(fechaStr) {
 // ═══════════════════════════════════════════
 // HISTORIAL DE TAREAS (ADMIN)
 // ═══════════════════════════════════════════
+function filtrarTareasPorEstado(estado) {
+    if (estado === 'finalizada' || estado === 'finalizada_atrasada') {
+        // Abrir historial y filtrar por ese estado
+        const panel = document.getElementById('panel-historial-tareas');
+        const btn = document.getElementById('btn-historial-tareas');
+        panel.style.display = 'block';
+        btn.innerHTML = '📜 Ocultar Historial';
+        btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
+        // Setear filtro de estado en historial
+        const filtro = document.getElementById('historial-filtro-estado');
+        if (filtro) filtro.value = estado;
+        cargarHistorialTareas();
+        // Scroll al historial
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        // Filtrar en el panel principal
+        const filtro = document.getElementById('filtro-estado');
+        if (filtro) filtro.value = estado;
+        cargarTareas();
+        // Scroll al listado
+        const lista = document.getElementById('lista-tareas');
+        if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    mostrarToast(`Mostrando tareas: ${estado.replace('_', ' ').toUpperCase()}`, 'info');
+}
+
 function toggleHistorialTareas() {
     const panel = document.getElementById('panel-historial-tareas');
     const btn = document.getElementById('btn-historial-tareas');
