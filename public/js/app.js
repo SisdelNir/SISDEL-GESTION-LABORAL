@@ -860,6 +860,8 @@ function formatearCrono(totalSegundos) {
     const s = totalSegundos % 60;
     return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
+// Alias para el panel admin
+const formatearCronoAdmin = formatearCrono;
 
 function iniciarCrono(idTarea, fechaInicio) {
     // Limpiar intervalo previo
@@ -1396,59 +1398,93 @@ async function cargarTareas() {
     try {
         const estado = document.getElementById('filtro-estado')?.value || '';
         const prioridad = document.getElementById('filtro-prioridad')?.value || '';
+
+        // Si el filtro es "finalizadas", incluir también finalizada_atrasada
         let url = '/api/tareas?';
-        if (estado) url += `estado=${estado}&`;
+        if (estado === 'finalizada') {
+            url += `estado=finalizada&`;
+        } else if (estado) {
+            url += `estado=${estado}&`;
+        }
         if (prioridad) url += `prioridad=${prioridad}&`;
 
         let tareas = await fetchAPI(url);
-        const container = document.getElementById(USUARIO.rol === 'SUPERVISOR' ? 'sup-lista-tareas' : 'lista-tareas');
-        
+        const containerId = USUARIO.rol === 'SUPERVISOR' ? 'sup-lista-tareas' : 'lista-tareas';
+        const container = document.getElementById(containerId);
         if (!container) return;
 
         cargarEstadisticasTareas();
 
-        // En panel central: solo tareas activas (no finalizadas) a menos que se filtre por estado específico
-        if (!estado && USUARIO.rol !== 'SUPERVISOR') {
+        // Si no hay filtro de estado, mostrar solo activas (no finalizadas/canceladas) por defecto
+        if (!estado) {
             tareas = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
+        }
+        // Si el filtro es "finalizada", incluir también finalizada_atrasada
+        if (estado === 'finalizada') {
+            const urlAtrasada = '/api/tareas?estado=finalizada_atrasada' + (prioridad ? `&prioridad=${prioridad}` : '');
+            try {
+                const tareasAtrasadas = await fetchAPI(urlAtrasada);
+                tareas = [...tareas, ...tareasAtrasadas];
+                tareas.sort((a,b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+            } catch(e) {}
         }
 
         if (!tareas.length) {
-            container.innerHTML = '<div class="empty-state"><p>No hay tareas pendientes</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>No hay tareas' + (estado ? ` con estado "${estado.replace('_',' ')}"` : '') + '</p></div>';
             return;
         }
 
+        // Render horizontal rows con toda la info
         container.innerHTML = tareas.map(t => {
             const prioridadColor = {
-                'urgente': '#ef4444', 'alta': '#f59e0b', 'media': '#6366f1', 'baja': '#10b981'
+                'urgente': '#ef4444', 'alta': '#f97316', 'media': '#6366f1', 'baja': '#10b981'
             }[t.prioridad] || '#6366f1';
-            const estadoEmoji = {
-                'pendiente': '🟡', 'en_proceso': '🔵', 'finalizada': '🟢',
-                'atrasada': '🔴', 'finalizada_atrasada': '🟠'
-            }[t.estado] || '⚪';
+            const estadoBadgeClass = {
+                'pendiente': 'badge-warning',
+                'en_proceso': 'badge-primary',
+                'finalizada': 'badge-success',
+                'atrasada': 'badge-danger',
+                'finalizada_atrasada': 'badge-warning',
+                'cancelada': 'badge-info'
+            }[t.estado] || 'badge-info';
             const estadoTexto = {
-                'pendiente': 'Pendiente', 'en_proceso': 'En Proceso', 'finalizada': 'Finalizada',
-                'atrasada': 'Atrasada', 'finalizada_atrasada': 'Finalizada (atrasada)'
+                'pendiente': '🟡 Pendiente',
+                'en_proceso': '🔵 En Proceso',
+                'finalizada': '🟢 Finalizada',
+                'atrasada': '🔴 Atrasada',
+                'finalizada_atrasada': '🟠 Fin. Atrasada',
+                'cancelada': '⬜ Cancelada'
             }[t.estado] || t.estado;
 
+            // Calcular tiempo real si está finalizada
+            let tiempoReal = '';
+            if ((t.estado === 'finalizada' || t.estado === 'finalizada_atrasada') && t.fecha_inicio && t.fecha_fin) {
+                const segs = Math.round((new Date(t.fecha_fin) - new Date(t.fecha_inicio)) / 1000);
+                tiempoReal = `<span class="empresa-stat">⏱ Real: ${formatearCronoAdmin(segs)}</span>`;
+            }
+
             return `
-            <div class="empresa-card glass" onclick="verDetalleTarea('${t.id_tarea}')" style="border-left:3px solid ${prioridadColor};">
-                <div class="empresa-card-header">
-                    <div class="empresa-avatar" style="background:${prioridadColor};font-size:1rem;">${t.prioridad === 'urgente' ? '🔥' : '📋'}</div>
-                    <div>
-                        <h4>${t.titulo}</h4>
-                        <span class="empresa-id">${t.nombre_tipo || 'Sin tipo'} · ${estadoEmoji} ${estadoTexto}</span>
+            <div class="tarea-row glass" onclick="verDetalleTarea('${t.id_tarea}')" style="border-left:4px solid ${prioridadColor};">
+                <div class="tarea-row-prioridad" style="background:${prioridadColor}22;color:${prioridadColor};font-size:0.68rem;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;">${t.prioridad.toUpperCase()}</div>
+                <div class="tarea-row-main">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span style="font-size:0.95rem;font-weight:700;">${t.titulo}</span>
+                        <span class="badge ${estadoBadgeClass}" style="font-size:0.68rem;">${estadoTexto}</span>
+                        ${t.nombre_tipo ? `<span style="font-size:0.72rem;color:var(--text-muted);">${t.nombre_tipo}</span>` : ''}
                     </div>
+                    ${t.descripcion ? `<div style="font-size:0.78rem;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px;">${t.descripcion}</div>` : ''}
                 </div>
-                <div class="empresa-card-body">
-                    ${t.nombre_empleado ? `<span class="empresa-stat">👤 ${t.nombre_empleado}</span>` : ''}
+                <div class="tarea-row-info">
+                    ${t.nombre_empleado ? `<span class="empresa-stat">👤 ${t.nombre_empleado}</span>` : '<span class="empresa-stat" style="opacity:0.4;">Sin asignar</span>'}
                     ${t.nombre_supervisor ? `<span class="empresa-stat">👁 ${t.nombre_supervisor}</span>` : ''}
-                    ${t.tiempo_estimado_minutos ? `<span class="empresa-stat">⏱ ${formatearTiempo(t.tiempo_estimado_minutos)}</span>` : ''}
+                    ${t.tiempo_estimado_minutos ? `<span class="empresa-stat">⏳ ${formatearTiempo(t.tiempo_estimado_minutos)}</span>` : ''}
+                    ${tiempoReal}
                     ${t.total_evidencias > 0 ? `<span class="empresa-stat">📸 ${t.total_evidencias}</span>` : ''}
                     ${t.total_comentarios > 0 ? `<span class="empresa-stat">💬 ${t.total_comentarios}</span>` : ''}
                 </div>
-                <div class="empresa-card-footer">
-                    <span class="badge" style="background:${prioridadColor}22;color:${prioridadColor};">${t.prioridad.toUpperCase()}</span>
-                    <span style="font-size:0.75rem;color:var(--text-muted)">${formatearFecha(t.fecha_creacion)}</span>
+                <div class="tarea-row-fecha">
+                    <span style="font-size:0.72rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_creacion)}</span>
+                    ${t.fecha_fin ? `<span style="font-size:0.7rem;color:#10b981;">✅ ${formatearFecha(t.fecha_fin)}</span>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -2588,29 +2624,15 @@ function formatearHoraEmpresa(fechaStr) {
 // HISTORIAL DE TAREAS (ADMIN)
 // ═══════════════════════════════════════════
 function filtrarTareasPorEstado(estado) {
-    if (estado === 'finalizada' || estado === 'finalizada_atrasada') {
-        // Abrir historial y filtrar por ese estado
-        const panel = document.getElementById('panel-historial-tareas');
-        const btn = document.getElementById('btn-historial-tareas');
-        panel.style.display = 'block';
-        btn.innerHTML = '📜 Ocultar Historial';
-        btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
-        // Setear filtro de estado en historial — vacío para mostrar TODAS las completadas
-        const filtro = document.getElementById('historial-filtro-estado');
-        if (filtro) filtro.value = '';
-        cargarHistorialTareas();
-        // Scroll al historial
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-        // Filtrar en el panel principal
-        const filtro = document.getElementById('filtro-estado');
-        if (filtro) filtro.value = estado;
-        cargarTareas();
-        // Scroll al listado
-        const lista = document.getElementById('lista-tareas');
-        if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    mostrarToast(`Mostrando tareas: ${estado.replace('_', ' ').toUpperCase()}`, 'info');
+    // Todos los estados usan el mismo panel principal
+    const filtro = document.getElementById('filtro-estado');
+    if (filtro) filtro.value = estado;
+    cargarTareas();
+    // Scroll al listado
+    const lista = document.getElementById('lista-tareas');
+    if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const labels = { 'pendiente': 'Pendientes', 'en_proceso': 'En Proceso', 'finalizada': 'Finalizadas', 'atrasada': 'Atrasadas' };
+    mostrarToast(`Mostrando: ${labels[estado] || estado}`, 'info');
 }
 
 async function limpiarTodasLasTareas() {
