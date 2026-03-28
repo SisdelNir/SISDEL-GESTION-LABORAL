@@ -508,6 +508,32 @@ router.post('/:id/evidencias', verificarToken, setUploadTipo('evidencias'), uplo
     }
 });
 
+/**
+ * POST /api/tareas/:id/evidencias/base64
+ * Recibe imagen como base64 en JSON (sin depender de multer ni disco)
+ */
+router.post('/:id/evidencias/base64', verificarToken, async (req, res) => {
+    try {
+        const { tipo, contenido } = req.body;
+        if (!contenido) return res.status(400).json({ error: 'Contenido base64 requerido' });
+
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
+        if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+
+        const id_evidencia = uuidv4();
+        await db.run(`INSERT INTO evidencias_tarea (id_evidencia, id_tarea, tipo, contenido) VALUES (?, ?, ?, ?)`,
+            id_evidencia, req.params.id, tipo || 'imagen', contenido);
+
+        console.log(`✅ Evidencia base64 guardada: ${id_evidencia} para tarea ${req.params.id} (${contenido.length} chars)`);
+
+        const io = req.app.get('io');
+        if (io) io.to(`empresa_${tarea.id_empresa}`).emit('nueva_evidencia', { id_tarea: req.params.id, tipo: tipo || 'imagen' });
+        res.status(201).json({ mensaje: 'Evidencia agregada', id_evidencia });
+    } catch (err) {
+        console.error('❌ Error guardando evidencia base64:', err);
+        res.status(500).json({ error: 'Error al agregar evidencia: ' + err.message });
+    }
+});
 // (Moved: tipos, notificaciones routes are now before /:id)
 
 // ═══════════════════════════════════════════

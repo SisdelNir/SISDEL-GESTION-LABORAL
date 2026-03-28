@@ -2136,7 +2136,7 @@ async function subirImagenRapida(idTarea) {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
-    fileInput.multiple = true; // Permitir seleccionar varias imágenes
+    fileInput.multiple = true;
     
     fileInput.onchange = async (e) => {
         const files = Array.from(e.target.files);
@@ -2144,7 +2144,7 @@ async function subirImagenRapida(idTarea) {
         
         Swal.fire({ 
             title: 'Subiendo...', 
-            text: `Enviando ${files.length} imagen(es) al servidor`, 
+            text: `Procesando ${files.length} imagen(es)...`, 
             allowOutsideClick: false, 
             didOpen: () => { Swal.showLoading() } 
         });
@@ -2153,18 +2153,31 @@ async function subirImagenRapida(idTarea) {
         let errores = 0;
         
         for (const file of files) {
-            const formData = new FormData();
-            formData.append('archivo', file);
-            formData.append('tipo', 'imagen');
             try {
-                const resp = await fetch(`/api/tareas/${idTarea}/evidencias`, {
-                    method: 'POST', 
-                    headers: { 'Authorization': `Bearer ${TOKEN}` }, 
-                    body: formData
+                // Convertir a base64 en el NAVEGADOR (no depende del disco del servidor)
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
                 });
-                if (!resp.ok) throw new Error('Error');
+                
+                const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
+                    method: 'POST', 
+                    headers: { 
+                        'Authorization': `Bearer ${TOKEN}`,
+                        'Content-Type': 'application/json'
+                    }, 
+                    body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    console.error('Error subiendo evidencia:', err);
+                    throw new Error(err.error || 'Error');
+                }
                 subidas++;
             } catch(err) { 
+                console.error('Error procesando imagen:', err);
                 errores++;
             }
         }
@@ -2173,7 +2186,7 @@ async function subirImagenRapida(idTarea) {
         if (subidas > 0) {
             mostrarToast(`📸 ${subidas} imagen(es) subida(s) exitosamente.${errores > 0 ? ` (${errores} fallidas)` : ''}`, 'success');
         } else {
-            mostrarToast('Error al subir imágenes', 'error');
+            mostrarToast('Error al subir imágenes. Intenta con imágenes más pequeñas.', 'error');
         }
         // Recargar la lista de tareas del empleado para actualizar el contador de fotos
         if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();

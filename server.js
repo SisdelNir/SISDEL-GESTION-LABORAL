@@ -12,8 +12,8 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
