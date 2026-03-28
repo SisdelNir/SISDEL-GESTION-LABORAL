@@ -1232,8 +1232,11 @@ select {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
-    padding: 18px;
+    padding: 16px 20px;
     transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 .emp-tarea-card:hover {
     transform: translateY(-2px);
@@ -1242,18 +1245,25 @@ select {
 .emp-tarea-card .tarea-titulo {
     font-size: 1rem;
     font-weight: 700;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 .emp-tarea-card .tarea-desc {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
-    margin-bottom: 10px;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 .emp-tarea-card .tarea-meta {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 6px;
+}
+.emp-tarea-card .tarea-info {
+    flex: 1;
+    min-width: 0;
 }
 
 .btn-crono {
@@ -1267,6 +1277,7 @@ select {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
 }
 .btn-crono:hover { transform: scale(1.05); }
 .btn-iniciar {
@@ -1288,4 +1299,12 @@ select {
     gap: 8px;
     flex-wrap: wrap;
 }
+
+/* Employee task list: single column */
+#emp-lista-tareas {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 

@@ -813,20 +813,22 @@ async function cargarTareasEmpleado() {
 
             return `
                 <div class="emp-tarea-card" id="emp-card-${t.id_tarea}">
-                    <div style="display:flex;justify-content:space-between;align-items:start;">
-                        <div class="tarea-titulo">${t.titulo}</div>
-                        <span class="badge ${t.estado === 'finalizada' || t.estado === 'finalizada_atrasada' ? 'badge-success' : t.estado === 'en_proceso' ? 'badge-primary' : t.estado === 'atrasada' ? 'badge-danger' : 'badge-warning'}">${t.estado.replace('_', ' ')}</span>
+                    <div class="tarea-info">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+                            <div class="tarea-titulo">${t.titulo}</div>
+                            <span class="badge ${t.estado === 'finalizada' || t.estado === 'finalizada_atrasada' ? 'badge-success' : t.estado === 'en_proceso' ? 'badge-primary' : t.estado === 'atrasada' ? 'badge-danger' : 'badge-warning'}" style="font-size:0.7rem;">${t.estado.replace('_', ' ')}</span>
+                        </div>
+                        ${t.descripcion ? `<div class="tarea-desc">${t.descripcion}</div>` : ''}
+                        <div class="tarea-meta">
+                            <span class="badge" style="background: ${t.prioridad === 'urgente' ? '#ef4444' : t.prioridad === 'alta' ? '#f97316' : t.prioridad === 'media' ? '#f59e0b' : '#10b981'}; color: white; font-size:0.68rem;">${t.prioridad.toUpperCase()}</span>
+                            ${tiempoEst ? `<span class="badge badge-info" style="font-size:0.68rem;">${tiempoEst}</span>` : ''}
+                            ${t.fecha_vencimiento ? `<span style="font-size:0.7rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_vencimiento)}</span>` : ''}
+                            ${t.fecha_creacion ? `<span style="font-size:0.65rem;color:#a78bfa;">🕐 ${formatearHoraEmpresa(t.fecha_creacion)}</span>` : ''}
+                        </div>
                     </div>
-                    <div class="tarea-desc">${t.descripcion || ''}</div>
-                    <div class="tarea-meta">
-                        <span class="badge" style="background: ${t.prioridad === 'urgente' ? '#ef4444' : t.prioridad === 'alta' ? '#f97316' : t.prioridad === 'media' ? '#f59e0b' : '#10b981'}; color: white; display:inline-block;">${t.prioridad.toUpperCase()}</span>
-                        ${tiempoEst ? `<span class="badge badge-info">${tiempoEst}</span>` : ''}
-                        ${t.fecha_vencimiento ? `<span style="font-size:0.75rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_vencimiento)}</span>` : ''}
-                    </div>
-                    <div class="crono-container">
-                        ${t.fecha_creacion ? `<div style="font-size:0.6rem;color:#a78bfa;letter-spacing:0.3px;margin-bottom:2px;text-align:center;width:100%;">📅 ${new Date(t.fecha_creacion).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})} · 🕐 ${formatearHoraEmpresa(t.fecha_creacion)}</div>` : ''}
-                        <span style="font-size:1.2rem;">⏱</span>
-                        <span class="crono-display ${cronoClase}" id="crono-${t.id_tarea}" data-inicio="${t.fecha_inicio || ''}" data-fin="${t.fecha_fin || ''}">00:00:00</span>
+                    <div class="crono-container" style="flex-shrink:0;margin:0;padding:10px 14px;min-width:auto;flex-wrap:wrap;justify-content:center;">
+                        <span style="font-size:1rem;">⏱</span>
+                        <span class="crono-display ${cronoClase}" id="crono-${t.id_tarea}" data-inicio="${t.fecha_inicio || ''}" data-fin="${t.fecha_fin || ''}" style="font-size:1.4rem;min-width:110px;">00:00:00</span>
                         <div class="crono-acciones">${acciones}</div>
                     </div>
                 </div>
@@ -2609,6 +2611,20 @@ function filtrarTareasPorEstado(estado) {
         if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     mostrarToast(`Mostrando tareas: ${estado.replace('_', ' ').toUpperCase()}`, 'info');
+}
+
+async function limpiarTodasLasTareas() {
+    if (!confirm('⚠️ ¿Estás seguro de ELIMINAR TODAS las tareas?\n\nEsta acción eliminará todas las tareas, historial, evidencias y comentarios.\n\nNo se puede deshacer.')) return;
+    if (!confirm('🔴 ÚLTIMA CONFIRMACIÓN: ¿Realmente deseas borrar TODO?')) return;
+    try {
+        const res = await fetchAPI('/api/tareas/limpiar', { method: 'DELETE' });
+        if (res.error) return mostrarToast(res.error, 'error');
+        mostrarToast(`✅ ${res.mensaje}`, 'success');
+        cargarTareas();
+        cargarEstadisticasTareas();
+    } catch(err) {
+        mostrarToast('Error al limpiar tareas: ' + err.message, 'error');
+    }
 }
 
 function toggleHistorialTareas() {
