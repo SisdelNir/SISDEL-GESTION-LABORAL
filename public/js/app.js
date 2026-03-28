@@ -2122,33 +2122,49 @@ async function subirImagenRapida(idTarea) {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
-    // try to trigger camera on mobile explicitly if supported
-    fileInput.capture = 'environment';
+    fileInput.multiple = true; // Permitir seleccionar varias imágenes
     
     fileInput.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
         
-        Swal.fire({ title: 'Subiendo...', text: 'Enviando imagen al servidor', allowOutsideClick:false, didOpen:()=>{Swal.showLoading()} });
+        Swal.fire({ 
+            title: 'Subiendo...', 
+            text: `Enviando ${files.length} imagen(es) al servidor`, 
+            allowOutsideClick: false, 
+            didOpen: () => { Swal.showLoading() } 
+        });
         
-        const formData = new FormData();
-        formData.append('archivo', file);
-        formData.append('tipo', 'imagen');
-        try {
-            const resp = await fetch(`/api/tareas/${idTarea}/evidencias`, {
-                method: 'POST', headers: { 'Authorization': `Bearer ${TOKEN}` }, body: formData
-            });
-            if (!resp.ok) throw new Error('Error subiendo imagen');
-            Swal.close();
-            mostrarToast('📸 Imagen subida exitosamente. Ya puedes finalizar.', 'success');
-            // Recargar la lista de tareas del empleado para actualizar el contador de fotos
-            if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
-            // Si estaba viendo el detalle abierto, recargar
-            if(TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
-        } catch(err) { 
-            Swal.close();
-            mostrarToast('Error al subir imagen', 'error'); 
+        let subidas = 0;
+        let errores = 0;
+        
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('archivo', file);
+            formData.append('tipo', 'imagen');
+            try {
+                const resp = await fetch(`/api/tareas/${idTarea}/evidencias`, {
+                    method: 'POST', 
+                    headers: { 'Authorization': `Bearer ${TOKEN}` }, 
+                    body: formData
+                });
+                if (!resp.ok) throw new Error('Error');
+                subidas++;
+            } catch(err) { 
+                errores++;
+            }
         }
+        
+        Swal.close();
+        if (subidas > 0) {
+            mostrarToast(`📸 ${subidas} imagen(es) subida(s) exitosamente.${errores > 0 ? ` (${errores} fallidas)` : ''}`, 'success');
+        } else {
+            mostrarToast('Error al subir imágenes', 'error');
+        }
+        // Recargar la lista de tareas del empleado para actualizar el contador de fotos
+        if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
+        // Si estaba viendo el detalle abierto, recargar
+        if (TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
     };
     fileInput.click();
 }
