@@ -1843,7 +1843,10 @@ async function mostrarFormularioTarea() {
         const tipos = await fetchAPI('/api/tareas/tipos/lista');
         const selTipo = document.getElementById('tarea-tipo');
         selTipo.innerHTML = '<option value="">-- Seleccionar tipo --</option>';
-        tipos.forEach(t => { selTipo.innerHTML += `<option value="${t.id_tipo}">${t.nombre}</option>`; });
+        tipos.forEach(t => { 
+            const isSelected = (t.nombre && t.nombre.toLowerCase().includes('operativa')) ? 'selected' : '';
+            selTipo.innerHTML += `<option value="${t.id_tipo}" ${isSelected}>${t.nombre}</option>`; 
+        });
     } catch(e) {}
     document.getElementById('modal-tarea').style.display = 'flex';
     document.getElementById('tarea-tiempo-preview').style.display = 'none'; // reset preview
