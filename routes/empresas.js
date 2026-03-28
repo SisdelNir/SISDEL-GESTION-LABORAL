@@ -15,7 +15,7 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
             nombre, identificacion_empresa, nombre_administrador,
             pais, moneda, zona_horaria, telefono, correo, direccion,
             admin_identificacion, admin_telefono, admin_correo,
-            permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, modalidad_trabajo
+            permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo
         } = req.body;
 
         if (!nombre || !nombre_administrador) {
@@ -38,12 +38,13 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
         `, id_usuario, id_empresa, admin_identificacion || identificacion_empresa || '', nombre_administrador, admin_telefono || telefono || '', admin_correo || correo || '', codigo_admin);
 
         await db.run(`
-            INSERT INTO configuraciones_empresa (id_config, id_empresa, permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, modalidad_trabajo) VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO configuraciones_empresa (id_config, id_empresa, permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `, id_config, id_empresa,
            permite_supervisor_asignar !== undefined ? (permite_supervisor_asignar ? 1 : 0) : 1,
            formato_hora || '12h',
            supervisor_ve_terminadas !== undefined ? (supervisor_ve_terminadas ? 1 : 0) : 1,
            empleado_puede_iniciar !== undefined ? (empleado_puede_iniciar ? 1 : 0) : 1,
+           supervisor_puede_modificar !== undefined ? (supervisor_puede_modificar ? 1 : 0) : 1,
            modalidad_trabajo || 'fijo');
 
         const tiposDefault = [
@@ -196,7 +197,7 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
             return res.status(403).json({ error: 'No tienes acceso a esta empresa' });
         }
 
-        const { usa_evidencias, tolerancia_tiempo, permite_supervisor_asignar, usa_gamificacion, usa_geolocalizacion, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, modalidad_trabajo } = req.body;
+        const { usa_evidencias, tolerancia_tiempo, permite_supervisor_asignar, usa_gamificacion, usa_geolocalizacion, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo } = req.body;
 
         await db.run(`
             UPDATE configuraciones_empresa SET
@@ -208,6 +209,7 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
                 formato_hora = COALESCE(?, formato_hora),
                 supervisor_ve_terminadas = COALESCE(?, supervisor_ve_terminadas),
                 empleado_puede_iniciar = COALESCE(?, empleado_puede_iniciar),
+                supervisor_puede_modificar = COALESCE(?, supervisor_puede_modificar),
                 modalidad_trabajo = COALESCE(?, modalidad_trabajo)
             WHERE id_empresa = ?
         `,
@@ -219,6 +221,7 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
             formato_hora || null,
             supervisor_ve_terminadas !== undefined ? (supervisor_ve_terminadas ? 1 : 0) : null,
             empleado_puede_iniciar !== undefined ? (empleado_puede_iniciar ? 1 : 0) : null,
+            supervisor_puede_modificar !== undefined ? (supervisor_puede_modificar ? 1 : 0) : null,
             modalidad_trabajo || null,
             idEmpresa
         );

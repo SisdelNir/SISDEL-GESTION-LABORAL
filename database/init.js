@@ -414,6 +414,7 @@ async function inicializarDB() {
             formato_hora TEXT DEFAULT '12h',
             supervisor_ve_terminadas INTEGER DEFAULT 1,
             empleado_puede_iniciar INTEGER DEFAULT 1,
+            supervisor_puede_modificar INTEGER DEFAULT 1,
             modalidad_trabajo TEXT DEFAULT 'fijo',
             usa_gamificacion INTEGER DEFAULT 1,
             usa_geolocalizacion INTEGER DEFAULT 1,
@@ -426,6 +427,7 @@ async function inicializarDB() {
         "ALTER TABLE configuraciones_empresa ADD COLUMN formato_hora TEXT DEFAULT '12h'",
         "ALTER TABLE configuraciones_empresa ADD COLUMN supervisor_ve_terminadas INTEGER DEFAULT 1",
         "ALTER TABLE configuraciones_empresa ADD COLUMN empleado_puede_iniciar INTEGER DEFAULT 1",
+        "ALTER TABLE configuraciones_empresa ADD COLUMN supervisor_puede_modificar INTEGER DEFAULT 1",
         "ALTER TABLE configuraciones_empresa ADD COLUMN modalidad_trabajo TEXT DEFAULT 'fijo'"
     ];
     for (const mig of migracionesConfig) {

@@ -270,6 +270,7 @@ async function crearEmpresa(e) {
         formato_hora: document.getElementById('cfg-formato-hora').value,
         supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked,
         empleado_puede_iniciar: document.getElementById('cfg-emp-iniciar-tarea').checked,
+        supervisor_puede_modificar: document.getElementById('cfg-sup-modificar').checked,
         modalidad_trabajo: document.getElementById('cfg-modalidad-trabajo').value
     };
 
@@ -386,12 +387,14 @@ async function editarEmpresa(id) {
             const cbSupAsignar = document.getElementById('cfg-sup-asignar');
             const cbSupTerminadas = document.getElementById('cfg-sup-ver-terminadas');
             const cbEmpIniciar = document.getElementById('cfg-emp-iniciar-tarea');
+            const cbSupModificar = document.getElementById('cfg-sup-modificar');
             const selFormatoHora = document.getElementById('cfg-formato-hora');
             const selModalidad = document.getElementById('cfg-modalidad-trabajo');
 
             if (cbSupAsignar) cbSupAsignar.checked = conf.permite_supervisor_asignar !== 0;
             if (cbSupTerminadas) cbSupTerminadas.checked = conf.supervisor_ve_terminadas !== 0;
             if (cbEmpIniciar) cbEmpIniciar.checked = conf.empleado_puede_iniciar !== 0;
+            if (cbSupModificar) cbSupModificar.checked = conf.supervisor_puede_modificar !== 0;
             if (selFormatoHora) selFormatoHora.value = conf.formato_hora || '12h';
             if (selModalidad) selModalidad.value = conf.modalidad_trabajo || 'fijo';
         }
@@ -426,6 +429,7 @@ async function editarEmpresa(id) {
                     formato_hora: document.getElementById('cfg-formato-hora').value,
                     supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked,
                     empleado_puede_iniciar: document.getElementById('cfg-emp-iniciar-tarea').checked,
+                    supervisor_puede_modificar: document.getElementById('cfg-sup-modificar').checked,
                     modalidad_trabajo: document.getElementById('cfg-modalidad-trabajo').value
                 };
                 await fetchAPI(`/api/empresas/${id}/configuracion`, { method: 'PUT', body: JSON.stringify(configBody) });
@@ -1907,7 +1911,16 @@ async function verDetalleTarea(id) {
         if (tarea.estado === 'en_proceso' || tarea.estado === 'atrasada') {
             acciones += `<button class="btn btn-success btn-sm" onclick="finalizarTarea('${tarea.id_tarea}')">✅ Finalizar Tarea</button>`;
         }
-        acciones += `<button class="btn btn-danger btn-sm" onclick="eliminarTarea('${tarea.id_tarea}')">🗑 Eliminar</button>`;
+        
+        let puedeModificar = true;
+        if (sessionStorage.getItem('ROL') === 'SUPERVISOR' && window.SUPERVISOR_PUEDE_MODIFICAR === false) {
+            puedeModificar = false;
+        }
+
+        if (puedeModificar) {
+            // El backend no tiene un 'Editar Tarea' directamente desde Detalles, pero sí Eliminar.
+            acciones += `<button class="btn btn-danger btn-sm" onclick="eliminarTarea('${tarea.id_tarea}')">🗑 Eliminar</button>`;
+        }
         document.getElementById('detalle-acciones').innerHTML = acciones;
 
         // Cronómetro
@@ -2893,8 +2906,9 @@ async function verificarPermisosSupervisor() {
     try {
         const config = await fetchAPI('/api/empresas/mi-config');
 
-        // Guardar formato de hora globalmente
+        // Guardar configuración globalmente
         window.FORMATO_HORA_EMPRESA = config.formato_hora || '12h';
+        window.SUPERVISOR_PUEDE_MODIFICAR = config.supervisor_puede_modificar !== 0;
 
         const supContainer = document.getElementById('pantalla-supervisor');
         if (!supContainer) return;

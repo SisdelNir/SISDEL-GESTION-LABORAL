@@ -456,6 +456,13 @@ router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (r
         const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
 
+        if (req.usuario.rol === 'SUPERVISOR') {
+            const config = await db.get('SELECT supervisor_puede_modificar FROM configuraciones_empresa WHERE id_empresa = ?', req.usuario.id_empresa);
+            if (config && config.supervisor_puede_modificar === 0) {
+                return res.status(403).json({ error: 'Como supervisor solo tienes permisos de lectura para modificar los detalles de la tarea' });
+            }
+        }
+
         const { titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos } = req.body;
 
         await db.run(`
@@ -482,6 +489,13 @@ router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async
     try {
         const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+
+        if (req.usuario.rol === 'SUPERVISOR') {
+            const config = await db.get('SELECT supervisor_puede_modificar FROM configuraciones_empresa WHERE id_empresa = ?', req.usuario.id_empresa);
+            if (config && config.supervisor_puede_modificar === 0) {
+                return res.status(403).json({ error: 'Como supervisor solo tienes permisos de lectura y no puedes eliminar tareas' });
+            }
+        }
         await db.run('UPDATE tareas SET eliminado = 1 WHERE id_tarea = ?', req.params.id);
         registrarAuditoria(tarea.id_empresa, req.usuario.id_usuario, 'ELIMINAR_TAREA', `Tarea "${tarea.titulo}" eliminada`);
         res.json({ mensaje: 'Tarea eliminada' });
