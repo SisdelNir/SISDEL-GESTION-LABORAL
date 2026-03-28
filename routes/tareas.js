@@ -312,9 +312,9 @@ router.put('/:id/finalizar', verificarToken, async (req, res) => {
             return res.status(400).json({ error: 'Solo se pueden finalizar tareas en proceso o atrasadas' });
         }
 
-        // Validar si requiere evidencia
+        // Validar si requiere evidencia de IMAGEN
         if (tarea.requiere_evidencia === 1 || tarea.requiere_evidencia === '1' || tarea.requiere_evidencia === true) {
-            const evidenciaCount = await db.get('SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_tarea = ?', req.params.id);
+            const evidenciaCount = await db.get("SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_tarea = ? AND tipo = 'imagen'", req.params.id);
             if (!evidenciaCount || evidenciaCount.total === 0) {
                 return res.status(400).json({ 
                     error: 'Esta tarea requiere evidencias para finalizar',
