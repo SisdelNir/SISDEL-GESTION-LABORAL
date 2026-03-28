@@ -2435,14 +2435,20 @@ async function cargarHistorialTareas() {
     try {
         const desde = document.getElementById('historial-fecha-desde')?.value || '';
         const hasta = document.getElementById('historial-fecha-hasta')?.value || '';
+        const filtroEstado = document.getElementById('historial-filtro-estado')?.value || '';
         let url = '/api/tareas/historial';
         const params = [];
         if (desde) params.push(`desde=${desde}`);
         if (hasta) params.push(`hasta=${hasta}`);
         if (params.length) url += '?' + params.join('&');
 
-        const tareas = await fetchAPI(url);
+        let tareas = await fetchAPI(url);
         const container = document.getElementById('tabla-historial-tareas');
+
+        // Filtrar por estado si se seleccionó
+        if (filtroEstado) {
+            tareas = tareas.filter(t => t.estado === filtroEstado);
+        }
 
         if (!tareas.length) {
             container.innerHTML = '<div class="empty-state"><p>No hay registros en el historial</p></div>';
@@ -2454,65 +2460,121 @@ async function cargarHistorialTareas() {
             'pendiente': '#f59e0b', 'en_proceso': '#3b82f6', 'finalizada': '#10b981',
             'finalizada_atrasada': '#f97316', 'atrasada': '#ef4444', 'cancelada': '#6b7280'
         };
-        const estadoNombre = {
-            'pendiente': 'Pendiente', 'en_proceso': 'En Proceso', 'finalizada': '✅ Finalizada',
-            'finalizada_atrasada': '⚠ Fin. Atrasada', 'atrasada': '🔴 Atrasada', 'cancelada': 'Cancelada'
+        const estadoLabel = {
+            'pendiente': '🟡 Pendiente', 'en_proceso': '🔵 En Proceso', 'finalizada': '✅ Completada',
+            'finalizada_atrasada': '⚠️ Atrasada', 'atrasada': '🔴 Atrasada', 'cancelada': '⬜ Cancelada'
         };
 
-        function fmtFechaHora(f) {
-            if (!f) return '—';
+        function fh(f) {
+            if (!f) return '<span style="color:#4b5563;">—</span>';
             const d = new Date(f);
-            return d.toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'}) + ' ' +
-                   d.toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+            return `<span style="font-size:0.65rem;">${d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}</span><br><span style="color:#a78bfa;font-size:0.63rem;">${d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12: window.FORMATO_HORA_EMPRESA !== '24h'})}</span>`;
         }
 
-        function fmtDuracion(segundos) {
-            if (!segundos) return '—';
-            const h = Math.floor(segundos / 3600);
-            const m = Math.floor((segundos % 3600) / 60);
-            if (h > 0) return `${h}h ${m}m`;
-            return `${m}m`;
+        function fmtDur(seg) {
+            if (!seg) return '<span style="color:#4b5563;">—</span>';
+            seg = parseInt(seg);
+            const h = Math.floor(seg / 3600);
+            const m = Math.floor((seg % 3600) / 60);
+            const s = seg % 60;
+            if (h > 0) return `<span style="color:#f59e0b;font-weight:700;">${h}h ${m}m</span>`;
+            if (m > 0) return `<span style="color:#10b981;font-weight:700;">${m}m ${s}s</span>`;
+            return `<span style="color:#3b82f6;font-weight:700;">${s}s</span>`;
         }
 
         container.innerHTML = `
-            <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+            <div style="overflow-x:auto;max-width:100%;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.72rem;min-width:900px;">
                 <thead>
-                    <tr style="border-bottom:2px solid var(--border-color);text-align:left;position:sticky;top:0;background:var(--bg-card);">
-                        <th style="padding:8px 5px;">📋 Tarea</th>
-                        <th style="padding:8px 5px;">👤 Empleado</th>
-                        <th style="padding:8px 5px;">👁 Supervisor</th>
-                        <th style="padding:8px 5px;">📅 Asignada</th>
-                        <th style="padding:8px 5px;">▶ Inicio</th>
-                        <th style="padding:8px 5px;">⏹ Fin</th>
-                        <th style="padding:8px 5px;">⏱ Ejecución</th>
-                        <th style="padding:8px 5px;">⚡ Prioridad</th>
-                        <th style="padding:8px 5px;">📊 Estado</th>
+                    <tr style="border-bottom:2px solid rgba(139,92,246,0.3);text-align:left;background:rgba(139,92,246,0.05);">
+                        <th style="padding:10px 6px;white-space:nowrap;">🔑 Código</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">👤 Empleado</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">📱 Teléfono</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">📋 Tarea</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">📅 Asignada</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">▶️ Inicio</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">⏹️ Fin</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">⏱️ Duración</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">📸 Evidencias</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">⚡ Prioridad</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">📊 Estado</th>
+                        <th style="padding:10px 6px;white-space:nowrap;">👁️ Supervisor</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${tareas.map(t => {
+                    ${tareas.map((t, i) => {
                         const pColor = prioridadColor[t.prioridad] || '#6366f1';
                         const eColor = estadoColor[t.estado] || '#6b7280';
-                        const eNombre = estadoNombre[t.estado] || t.estado;
-                        return `<tr style="border-bottom:1px solid var(--border-color);">
-                            <td style="padding:7px 5px;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.titulo}">${t.titulo}</td>
-                            <td style="padding:7px 5px;">${t.nombre_empleado || '—'}</td>
-                            <td style="padding:7px 5px;">${t.nombre_supervisor || '—'}</td>
-                            <td style="padding:7px 5px;font-size:0.7rem;">${fmtFechaHora(t.fecha_creacion)}</td>
-                            <td style="padding:7px 5px;font-size:0.7rem;color:#3b82f6;">${fmtFechaHora(t.fecha_inicio)}</td>
-                            <td style="padding:7px 5px;font-size:0.7rem;color:#10b981;">${fmtFechaHora(t.fecha_fin)}</td>
-                            <td style="padding:7px 5px;font-weight:600;">${fmtDuracion(t.tiempo_total_segundos)}</td>
-                            <td style="padding:7px 5px;"><span style="background:${pColor}22;color:${pColor};padding:2px 6px;border-radius:4px;font-size:0.68rem;font-weight:600;">${t.prioridad.toUpperCase()}</span></td>
-                            <td style="padding:7px 5px;"><span style="color:${eColor};font-weight:600;font-size:0.7rem;">${eNombre}</span></td>
+                        const eLabel = estadoLabel[t.estado] || t.estado;
+                        const bgRow = i % 2 === 0 ? 'rgba(139,92,246,0.02)' : 'transparent';
+                        return `<tr style="border-bottom:1px solid var(--border-color);background:${bgRow};transition:background 0.2s;" onmouseover="this.style.background='rgba(139,92,246,0.08)'" onmouseout="this.style.background='${bgRow}'">
+                            <td style="padding:8px 6px;"><span style="background:rgba(139,92,246,0.15);color:#a78bfa;padding:3px 8px;border-radius:6px;font-weight:700;font-family:monospace;font-size:0.7rem;">${t.codigo_empleado || '—'}</span></td>
+                            <td style="padding:8px 6px;font-weight:600;white-space:nowrap;">${t.nombre_empleado || '—'}</td>
+                            <td style="padding:8px 6px;font-size:0.68rem;">${t.telefono_empleado ? `<a href="https://wa.me/${(t.telefono_empleado||'').replace(/[^0-9]/g,'')}" target="_blank" style="color:#25d366;text-decoration:none;" title="Enviar WhatsApp">${t.telefono_empleado}</a>` : '—'}</td>
+                            <td style="padding:8px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="${t.titulo}">${t.titulo}</td>
+                            <td style="padding:8px 6px;">${fh(t.fecha_creacion)}</td>
+                            <td style="padding:8px 6px;">${fh(t.hora_inicio_real || t.fecha_inicio)}</td>
+                            <td style="padding:8px 6px;">${fh(t.hora_fin_real || t.fecha_fin)}</td>
+                            <td style="padding:8px 6px;text-align:center;">${fmtDur(t.tiempo_total_segundos)}</td>
+                            <td style="padding:8px 6px;text-align:center;">
+                                ${t.total_evidencias > 0 
+                                    ? `<button onclick="verEvidenciasTarea('${t.id_tarea}')" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:none;padding:3px 8px;border-radius:6px;cursor:pointer;font-size:0.68rem;font-weight:600;">📸 ${t.total_evidencias}</button>` 
+                                    : '<span style="color:#4b5563;font-size:0.65rem;">Sin foto</span>'}
+                            </td>
+                            <td style="padding:8px 6px;"><span style="background:${pColor}18;color:${pColor};padding:2px 7px;border-radius:5px;font-size:0.65rem;font-weight:700;">${(t.prioridad||'media').toUpperCase()}</span></td>
+                            <td style="padding:8px 6px;"><span style="color:${eColor};font-weight:700;font-size:0.68rem;">${eLabel}</span></td>
+                            <td style="padding:8px 6px;font-size:0.68rem;color:var(--text-muted);">${t.nombre_supervisor || '—'}</td>
                         </tr>`;
                     }).join('')}
                 </tbody>
             </table>
-            <div style="text-align:center;padding:8px;font-size:0.72rem;color:var(--text-muted);">
-                Total: ${tareas.length} tareas
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;font-size:0.72rem;color:var(--text-muted);border-top:1px solid var(--border-color);margin-top:4px;">
+                <span>📊 Total: <strong style="color:white;">${tareas.length}</strong> tareas</span>
+                <span>✅ ${tareas.filter(t=>t.estado==='finalizada').length} completadas · 🔴 ${tareas.filter(t=>t.estado==='atrasada'||t.estado==='finalizada_atrasada').length} atrasadas</span>
             </div>
         `;
     } catch (err) {
         console.error('Error cargando historial:', err);
     }
 }
+
+async function verEvidenciasTarea(idTarea) {
+    try {
+        const data = await fetchAPI(`/api/tareas/${idTarea}`);
+        if (!data.evidencias || !data.evidencias.length) {
+            mostrarToast('No hay evidencias para esta tarea', 'info');
+            return;
+        }
+        // Crear modal con evidencias
+        let modal = document.getElementById('modal-evidencias');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modal-evidencias';
+            document.body.appendChild(modal);
+        }
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+        modal.innerHTML = `
+            <div style="max-width:600px;width:100%;max-height:85vh;overflow-y:auto;background:var(--bg-card);border-radius:12px;padding:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                    <h3 style="margin:0;font-size:1rem;">📸 Evidencias: ${data.titulo}</h3>
+                    <button onclick="document.getElementById('modal-evidencias').style.display='none'" style="background:none;border:none;color:white;font-size:1.3rem;cursor:pointer;">✕</button>
+                </div>
+                ${data.evidencias.map(e => `
+                    <div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;">
+                        ${e.tipo === 'imagen' || (e.url && e.url.match(/\.(jpg|jpeg|png|gif|webp)/i))
+                            ? `<img src="${e.url}" style="width:100%;max-height:300px;object-fit:cover;" />`
+                            : `<div style="padding:12px;background:rgba(59,130,246,0.08);"><a href="${e.url}" target="_blank" style="color:#3b82f6;">📎 ${e.nombre || 'Archivo'}</a></div>`
+                        }
+                        <div style="padding:8px;font-size:0.72rem;color:var(--text-muted);">
+                            ${e.descripcion || ''} · ${new Date(e.fecha_creacion).toLocaleString('es-MX')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } catch(e) {
+        mostrarToast('Error al cargar evidencias', 'error');
+    }
+}
+

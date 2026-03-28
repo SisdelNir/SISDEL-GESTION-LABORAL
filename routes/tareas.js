@@ -454,17 +454,19 @@ router.get('/historial', verificarToken, verificarRol('ADMIN'), async (req, res)
         const { desde, hasta } = req.query;
         let query = `
             SELECT t.*,
-                ue.nombre AS nombre_empleado, ue.telefono AS telefono_empleado,
+                ue.nombre AS nombre_empleado,
+                ue.codigo_acceso AS codigo_empleado,
+                ue.telefono AS telefono_empleado,
                 us.nombre AS nombre_supervisor,
-                st.tiempo_total_segundos
+                uc.nombre AS nombre_creador,
+                (SELECT hora_inicio FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea ORDER BY hora_inicio ASC LIMIT 1) AS hora_inicio_real,
+                (SELECT hora_fin FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea AND hora_fin IS NOT NULL ORDER BY hora_fin DESC LIMIT 1) AS hora_fin_real,
+                (SELECT SUM(COALESCE(duracion_segundos, tiempo_real_segundos, 0)) FROM seguimiento_tiempo WHERE id_tarea = t.id_tarea) AS tiempo_total_segundos,
+                (SELECT COUNT(*) FROM evidencias_tarea WHERE id_tarea = t.id_tarea) AS total_evidencias
             FROM tareas t
             LEFT JOIN usuarios ue ON t.id_empleado = ue.id_usuario
             LEFT JOIN usuarios us ON t.id_supervisor = us.id_usuario
-            LEFT JOIN (
-                SELECT id_tarea, SUM(duracion_segundos) AS tiempo_total_segundos
-                FROM seguimiento_tiempo
-                GROUP BY id_tarea
-            ) st ON t.id_tarea = st.id_tarea
+            LEFT JOIN usuarios uc ON t.id_creador = uc.id_usuario
             WHERE t.id_empresa = ?
         `;
         const params = [req.usuario.id_empresa];

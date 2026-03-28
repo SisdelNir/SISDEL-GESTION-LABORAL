@@ -584,9 +584,18 @@
                         <div class="glass" style="padding:16px;border-radius:var(--radius-lg);">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                                 <h4 style="margin:0;">📜 Historial completo de tareas</h4>
-                                <div style="display:flex;gap:6px;align-items:center;">
+                                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                                     <input type="date" id="historial-fecha-desde" style="padding:6px 8px;font-size:0.78rem;" placeholder="Desde">
                                     <input type="date" id="historial-fecha-hasta" style="padding:6px 8px;font-size:0.78rem;" placeholder="Hasta">
+                                    <select id="historial-filtro-estado" style="padding:6px 8px;font-size:0.78rem;">
+                                        <option value="">Todos</option>
+                                        <option value="pendiente">🟡 Pendiente</option>
+                                        <option value="en_proceso">🔵 En Proceso</option>
+                                        <option value="finalizada">✅ Completada</option>
+                                        <option value="finalizada_atrasada">⚠️ Atrasada Fin.</option>
+                                        <option value="atrasada">🔴 Atrasada</option>
+                                        <option value="cancelada">⬜ Cancelada</option>
+                                    </select>
                                     <button class="btn btn-ghost btn-sm" onclick="cargarHistorialTareas()">🔍 Filtrar</button>
                                 </div>
                             </div>
