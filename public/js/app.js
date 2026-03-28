@@ -1820,9 +1820,23 @@ async function mostrarFormularioTarea() {
         selEmp.innerHTML = '<option value="">-- Seleccionar --</option>';
         selSup.innerHTML = '<option value="">-- Seleccionar --</option>';
         usuarios.forEach(u => {
-            if (u.rol === 'EMPLEADO') selEmp.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
+            if (u.rol === 'EMPLEADO') {
+                const idSup = u.id_jefe || (u.supervisor && u.supervisor.id_supervisor) || '';
+                selEmp.innerHTML += `<option value="${u.id_usuario}" data-supervisor="${idSup}">${u.nombre}</option>`;
+            }
             if (u.rol === 'SUPERVISOR') selSup.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
         });
+
+        // Event listener to auto-select supervisor when employee changes
+        selEmp.onchange = function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const idSupervisor = selectedOption.getAttribute('data-supervisor');
+            if (idSupervisor) {
+                selSup.value = idSupervisor;
+            } else {
+                selSup.value = '';
+            }
+        };
     } catch(e) {}
     // Cargar tipos
     try {
