@@ -2433,9 +2433,9 @@ function filtrarTareasPorEstado(estado) {
         panel.style.display = 'block';
         btn.innerHTML = '📜 Ocultar Historial';
         btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
-        // Setear filtro de estado en historial
+        // Setear filtro de estado en historial — vacío para mostrar TODAS las completadas
         const filtro = document.getElementById('historial-filtro-estado');
-        if (filtro) filtro.value = estado;
+        if (filtro) filtro.value = '';
         cargarHistorialTareas();
         // Scroll al historial
         panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
