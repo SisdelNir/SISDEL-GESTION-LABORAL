@@ -77,10 +77,14 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
 
         const io = req.app.get('io');
         if (io) {
-            io.to(`empresa_${id_empresa}`).emit('nueva_tarea', {
+            const payload = {
                 id_tarea, titulo, id_empleado, prioridad,
                 estado: estadoInicial, fecha_creacion: new Date().toISOString()
-            });
+            };
+            io.to(`empresa_${id_empresa}`).emit('nueva_tarea', payload);
+            console.log(`📨 Emitido nueva_tarea a empresa_${id_empresa}:`, JSON.stringify(payload));
+        } else {
+            console.log('⚠️ Socket.IO no disponible para emitir nueva_tarea');
         }
 
         registrarAuditoria(id_empresa, id_creador, 'CREAR_TAREA', `Tarea "${titulo}" creada`);

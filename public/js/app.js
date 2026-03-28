@@ -28,21 +28,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function inicializarSocket() {
     try {
-        socket = io();
-        socket.on('connect', () => console.log('🔌 Socket conectado'));
+        socket = io({ reconnection: true, reconnectionDelay: 1000, reconnectionAttempts: Infinity });
+        
+        socket.on('connect', () => {
+            console.log('🔌 Socket conectado:', socket.id);
+            // Re-unirse al cuarto de la empresa cada vez que reconecte
+            if (USUARIO && USUARIO.id_empresa) {
+                socket.emit('unirse_empresa', USUARIO.id_empresa);
+                console.log('📡 Re-unido a empresa:', USUARIO.id_empresa);
+            }
+        });
+        
         socket.on('disconnect', () => console.log('❌ Socket desconectado'));
         
         socket.on('nueva_tarea', (data) => {
+            console.log('📨 Evento nueva_tarea recibido:', data);
+            console.log('👤 USUARIO actual:', USUARIO ? { id: USUARIO.id_usuario, rol: USUARIO.rol } : 'null');
+            
             if (USUARIO && USUARIO.rol === 'EMPLEADO' && data.id_empleado === USUARIO.id_usuario) {
+                console.log('✅ Coincide con empleado actual, lanzando alerta');
                 lanzarAlertaNuevaTarea(data);
-                cargarTareas(); // recargar la lista de tareas del empleado
-            } else if (USUARIO && (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'SUPERVISOR')) {
-                // los admin y supervisores solo recargan para ver la fila nueva si están en panel correspondiente
-                if(typeof cargarTareas === 'function') cargarTareas();
+                cargarTareasEmpleado();
+            } else if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
+                if (typeof cargarTareas === 'function') cargarTareas();
+            } else if (USUARIO && USUARIO.rol === 'ADMIN') {
+                if (typeof cargarTareas === 'function') cargarTareas();
             }
         });
     } catch(e) {
-        console.log('Socket no disponible');
+        console.log('Socket no disponible:', e);
     }
 }
 
