@@ -1437,21 +1437,32 @@ async function mostrarFormularioUsuario(rol) {
         }).catch(()=>console.log('No se pudo obtener lada'));
     }
 
-    // Si es empleado, mostrar selector de supervisor
-    const grupoSupervisor = document.getElementById('grupo-supervisor');
+    // Lógica dinámica para jefe inmediato
+    const grupoJefe = document.getElementById('grupo-jefe');
+    const selectJefe = document.getElementById('usu-jefe');
+    const labelJefe = document.getElementById('label-jefe');
+    
     if (rol === 'EMPLEADO') {
-        grupoSupervisor.style.display = 'block';
-        // Cargar supervisores disponibles
+        grupoJefe.style.display = 'block';
+        labelJefe.textContent = 'Jefe Inmediato (Supervisor) *';
+        selectJefe.setAttribute('required', 'required');
         try {
             const supervisores = await fetchAPI('/api/usuarios?rol=SUPERVISOR');
-            const select = document.getElementById('usu-supervisor');
-            select.innerHTML = '<option value="">-- Sin supervisor asignado --</option>';
-            supervisores.forEach(s => {
-                select.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`;
-            });
+            selectJefe.innerHTML = '<option value="">-- Seleccionar Supervisor --</option>';
+            supervisores.forEach(s => selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`);
+        } catch(e) {}
+    } else if (rol === 'SUPERVISOR') {
+        grupoJefe.style.display = 'block';
+        labelJefe.textContent = 'Jefe Inmediato (Administrador) *';
+        selectJefe.setAttribute('required', 'required');
+        try {
+            const admins = await fetchAPI('/api/usuarios?rol=ADMIN');
+            selectJefe.innerHTML = '<option value="">-- Seleccionar Administrador --</option>';
+            admins.forEach(a => selectJefe.innerHTML += `<option value="${a.id_usuario}">${a.nombre}</option>`);
         } catch(e) {}
     } else {
-        grupoSupervisor.style.display = 'none';
+        grupoJefe.style.display = 'none';
+        selectJefe.removeAttribute('required');
     }
 
     document.getElementById('modal-usuario').style.display = 'flex';
@@ -1487,7 +1498,7 @@ async function crearUsuario(e) {
         telefono: telefonoCompleto,
         correo: document.getElementById('usu-correo').value.trim(),
         rol: document.getElementById('usu-rol').value,
-        id_supervisor: document.getElementById('usu-supervisor').value || undefined
+        id_jefe: document.getElementById('usu-jefe').value || undefined
     };
 
     try {

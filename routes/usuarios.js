@@ -10,7 +10,7 @@ const { generarCodigoAcceso } = require('../utils/codigoAcceso');
  */
 router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
     try {
-        const { nombre, identificacion, telefono, correo, rol, id_departamento, id_supervisor } = req.body;
+        const { nombre, identificacion, telefono, correo, rol, id_departamento, id_jefe } = req.body;
 
         if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son requeridos' });
         if (!['SUPERVISOR', 'EMPLEADO'].includes(rol)) return res.status(400).json({ error: 'Rol debe ser SUPERVISOR o EMPLEADO' });
@@ -26,14 +26,14 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
         const codigo_acceso = await generarCodigoAcceso(empresa.nombre);
 
         await db.run(`
-            INSERT INTO usuarios (id_usuario, id_empresa, identificacion, nombre, telefono, correo, rol, codigo_acceso, id_departamento)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_usuario, id_empresa, identificacion || '', nombre, telefono || '', correo || '', rol, codigo_acceso, id_departamento || null);
+            INSERT INTO usuarios (id_usuario, id_empresa, identificacion, nombre, telefono, correo, rol, codigo_acceso, id_departamento, id_jefe)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, id_usuario, id_empresa, identificacion || '', nombre, telefono || '', correo || '', rol, codigo_acceso, id_departamento || null, id_jefe || null);
 
-        if (rol === 'EMPLEADO' && id_supervisor) {
+        if (rol === 'EMPLEADO' && id_jefe) {
             await db.run(`
                 INSERT INTO supervisores_empleados (id_relacion, id_supervisor, id_empleado) VALUES (?, ?, ?)
-            `, uuidv4(), id_supervisor, id_usuario);
+            `, uuidv4(), id_jefe, id_usuario);
         }
 
         if (rol === 'SUPERVISOR') {
@@ -153,7 +153,7 @@ router.get('/:id', verificarToken, async (req, res) => {
  */
 router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
     try {
-        const { nombre, identificacion, telefono, correo, id_departamento, estado } = req.body;
+        const { nombre, identificacion, telefono, correo, id_departamento, id_jefe, estado } = req.body;
         const usuario = await db.get('SELECT * FROM usuarios WHERE id_usuario = ? AND eliminado = 0', req.params.id);
         if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
         if (req.usuario.rol !== 'ROOT' && req.usuario.id_empresa !== usuario.id_empresa) {
@@ -164,9 +164,18 @@ router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (r
             UPDATE usuarios SET
                 nombre = COALESCE(?, nombre), identificacion = COALESCE(?, identificacion),
                 telefono = COALESCE(?, telefono), correo = COALESCE(?, correo),
-                id_departamento = COALESCE(?, id_departamento), estado = COALESCE(?, estado)
+                id_departamento = COALESCE(?, id_departamento), id_jefe = COALESCE(?, id_jefe),
+                estado = COALESCE(?, estado)
             WHERE id_usuario = ?
-        `, nombre, identificacion, telefono, correo, id_departamento, estado, req.params.id);
+        `, nombre, identificacion, telefono, correo, id_departamento, id_jefe, estado, req.params.id);
+
+        if (usuario.rol === 'EMPLEADO' && id_jefe) {
+            // Eliminar supervisor actual y asignar el nuevo
+            await db.run(`DELETE FROM supervisores_empleados WHERE id_empleado = ?`, req.params.id);
+            await db.run(`
+                INSERT INTO supervisores_empleados (id_relacion, id_supervisor, id_empleado) VALUES (?, ?, ?)
+            `, uuidv4(), id_jefe, req.params.id);
+        }
 
         registrarAuditoria(usuario.id_empresa, req.usuario.id_usuario, 'EDITAR_USUARIO', `Usuario "${usuario.nombre}" actualizado`);
         const actualizado = await db.get('SELECT * FROM usuarios WHERE id_usuario = ?', req.params.id);

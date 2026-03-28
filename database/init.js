@@ -187,6 +187,7 @@ async function inicializarDB() {
             codigo_acceso TEXT UNIQUE NOT NULL,
             password_hash TEXT,
             id_departamento TEXT,
+            id_jefe TEXT,
             estado INTEGER DEFAULT 1,
             intentos_fallidos INTEGER DEFAULT 0,
             bloqueado_hasta TEXT,
@@ -434,11 +435,11 @@ async function inicializarDB() {
         try { await db.run(mig); } catch(e) { /* ya existe */ }
     }
 
-    // Migración: ubicación fija del empleado
     const migracionesUsuarios = [
         'ALTER TABLE usuarios ADD COLUMN ubicacion_fija_lat REAL',
         'ALTER TABLE usuarios ADD COLUMN ubicacion_fija_lng REAL',
-        "ALTER TABLE usuarios ADD COLUMN ubicacion_fija_nombre TEXT DEFAULT ''"
+        "ALTER TABLE usuarios ADD COLUMN ubicacion_fija_nombre TEXT DEFAULT ''",
+        "ALTER TABLE usuarios ADD COLUMN id_jefe TEXT"
     ];
     for (const mig of migracionesUsuarios) {
         try { await db.run(mig); } catch(e) { /* ya existe */ }
