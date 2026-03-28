@@ -109,6 +109,19 @@ router.get('/', verificarToken, verificarRoot, async (req, res) => {
 });
 
 /**
+ * GET /api/empresas/mi-config — Config de la empresa del usuario autenticado
+ * IMPORTANTE: debe estar ANTES de /:id para no ser capturada por el wildcard
+ */
+router.get('/mi-config', verificarToken, async (req, res) => {
+    try {
+        const config = await db.get('SELECT * FROM configuraciones_empresa WHERE id_empresa = ?', req.usuario.id_empresa);
+        res.json(config || { permite_supervisor_asignar: 1, empleado_puede_iniciar: 1 });
+    } catch (err) {
+        res.status(500).json({ error: 'Error al obtener configuración' });
+    }
+});
+
+/**
  * GET /api/empresas/:id
  */
 router.get('/:id', verificarToken, async (req, res) => {
@@ -223,18 +236,6 @@ router.delete('/:id', verificarToken, verificarRoot, async (req, res) => {
         res.json({ mensaje: 'Empresa eliminada correctamente' });
     } catch (err) {
         res.status(500).json({ error: 'Error al eliminar empresa' });
-    }
-});
-
-/**
- * GET /api/empresas/mi-config — Config de la empresa del usuario autenticado
- */
-router.get('/mi-config', verificarToken, async (req, res) => {
-    try {
-        const config = await db.get('SELECT * FROM configuraciones_empresa WHERE id_empresa = ?', req.usuario.id_empresa);
-        res.json(config || { permite_supervisor_asignar: 1 });
-    } catch (err) {
-        res.status(500).json({ error: 'Error al obtener configuración' });
     }
 });
 

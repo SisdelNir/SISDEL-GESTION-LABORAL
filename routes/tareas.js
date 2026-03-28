@@ -21,9 +21,26 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
         const id_creador = req.usuario.id_usuario;
         const supervisorFinal = id_supervisor || (req.usuario.rol === 'SUPERVISOR' ? req.usuario.id_usuario : null);
 
-        const estadoInicial = id_empleado ? 'en_proceso' : 'pendiente';
+        // Verificar config de empresa: ¿el empleado puede presionar botón iniciar?
+        const config = await db.get('SELECT empleado_puede_iniciar FROM configuraciones_empresa WHERE id_empresa = ?', id_empresa);
+        const empPuedeIniciar = config ? config.empleado_puede_iniciar : 1;
+
+        // Si empleado puede iniciar → tarea queda pendiente para que él la inicie
+        // Si NO puede iniciar → tarea arranca automáticamente en en_proceso
+        let estadoInicial, fechaInic;
+        if (id_empleado) {
+            if (empPuedeIniciar) {
+                estadoInicial = 'pendiente';
+                fechaInic = null;
+            } else {
+                estadoInicial = 'en_proceso';
+                fechaInic = new Date().toISOString();
+            }
+        } else {
+            estadoInicial = 'pendiente';
+            fechaInic = null;
+        }
         const ahoraDate = new Date().toISOString();
-        const fechaInic = id_empleado ? ahoraDate : null;
 
         await db.run(`
             INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos, estado, fecha_inicio)
@@ -35,8 +52,8 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
             VALUES (?, 'pendiente', ?, 'Tarea creada')
         `, id_tarea, id_creador);
 
-        if (id_empleado) {
-            await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea, hora_inicio) VALUES (?, ?, ?)`, uuidv4(), id_tarea, ahoraDate);
+        if (estadoInicial === 'en_proceso' && fechaInic) {
+            await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea, hora_inicio) VALUES (?, ?, ?)`, uuidv4(), id_tarea, fechaInic);
         } else {
             await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
         }
