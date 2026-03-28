@@ -185,6 +185,11 @@ async function loginUnificado() {
 
 function abrirPanelPorRol() {
     if (!USUARIO) return;
+    
+    // Asegurarse de re-unirse al canal de la empresa en caso de recargar la página (F5)
+    if (socket && USUARIO.id_empresa) {
+        socket.emit('unirse_empresa', USUARIO.id_empresa);
+    }
 
     if (USUARIO.rol === 'ADMIN') {
         mostrarPantalla('admin');
