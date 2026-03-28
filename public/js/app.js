@@ -2043,11 +2043,101 @@ async function verificarEstadoCheckin() {
         if (res.presente && res.registro) {
             CHECKIN_ACTIVO = true;
             actualizarUICheckin(true);
+            ocultarOverlayPresente();
         } else {
             CHECKIN_ACTIVO = false;
             actualizarUICheckin(false);
+            // Mostrar overlay obligatorio para empleados
+            if (USUARIO && USUARIO.rol === 'EMPLEADO') {
+                mostrarOverlayPresente();
+            }
         }
     } catch(e) {}
+}
+
+function mostrarOverlayPresente() {
+    // Remover si ya existe
+    let overlay = document.getElementById('overlay-presente');
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement('div');
+    overlay.id = 'overlay-presente';
+    overlay.style.cssText = `
+        position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;
+        background:linear-gradient(135deg,#0f0a1e 0%,#1a1035 50%,#0d0817 100%);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        transition:opacity 0.5s ease;
+    `;
+    overlay.innerHTML = `
+        <div style="text-align:center;padding:20px;">
+            <div style="font-size:3rem;margin-bottom:10px;">👋</div>
+            <h2 style="color:white;font-size:1.5rem;margin-bottom:5px;">¡Buenos días, ${USUARIO?.nombre || 'Empleado'}!</h2>
+            <p style="color:#a78bfa;font-size:0.85rem;margin-bottom:30px;">Para iniciar tus labores, marca tu asistencia</p>
+            <button id="btn-overlay-presente" onclick="registrarPresenteDesdeOverlay()" style="
+                padding:20px 50px;font-size:1.3rem;font-weight:bold;
+                background:linear-gradient(135deg,#10b981,#059669);
+                color:white;border:none;border-radius:16px;cursor:pointer;
+                box-shadow:0 0 30px rgba(16,185,129,0.4),0 8px 25px rgba(0,0,0,0.3);
+                animation:pulsePresente 2s infinite;
+                transition:transform 0.2s;
+            ">
+                📍 PRESENTE
+            </button>
+            <p style="color:#6b7280;font-size:0.7rem;margin-top:15px;">Se registrará tu ubicación GPS, fecha y hora</p>
+        </div>
+        <style>
+            @keyframes pulsePresente {
+                0%,100% { box-shadow:0 0 30px rgba(16,185,129,0.4),0 8px 25px rgba(0,0,0,0.3); }
+                50% { box-shadow:0 0 50px rgba(16,185,129,0.6),0 8px 35px rgba(0,0,0,0.4); transform:scale(1.03); }
+            }
+            #btn-overlay-presente:active { transform:scale(0.95) !important; }
+        </style>
+    `;
+    document.body.appendChild(overlay);
+}
+
+function ocultarOverlayPresente() {
+    const overlay = document.getElementById('overlay-presente');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 500);
+    }
+}
+
+async function registrarPresenteDesdeOverlay() {
+    const btn = document.getElementById('btn-overlay-presente');
+    if (btn) {
+        btn.textContent = '⏳ Registrando...';
+        btn.disabled = true;
+    }
+
+    // Obtener GPS
+    let lat = null, lng = null;
+    try {
+        const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        });
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+    } catch(e) {}
+
+    try {
+        await fetchAPI('/api/asistencia/entrada', {
+            method: 'POST',
+            body: JSON.stringify({ lat, lng })
+        });
+        CHECKIN_ACTIVO = true;
+        actualizarUICheckin(true);
+        ocultarOverlayPresente();
+        mostrarToast('✅ ¡Asistencia registrada! Buen día de trabajo', 'success');
+        cargarTareasEmpleado();
+    } catch(err) {
+        if (btn) {
+            btn.textContent = '📍 PRESENTE';
+            btn.disabled = false;
+        }
+        mostrarToast('Error al registrar asistencia', 'error');
+    }
 }
 
 function actualizarUICheckin(presente) {
