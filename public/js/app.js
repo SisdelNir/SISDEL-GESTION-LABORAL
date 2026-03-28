@@ -764,8 +764,32 @@ async function cargarTareasEmpleado() {
         // Solo tareas no completadas
         tareas = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
 
+        // Filtrar solo las que correspondan al día actual (asignadas/programadas hoy) o que ya estén en proceso
+        const hoy = new Date();
+        const hoyLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        
+        tareas = tareas.filter(t => {
+            if (t.estado === 'en_proceso' || t.estado === 'atrasada') return true; // Mantener las que ya están corriendo aunque sean de días anteriores
+            
+            const fechaRef = t.fecha_programada || t.fecha_vencimiento || t.fecha_creacion;
+            if (!fechaRef) return false;
+            
+            const fechaObj = new Date(fechaRef);
+            const fechaLocal = new Date(fechaObj.getTime() - (fechaObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            return fechaLocal === hoyLocal;
+        });
+
+        // Disparar alertas para tareas urgentes de hoy que estén pendientes
+        tareas.forEach(t => {
+            if (t.prioridad === 'urgente' && t.estado === 'pendiente' && !tareasYaAlertadas.has(t.id_tarea)) {
+                tareasYaAlertadas.add(t.id_tarea);
+                alertaSonoraYVibracion('urgente');
+                mostrarAlertaTarea(t, 'urgente');
+            }
+        });
+
         if (!tareas.length) {
-            container.innerHTML = '<div class="empty-state"><p>No tienes tareas pendientes</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>No tienes tareas pendientes para el día de hoy</p></div>';
             return;
         }
 
