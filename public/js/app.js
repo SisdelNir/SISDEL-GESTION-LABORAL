@@ -1967,6 +1967,8 @@ async function cargarTareas() {
                 tareas = [...tareas, ...tareasAtrasadas];
                 tareas.sort((a,b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
             } catch(e) {}
+            // Limitar a las 20 más recientes
+            tareas = tareas.slice(0, 20);
         }
 
         if (!tareas.length) {
@@ -3556,7 +3558,90 @@ function filtrarTareasPorEstado(estado) {
     if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ═══════════════════════════════════════════
+// HISTORIAL COMPLETO DE TAREAS FINALIZADAS
+// ═══════════════════════════════════════════
+async function abrirHistorialTareas() {
+    mostrarToast('Cargando historial...', 'info');
+    try {
+        let tareas = await fetchAPI('/api/tareas?estado=finalizada');
+        try {
+            const atrasadas = await fetchAPI('/api/tareas?estado=finalizada_atrasada');
+            tareas = [...tareas, ...atrasadas];
+        } catch(e) {}
+        tareas.sort((a,b) => new Date(b.fecha_fin || b.fecha_creacion) - new Date(a.fecha_fin || a.fecha_creacion));
 
+        let modal = document.getElementById('modal-historial-tareas');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modal-historial-tareas';
+            document.body.appendChild(modal);
+        }
+
+        const filas = tareas.map((t, i) => {
+            const fecha = t.fecha_fin ? new Date(t.fecha_fin).toLocaleDateString('es-GT', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+            const hora = t.fecha_fin ? new Date(t.fecha_fin).toLocaleTimeString('es-GT', { hour:'2-digit', minute:'2-digit' }) : '';
+            let duracion = '—';
+            if (t.fecha_inicio && t.fecha_fin) {
+                const segs = Math.round((new Date(t.fecha_fin) - new Date(t.fecha_inicio)) / 1000);
+                if (segs < 60) duracion = `${segs}s`;
+                else if (segs < 3600) duracion = `${Math.floor(segs/60)}m`;
+                else duracion = `${Math.floor(segs/3600)}h ${Math.floor((segs%3600)/60)}m`;
+            }
+            const estadoBadge = t.estado === 'finalizada_atrasada'
+                ? '<span style="color:#f97316;">🟠 Atrasada</span>'
+                : '<span style="color:#10b981;">🟢 A tiempo</span>';
+            const prioColor = { 'urgente':'#ef4444','alta':'#f97316','media':'#818cf8','baja':'#10b981' }[t.prioridad] || '#818cf8';
+
+            return `<tr style="border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;" onclick="document.getElementById('modal-historial-tareas').style.display='none'; verDetalleTarea('${t.id_tarea}')">
+                <td style="padding:10px 8px;color:var(--text-muted);font-size:0.75rem;">${i+1}</td>
+                <td style="padding:10px 8px;">
+                    <div style="font-weight:600;font-size:0.85rem;">${t.titulo}</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${t.nombre_empleado || 'Sin asignar'}</div>
+                </td>
+                <td style="padding:10px 8px;text-align:center;">
+                    <span style="color:${prioColor};font-size:0.78rem;font-weight:500;text-transform:capitalize;">${t.prioridad}</span>
+                </td>
+                <td style="padding:10px 8px;text-align:center;">${estadoBadge}</td>
+                <td style="padding:10px 8px;text-align:center;font-size:0.78rem;">${duracion}</td>
+                <td style="padding:10px 8px;text-align:right;font-size:0.78rem;white-space:nowrap;">
+                    <div>${fecha}</div>
+                    <div style="color:var(--text-muted);font-size:0.7rem;">${hora}</div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        modal.innerHTML = `
+            <div style="max-width:900px;width:100%;max-height:90vh;display:flex;flex-direction:column;background:var(--bg-card);border-radius:16px;border:1px solid var(--border-color);overflow:hidden;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border-color);">
+                    <div>
+                        <h3 style="margin:0;font-size:1.1rem;">📜 Historial de Tareas Finalizadas</h3>
+                        <span style="font-size:0.78rem;color:var(--text-muted);">${tareas.length} tareas completadas en total</span>
+                    </div>
+                    <button onclick="document.getElementById('modal-historial-tareas').style.display='none'" style="background:none;border:none;color:white;font-size:1.4rem;cursor:pointer;">✕</button>
+                </div>
+                <div style="overflow-y:auto;flex:1;padding:0 10px;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="border-bottom:2px solid var(--border-color);position:sticky;top:0;background:var(--bg-card);z-index:1;">
+                                <th style="padding:10px 8px;text-align:left;font-size:0.72rem;color:var(--text-muted);font-weight:600;">#</th>
+                                <th style="padding:10px 8px;text-align:left;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Tarea / Empleado</th>
+                                <th style="padding:10px 8px;text-align:center;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Prioridad</th>
+                                <th style="padding:10px 8px;text-align:center;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Estado</th>
+                                <th style="padding:10px 8px;text-align:center;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Duración</th>
+                                <th style="padding:10px 8px;text-align:right;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Fecha Fin</th>
+                            </tr>
+                        </thead>
+                        <tbody>${filas || '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--text-muted);">No hay tareas finalizadas</td></tr>'}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } catch(err) {
+        mostrarToast('Error al cargar historial: ' + (err.message || ''), 'error');
+    }
+}
 
 async function verEvidenciasTarea(idTarea) {
     try {
