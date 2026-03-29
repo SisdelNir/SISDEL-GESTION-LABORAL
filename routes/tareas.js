@@ -547,6 +547,7 @@ router.post('/:id/evidencias', verificarToken, setUploadTipo('evidencias'), uplo
 /**
  * POST /api/tareas/:id/evidencias/base64
  * Recibe imagen como base64 en JSON (sin depender de multer ni disco)
+ * FIX: Asegura search_path correcto en PostgreSQL antes de INSERT
  */
 router.post('/:id/evidencias/base64', verificarToken, async (req, res) => {
     try {
@@ -557,13 +558,40 @@ router.post('/:id/evidencias/base64', verificarToken, async (req, res) => {
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
 
         const id_evidencia = uuidv4();
-        await db.run(`INSERT INTO evidencias_tarea (id_evidencia, id_tarea, tipo, contenido) VALUES (?, ?, ?, ?)`,
-            id_evidencia, req.params.id, tipo || 'imagen', contenido);
-
-        console.log(`✅ Evidencia base64 guardada: ${id_evidencia} para tarea ${req.params.id} (${contenido.length} chars)`);
+        const tipoFinal = tipo || 'imagen';
+        
+        // En PostgreSQL, asegurar schema correcto ANTES de insertar
+        const { isPostgres } = require('../database/init');
+        if (isPostgres && db.pool) {
+            const client = await db.pool.connect();
+            try {
+                await client.query('SET search_path TO gestion_laboral, public');
+                await client.query(
+                    'INSERT INTO evidencias_tarea (id_evidencia, id_tarea, tipo, contenido) VALUES ($1, $2, $3, $4)',
+                    [id_evidencia, req.params.id, tipoFinal, contenido]
+                );
+                // Verificar que se guardó
+                const check = await client.query(
+                    'SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_evidencia = $1',
+                    [id_evidencia]
+                );
+                const cuenta = check.rows[0] ? parseInt(check.rows[0].total) : 0;
+                console.log(`✅ Evidencia base64 guardada (PG directo): ${id_evidencia} | tarea: ${req.params.id} | size: ${contenido.length} chars | verificado: ${cuenta > 0}`);
+                if (cuenta === 0) {
+                    console.error(`❌ ALERTA: INSERT reportó éxito pero verificación dice 0 registros!`);
+                }
+            } finally {
+                client.release();
+            }
+        } else {
+            // SQLite (modo local)
+            await db.run(`INSERT INTO evidencias_tarea (id_evidencia, id_tarea, tipo, contenido) VALUES (?, ?, ?, ?)`,
+                id_evidencia, req.params.id, tipoFinal, contenido);
+            console.log(`✅ Evidencia base64 guardada (SQLite): ${id_evidencia} para tarea ${req.params.id} (${contenido.length} chars)`);
+        }
 
         const io = req.app.get('io');
-        if (io) io.to(`empresa_${tarea.id_empresa}`).emit('nueva_evidencia', { id_tarea: req.params.id, tipo: tipo || 'imagen' });
+        if (io) io.to(`empresa_${tarea.id_empresa}`).emit('nueva_evidencia', { id_tarea: req.params.id, tipo: tipoFinal });
         res.status(201).json({ mensaje: 'Evidencia agregada', id_evidencia });
     } catch (err) {
         console.error('❌ Error guardando evidencia base64:', err);
