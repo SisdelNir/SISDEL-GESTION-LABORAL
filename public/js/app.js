@@ -60,51 +60,250 @@ function inicializarSocket() {
     }
 }
 
-function lanzarAlertaNuevaTarea(data) {
-    // 1. Vibración intensa si es compatible
-    if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
-    
-    // 2. Beep llamativo sintetizado (así no dependemos de cargar archivo externo)
+// ═══════════════════════════════════════════
+// SISTEMA DE ALERTA FULLSCREEN PARA NUEVAS TAREAS
+// (Inspirado en Botón de Pánico — agente.html)
+// ═══════════════════════════════════════════
+
+// Audio context global (necesario para desbloqueo en móviles)
+let _tareaAudioCtx = null;
+let _tareaAudioDesbloqueado = false;
+let _tareasSirenInterval = null;
+let _tareaAlertaAutoClose = null;
+
+// Desbloquear audio en el primer toque/click (requisito de móviles)
+function desbloquearAudioTareas() {
+    if (_tareaAudioDesbloqueado) return;
     try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.type = 'sine'; // tono puro y claro
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz (nota A5)
-        oscillator.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.3);
-        
-        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.7);
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.8);
+        _tareaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = _tareaAudioCtx.createOscillator();
+        const gain = _tareaAudioCtx.createGain();
+        gain.gain.value = 0.01;
+        osc.connect(gain); gain.connect(_tareaAudioCtx.destination);
+        osc.start(); osc.stop(_tareaAudioCtx.currentTime + 0.1);
+        _tareaAudioDesbloqueado = true;
+        console.log('🔊 Audio de alertas desbloqueado');
     } catch(e) {}
+}
+document.body.addEventListener('click', desbloquearAudioTareas, { once: true });
+document.body.addEventListener('touchstart', desbloquearAudioTareas, { once: true });
+
+// Sirena progresiva (tipo Botón de Pánico)
+function tocarSirenaTarea(esUrgente) {
+    if (!_tareaAudioCtx || !_tareaAudioDesbloqueado) {
+        // Intentar crear contexto de respaldo
+        try {
+            _tareaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) { return; }
+    }
+    let repeticiones = 0;
+    const maxRep = esUrgente ? 10 : 6;
+    const freqBase = esUrgente ? 800 : 600;
+    const freqPeak = esUrgente ? 1400 : 1000;
     
-    // 3. Alerta Visual Gigante Inmersiva con SweetAlert
-    const pLabel = (data.prioridad === 'urgente') ? '🚨' : '⚡';
-    const cColor = (data.prioridad === 'urgente') ? '#ef4444' : '#6366f1';
-    
-    Swal.fire({
-        title: `${pLabel} ¡NUEVA TAREA ASIGNADA!`,
-        html: `
-            <div style="font-size:1.2rem;font-weight:700;margin:15px 0;">${data.titulo}</div>
-            <p style="font-size:0.95rem;color:var(--text-secondary);">Debes revisarla e iniciarla lo antes posible.</p>
-        `,
-        icon: 'info',
-        iconColor: cColor,
-        background: 'var(--bg-card)',
-        color: '#fff',
-        confirmButtonText: '👍 Entendido',
-        confirmButtonColor: cColor,
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        customClass: {
-            popup: 'animated tada'
+    _tareasSirenInterval = setInterval(() => {
+        if (repeticiones >= maxRep) { detenerSirenaTarea(); return; }
+        try {
+            const osc = _tareaAudioCtx.createOscillator();
+            const gain = _tareaAudioCtx.createGain();
+            osc.type = esUrgente ? 'square' : 'sawtooth';
+            osc.frequency.setValueAtTime(freqBase, _tareaAudioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(freqPeak, _tareaAudioCtx.currentTime + 0.15);
+            osc.frequency.linearRampToValueAtTime(freqBase, _tareaAudioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.35, _tareaAudioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, _tareaAudioCtx.currentTime + 0.45);
+            osc.connect(gain); gain.connect(_tareaAudioCtx.destination);
+            osc.start(); osc.stop(_tareaAudioCtx.currentTime + 0.45);
+        } catch(e) {}
+        repeticiones++;
+    }, 450);
+}
+
+function detenerSirenaTarea() {
+    if (_tareasSirenInterval) { clearInterval(_tareasSirenInterval); _tareasSirenInterval = null; }
+}
+
+// Inyectar overlay HTML al DOM (una sola vez)
+function asegurarOverlayTarea() {
+    if (document.getElementById('tarea-alerta-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'tarea-alerta-overlay';
+    overlay.innerHTML = `
+        <div class="tarea-alerta-icon" id="tarea-alerta-icono">📋</div>
+        <h2 class="tarea-alerta-titulo" id="tarea-alerta-titulo">¡NUEVA TAREA ASIGNADA!</h2>
+        <div class="tarea-alerta-card" id="tarea-alerta-card">
+            <div class="tarea-alerta-nombre" id="tarea-alerta-nombre">Cargando...</div>
+            <div class="tarea-alerta-prioridad" id="tarea-alerta-prioridad"></div>
+        </div>
+        <p class="tarea-alerta-sub">Revisa y comienza tu tarea lo antes posible</p>
+        <button class="tarea-alerta-btn-ver" id="tarea-alerta-btn-ver">👍 VER TAREA</button>
+        <button class="tarea-alerta-btn-cerrar" onclick="dismissAlertaTarea()">Cerrar</button>
+    `;
+    document.body.appendChild(overlay);
+}
+
+// Inyectar estilos del overlay
+(function() {
+    if (document.getElementById('tarea-alerta-fullscreen-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'tarea-alerta-fullscreen-styles';
+    style.textContent = `
+        #tarea-alerta-overlay {
+            display:none; position:fixed; inset:0; z-index:99999;
+            flex-direction:column; align-items:center; justify-content:center;
+            padding:20px; text-align:center;
+            backdrop-filter:blur(8px);
+            -webkit-backdrop-filter:blur(8px);
         }
-    });
+        #tarea-alerta-overlay.urgente {
+            background:linear-gradient(135deg, rgba(239,68,68,0.92), rgba(185,28,28,0.96));
+            animation: tareaFlashRed 0.6s infinite;
+        }
+        #tarea-alerta-overlay.normal {
+            background:linear-gradient(135deg, rgba(59,130,246,0.92), rgba(79,70,229,0.96));
+            animation: tareaFlashBlue 0.8s infinite;
+        }
+        @keyframes tareaFlashRed {
+            0%,100% { background:linear-gradient(135deg, rgba(239,68,68,0.92), rgba(185,28,28,0.96)); }
+            50% { background:linear-gradient(135deg, rgba(220,38,38,0.98), rgba(153,27,27,0.98)); }
+        }
+        @keyframes tareaFlashBlue {
+            0%,100% { background:linear-gradient(135deg, rgba(59,130,246,0.92), rgba(79,70,229,0.96)); }
+            50% { background:linear-gradient(135deg, rgba(37,99,235,0.98), rgba(67,56,202,0.98)); }
+        }
+        .tarea-alerta-icon {
+            font-size:5rem; margin-bottom:8px;
+            animation: tareaIconBounce 0.6s infinite alternate;
+            filter: drop-shadow(0 4px 20px rgba(255,255,255,0.4));
+        }
+        @keyframes tareaIconBounce {
+            from { transform:scale(1) rotate(-5deg); }
+            to   { transform:scale(1.15) rotate(5deg); }
+        }
+        .tarea-alerta-titulo {
+            color:#fff; font-size:1.8rem; font-weight:900; margin:0;
+            text-shadow:0 3px 15px rgba(0,0,0,0.4);
+            letter-spacing:1px;
+            animation: tareaTitlePulse 1s infinite;
+        }
+        @keyframes tareaTitlePulse {
+            0%,100% { transform:scale(1); }
+            50% { transform:scale(1.05); }
+        }
+        .tarea-alerta-card {
+            margin:20px 0 10px;
+            padding:18px 28px;
+            background:rgba(255,255,255,0.15);
+            border:2px solid rgba(255,255,255,0.3);
+            border-radius:16px;
+            backdrop-filter:blur(4px);
+            max-width:340px;
+            width:100%;
+        }
+        .tarea-alerta-nombre {
+            color:#fff; font-size:1.2rem; font-weight:800;
+            line-height:1.3;
+        }
+        .tarea-alerta-prioridad {
+            margin-top:8px; display:inline-block;
+            padding:4px 14px; border-radius:20px;
+            font-size:0.75rem; font-weight:800;
+            text-transform:uppercase; letter-spacing:1px;
+        }
+        .tarea-alerta-prioridad.urgente { background:rgba(255,255,255,0.25); color:#fff; }
+        .tarea-alerta-prioridad.alta { background:rgba(249,115,22,0.3); color:#fed7aa; }
+        .tarea-alerta-prioridad.media { background:rgba(99,102,241,0.3); color:#c7d2fe; }
+        .tarea-alerta-prioridad.baja { background:rgba(16,185,129,0.3); color:#a7f3d0; }
+        .tarea-alerta-sub {
+            color:rgba(255,255,255,0.8); font-size:0.85rem; margin:8px 0 20px;
+        }
+        .tarea-alerta-btn-ver {
+            padding:14px 40px; background:#fff; border:none; border-radius:14px;
+            font-size:1.1rem; font-weight:900; cursor:pointer;
+            box-shadow:0 4px 20px rgba(0,0,0,0.3);
+            transition:transform 0.2s;
+        }
+        #tarea-alerta-overlay.urgente .tarea-alerta-btn-ver { color:#dc2626; }
+        #tarea-alerta-overlay.normal .tarea-alerta-btn-ver { color:#2563eb; }
+        .tarea-alerta-btn-ver:active { transform:scale(0.95); }
+        .tarea-alerta-btn-cerrar {
+            margin-top:12px; padding:8px 24px;
+            background:transparent; color:rgba(255,255,255,0.7);
+            font-weight:700; font-size:0.85rem;
+            border:2px solid rgba(255,255,255,0.35); border-radius:10px;
+            cursor:pointer;
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
+function lanzarAlertaNuevaTarea(data) {
+    asegurarOverlayTarea();
+    
+    const esUrgente = data.prioridad === 'urgente' || data.prioridad === 'alta';
+    const overlay = document.getElementById('tarea-alerta-overlay');
+    
+    // 1. Configurar contenido
+    const icono = document.getElementById('tarea-alerta-icono');
+    const titulo = document.getElementById('tarea-alerta-titulo');
+    const nombre = document.getElementById('tarea-alerta-nombre');
+    const prioridad = document.getElementById('tarea-alerta-prioridad');
+    const btnVer = document.getElementById('tarea-alerta-btn-ver');
+    
+    icono.textContent = esUrgente ? '🚨' : '📋';
+    titulo.textContent = esUrgente ? '¡TAREA URGENTE!' : '¡NUEVA TAREA ASIGNADA!';
+    nombre.textContent = data.titulo || 'Nueva tarea';
+    prioridad.textContent = (data.prioridad || 'media').toUpperCase();
+    prioridad.className = `tarea-alerta-prioridad ${data.prioridad || 'media'}`;
+    
+    // 2. Estilo según urgencia
+    overlay.className = esUrgente ? 'urgente' : 'normal';
+    overlay.style.display = 'flex';
+    
+    // 3. SIRENA con Web Audio API
+    tocarSirenaTarea(esUrgente);
+    
+    // 4. VIBRACIÓN agresiva
+    if (navigator.vibrate) {
+        if (esUrgente) {
+            navigator.vibrate([500, 200, 500, 200, 500, 200, 800, 300, 800, 300, 1000]);
+        } else {
+            navigator.vibrate([400, 150, 400, 150, 600, 200, 600]);
+        }
+    }
+    
+    // 5. Notificación push del navegador
+    if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+            new Notification(esUrgente ? '🚨 ¡TAREA URGENTE!' : '📋 Nueva tarea asignada', {
+                body: `${data.titulo}\nPrioridad: ${(data.prioridad || 'media').toUpperCase()}`,
+                tag: 'nueva-tarea',
+                requireInteraction: true,
+                vibrate: [500, 200, 500, 200, 500]
+            });
+        } catch(e) {}
+    } else if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    
+    // 6. Botón VER TAREA
+    btnVer.onclick = () => {
+        dismissAlertaTarea();
+        // Recargar tareas del empleado
+        if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
+    };
+    
+    // 7. Auto-cerrar a los 15 segundos
+    if (_tareaAlertaAutoClose) clearTimeout(_tareaAlertaAutoClose);
+    _tareaAlertaAutoClose = setTimeout(() => dismissAlertaTarea(), 15000);
+}
+
+function dismissAlertaTarea() {
+    detenerSirenaTarea();
+    if (navigator.vibrate) navigator.vibrate(0); // cancelar vibración
+    const overlay = document.getElementById('tarea-alerta-overlay');
+    if (overlay) overlay.style.display = 'none';
+    if (_tareaAlertaAutoClose) { clearTimeout(_tareaAlertaAutoClose); _tareaAlertaAutoClose = null; }
 }
 
 // ═══════════════════════════════════════════
