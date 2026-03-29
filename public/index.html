@@ -446,38 +446,20 @@
             </div>
         </header>
 
-        <!-- Panel desplegable de Módulos Generales -->
+        <!-- Panel Módulo General: sidebar izquierdo con lista de texto -->
         <div class="admin-modulos-panel" id="admin-modulos-panel">
             <div class="admin-modulos-backdrop" onclick="cerrarModulosPanel()"></div>
-            <div class="admin-modulos-grid">
-                <div class="admin-modulo-card" onclick="abrirModuloAdmin('dashboard')">
-                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);">📊</div>
-                    <span>Dashboard</span>
-                </div>
-                <div class="admin-modulo-card" onclick="abrirModuloAdmin('supervisores')">
-                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#8b5cf6,#a78bfa);">👤</div>
-                    <span>Supervisores</span>
-                </div>
-                <div class="admin-modulo-card" onclick="abrirModuloAdmin('empleados')">
-                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2);">👥</div>
-                    <span>Empleados</span>
-                </div>
-                <div class="admin-modulo-card" onclick="abrirModuloAdmin('ranking')">
-                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);">🏆</div>
-                    <span>Ranking</span>
-                </div>
-                <div class="admin-modulo-card" onclick="abrirModuloAdmin('auditoria')">
-                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#10b981,#059669);">🛡</div>
-                    <span>Auditoría</span>
-                </div>
-                <div class="admin-modulo-card" onclick="abrirModuloAdmin('asistencia')">
-                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#ec4899,#be185d);">📍</div>
-                    <span>Asistencia</span>
-                </div>
-                <div class="admin-modulo-card" onclick="abrirModuloAdmin('notificaciones')">
-                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#f97316,#ea580c);">🔔</div>
-                    <span>Notificaciones</span>
-                </div>
+            <div class="admin-modulos-sidebar">
+                <div class="admin-modulos-sidebar-title">Módulos</div>
+                <ul class="admin-modulos-lista">
+                    <li onclick="abrirModuloAdmin('dashboard')">Dashboard</li>
+                    <li onclick="abrirModuloAdmin('supervisores')">Supervisores</li>
+                    <li onclick="abrirModuloAdmin('empleados')">Empleados</li>
+                    <li onclick="abrirModuloAdmin('ranking')">Ranking</li>
+                    <li onclick="abrirModuloAdmin('auditoria')">Auditoría</li>
+                    <li onclick="abrirModuloAdmin('asistencia')">Asistencia</li>
+                    <li onclick="abrirModuloAdmin('notificaciones')">Notificaciones</li>
+                </ul>
             </div>
         </div>
 
