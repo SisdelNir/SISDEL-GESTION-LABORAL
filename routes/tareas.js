@@ -257,7 +257,7 @@ router.get('/:id', verificarToken, async (req, res) => {
             WHERE h.id_tarea = ? ORDER BY h.fecha DESC
         `, req.params.id);
 
-        const evidencias = await db.all('SELECT * FROM evidencias_tarea WHERE id_tarea = ? ORDER BY fecha_registro DESC', req.params.id);
+        const evidencias = await db.all('SELECT id_evidencia, id_tarea, tipo, fecha_registro FROM evidencias_tarea WHERE id_tarea = ? ORDER BY fecha_registro DESC', req.params.id);
 
         const comentarios = await db.all(`
             SELECT c.*, u.nombre as nombre_usuario, u.rol as rol_usuario
@@ -532,6 +532,21 @@ router.post('/:id/evidencias/base64', verificarToken, async (req, res) => {
     } catch (err) {
         console.error('❌ Error guardando evidencia base64:', err);
         res.status(500).json({ error: 'Error al agregar evidencia: ' + err.message });
+    }
+});
+
+/**
+ * GET /api/tareas/:id/evidencias/:idEv
+ * Retorna el contenido (base64) de UNA evidencia individual (lazy load)
+ */
+router.get('/:id/evidencias/:idEv', verificarToken, async (req, res) => {
+    try {
+        const evidencia = await db.get('SELECT * FROM evidencias_tarea WHERE id_evidencia = ? AND id_tarea = ?', req.params.idEv, req.params.id);
+        if (!evidencia) return res.status(404).json({ error: 'Evidencia no encontrada' });
+        res.json(evidencia);
+    } catch (err) {
+        console.error('Error obteniendo evidencia:', err);
+        res.status(500).json({ error: 'Error al obtener evidencia' });
     }
 });
 // (Moved: tipos, notificaciones routes are now before /:id)

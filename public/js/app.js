@@ -1798,29 +1798,49 @@ async function toggleDetalleTarea(idTarea) {
         if (t.estado === 'finalizada') eficienciaHTML = `<span class="badge badge-success">✅ A tiempo</span>`;
         else if (t.estado === 'finalizada_atrasada') eficienciaHTML = `<span class="badge badge-danger">⚠️ Con atraso</span>`;
 
-        // Evidencias
+        // Evidencias (lazy load: solo metadatos vienen en la respuesta, contenido se carga individualmente)
         let evidenciasHTML = '';
         if (t.evidencias && t.evidencias.length > 0) {
             evidenciasHTML = `
             <div class="detalle-seccion">
                 <div class="detalle-seccion-titulo">📸 Evidencias (${t.evidencias.length})</div>
-                <div class="detalle-evidencias-grid">
+                <div class="detalle-evidencias-grid" id="evidencias-grid-${idTarea}">
                     ${t.evidencias.map(ev => {
-                        const isImg = ev.tipo === 'imagen' || /\.(jpg|jpeg|png|gif|webp)$/i.test(ev.contenido || '');
-                        if (isImg && ev.contenido) {
-                            return `<div class="evidencia-thumb" onclick="abrirImagenCompleta('${ev.contenido}')">
-                                <img src="${ev.contenido}" alt="evidencia" loading="lazy">
-                                <div class="evidencia-overlay">🔍 Ver</div>
+                        const isImg = ev.tipo === 'imagen';
+                        if (isImg) {
+                            return `<div class="evidencia-thumb" id="ev-thumb-${ev.id_evidencia}" style="min-height:80px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);border-radius:8px;">
+                                <span style="font-size:0.7rem;color:var(--text-muted);">⏳ Cargando...</span>
                             </div>`;
-                        } else if (ev.contenido) {
-                            return `<a href="${ev.contenido}" target="_blank" class="evidencia-archivo">📎 ${ev.tipo || 'Archivo'}</a>`;
-                        } else if (ev.texto) {
-                            return `<div class="evidencia-texto">📝 ${ev.texto}</div>`;
+                        } else if (ev.tipo === 'texto') {
+                            return `<div class="evidencia-texto" id="ev-thumb-${ev.id_evidencia}">📝 Cargando...</div>`;
                         }
-                        return '';
+                        return `<div class="evidencia-archivo" id="ev-thumb-${ev.id_evidencia}">📎 ${ev.tipo || 'Archivo'}</div>`;
                     }).join('')}
                 </div>
             </div>`;
+            // Lazy load: cargar cada evidencia individualmente después de renderizar
+            setTimeout(() => {
+                t.evidencias.forEach(ev => {
+                    fetchAPI(`/api/tareas/${idTarea}/evidencias/${ev.id_evidencia}`).then(evData => {
+                        const thumb = document.getElementById(`ev-thumb-${ev.id_evidencia}`);
+                        if (!thumb) return;
+                        const isImg = evData.tipo === 'imagen';
+                        if (isImg && evData.contenido) {
+                            thumb.innerHTML = `<img src="${evData.contenido}" alt="evidencia" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
+                                <div class="evidencia-overlay">🔍 Ver</div>`;
+                            thumb.style.cursor = 'pointer';
+                            thumb.onclick = () => abrirImagenCompleta(evData.contenido);
+                        } else if (evData.contenido) {
+                            thumb.innerHTML = `<a href="${evData.contenido}" target="_blank" style="color:var(--accent-primary);">📎 ${evData.tipo || 'Archivo'}</a>`;
+                        } else if (evData.texto) {
+                            thumb.innerHTML = `📝 ${evData.texto}`;
+                        }
+                    }).catch(err => {
+                        const thumb = document.getElementById(`ev-thumb-${ev.id_evidencia}`);
+                        if (thumb) thumb.innerHTML = `<span style="font-size:0.7rem;color:var(--danger);">❌ Error</span>`;
+                    });
+                });
+            }, 100);
         } else {
             evidenciasHTML = `<div class="detalle-seccion"><div class="detalle-seccion-titulo">📸 Evidencias</div><p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Sin evidencias registradas</p></div>`;
         }
@@ -2277,20 +2297,42 @@ async function enviarComentario() {
     } catch(e) { mostrarToast('Error al enviar comentario', 'error'); }
 }
 
-// Evidencias (texto + imágenes)
+// Evidencias (lazy load: contenido se carga individualmente)
 function renderizarEvidencias(evidencias) {
     const container = document.getElementById('lista-evidencias');
     if (!evidencias.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Sin evidencias</p>'; return; }
     container.innerHTML = evidencias.map(ev => `
-        <div style="padding:8px 0;border-bottom:1px solid var(--border-color);">
+        <div style="padding:8px 0;border-bottom:1px solid var(--border-color);" id="modal-ev-${ev.id_evidencia}">
             <span class="badge ${ev.tipo === 'imagen' ? 'badge-info' : 'badge-primary'}" style="margin-bottom:4px;">${ev.tipo === 'imagen' ? '📸 Imagen' : '📝 Texto'}</span>
-            ${ev.tipo === 'imagen' && ev.contenido.startsWith('/uploads/')
-                ? `<div style="margin-top:6px;"><a href="${ev.contenido}" target="_blank"><img src="${ev.contenido}" alt="Evidencia" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid var(--border-color);cursor:pointer;"></a></div>`
-                : `<p style="font-size:0.88rem;color:var(--text-secondary);margin-top:4px;">${ev.contenido}</p>`
-            }
+            <div style="margin-top:6px;min-height:40px;display:flex;align-items:center;">
+                <span style="font-size:0.8rem;color:var(--text-muted);">⏳ Cargando contenido...</span>
+            </div>
             <span style="font-size:0.75rem;color:var(--text-muted);">${formatearFechaHora(ev.fecha_registro)}</span>
         </div>
     `).join('');
+
+    // Lazy load each evidence
+    if (TAREA_ACTUAL) {
+        evidencias.forEach(ev => {
+            fetchAPI(`/api/tareas/${TAREA_ACTUAL.id_tarea}/evidencias/${ev.id_evidencia}`).then(evData => {
+                const el = document.getElementById(`modal-ev-${ev.id_evidencia}`);
+                if (!el) return;
+                const contentDiv = el.querySelector('div[style*="min-height"]');
+                if (!contentDiv) return;
+                if (evData.tipo === 'imagen' && evData.contenido) {
+                    contentDiv.innerHTML = `<img src="${evData.contenido}" alt="Evidencia" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid var(--border-color);cursor:pointer;" onclick="abrirImagenCompleta('${evData.contenido.replace(/'/g, "\\'")}')" >`;
+                } else if (evData.contenido) {
+                    contentDiv.innerHTML = `<p style="font-size:0.88rem;color:var(--text-secondary);margin:0;">${evData.contenido.substring(0, 200)}</p>`;
+                }
+            }).catch(() => {
+                const el = document.getElementById(`modal-ev-${ev.id_evidencia}`);
+                if (el) {
+                    const contentDiv = el.querySelector('div[style*="min-height"]');
+                    if (contentDiv) contentDiv.innerHTML = `<span style="color:var(--danger);font-size:0.8rem;">❌ Error al cargar</span>`;
+                }
+            });
+        });
+    }
 }
 
 async function enviarEvidencia() {
