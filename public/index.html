@@ -556,21 +556,6 @@
                     <div class="vista-header">
                         <h3>📋 Tareas</h3>
                         <div style="display:flex;gap:8px;">
-                            <select id="filtro-estado" onchange="cargarTareas()" style="width:auto;padding:8px 12px;font-size:0.82rem;">
-                                <option value="">Todos los estados</option>
-                                <option value="pendiente">🟡 Pendiente</option>
-                                <option value="en_proceso">🔵 En Proceso</option>
-                                <option value="finalizada">🟢 Finalizada</option>
-                                <option value="atrasada">🔴 Atrasada</option>
-                                <option value="finalizada_atrasada">🟠 Finalizada con atraso</option>
-                            </select>
-                            <select id="filtro-prioridad" onchange="cargarTareas()" style="width:auto;padding:8px 12px;font-size:0.82rem;">
-                                <option value="">Todas las prioridades</option>
-                                <option value="urgente">🔴 Urgente</option>
-                                <option value="alta">🟠 Alta</option>
-                                <option value="media">🟡 Media</option>
-                                <option value="baja">🟢 Baja</option>
-                            </select>
                             <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTarea()">
                                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                                 Nueva Tarea
