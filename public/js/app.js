@@ -88,6 +88,66 @@ function desbloquearAudioTareas() {
 document.body.addEventListener('click', desbloquearAudioTareas, { once: true });
 document.body.addEventListener('touchstart', desbloquearAudioTareas, { once: true });
 
+// ═══════════════════════════════════════════
+// OPTIMIZACIÓN DE IMÁGENES EN EL NAVEGADOR
+// (Equivalente a Python/Pillow: resize 1024px + JPEG 70%)
+// ═══════════════════════════════════════════
+
+/**
+ * Optimiza una imagen antes de subirla:
+ * - Redimensiona al máximo MAX_SIZE px (proporcional, como Lanczos en Pillow)
+ * - Convierte a JPEG con calidad 70% (elimina metadatos GPS, sensor, etc.)
+ * - Retorna un data URL base64 listo para enviar
+ *
+ * @param {File} file - Archivo de imagen del input
+ * @param {Object} opts - Opciones { maxSize: 1024, quality: 0.70 }
+ * @returns {Promise<{base64: string, originalKB: number, optimizedKB: number}>}
+ */
+function optimizarImagen(file, opts = {}) {
+    const maxSize = opts.maxSize || 1024;
+    const quality = opts.quality || 0.70;
+    
+    return new Promise((resolve, reject) => {
+        const originalKB = Math.round(file.size / 1024);
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            
+            // Calcular nueva dimensión manteniendo proporción (como ratio en Pillow)
+            let w = img.width;
+            let h = img.height;
+            const ratio = Math.min(maxSize / w, maxSize / h, 1); // nunca agrandar
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+            
+            // Dibujar en canvas (equivalente a Image.resize con LANCZOS)
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high'; // mejor calidad de interpolación
+            ctx.drawImage(img, 0, 0, w, h);
+            
+            // Convertir a JPEG con compresión (como img.save("JPEG", quality=70))
+            const base64 = canvas.toDataURL('image/jpeg', quality);
+            const optimizedKB = Math.round((base64.length * 3 / 4) / 1024); // tamaño aprox del binario
+            
+            console.log(`📸 Imagen optimizada: ${originalKB}KB → ${optimizedKB}KB (${w}x${h}, JPEG ${Math.round(quality*100)}%)`);
+            resolve({ base64, originalKB, optimizedKB });
+        };
+        
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Error al cargar la imagen para optimizar'));
+        };
+        
+        img.src = url;
+    });
+}
+
 // Sirena progresiva (tipo Botón de Pánico)
 function tocarSirenaTarea(esUrgente) {
     if (!_tareaAudioCtx || !_tareaAudioDesbloqueado) {
@@ -2355,6 +2415,7 @@ async function subirImagenRapida(idTarea) {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
+    fileInput.capture = 'environment'; // Abrir cámara trasera directamente en móviles
     fileInput.multiple = true;
     
     fileInput.onchange = async (e) => {
@@ -2362,24 +2423,26 @@ async function subirImagenRapida(idTarea) {
         if (!files.length) return;
         
         Swal.fire({ 
-            title: 'Subiendo...', 
-            text: `Procesando ${files.length} imagen(es)...`, 
+            title: 'Optimizando...', 
+            html: `<p>Comprimiendo ${files.length} imagen(es)...</p><p style="font-size:0.8rem;color:#999;">Redimensionando y comprimiendo para envío rápido</p>`, 
             allowOutsideClick: false, 
             didOpen: () => { Swal.showLoading() } 
         });
         
         let subidas = 0;
         let errores = 0;
+        let totalOriginalKB = 0;
+        let totalOptimizedKB = 0;
         
         for (const file of files) {
             try {
-                // Convertir a base64 en el NAVEGADOR (no depende del disco del servidor)
-                const base64 = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
+                // 🖼️ OPTIMIZAR: resize 1024px + JPEG 70% (como Pillow en Python)
+                const { base64, originalKB, optimizedKB } = await optimizarImagen(file, {
+                    maxSize: 1024,
+                    quality: 0.70
                 });
+                totalOriginalKB += originalKB;
+                totalOptimizedKB += optimizedKB;
                 
                 const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
                     method: 'POST', 
@@ -2403,9 +2466,10 @@ async function subirImagenRapida(idTarea) {
         
         Swal.close();
         if (subidas > 0) {
-            mostrarToast(`📸 ${subidas} imagen(es) subida(s) exitosamente.${errores > 0 ? ` (${errores} fallidas)` : ''}`, 'success');
+            const ahorro = totalOriginalKB > 0 ? Math.round((1 - totalOptimizedKB / totalOriginalKB) * 100) : 0;
+            mostrarToast(`📸 ${subidas} foto(s) subida(s) ✅ ${ahorro > 0 ? `(${ahorro}% más ligeras)` : ''}${errores > 0 ? ` · ${errores} fallidas` : ''}`, 'success');
         } else {
-            mostrarToast('Error al subir imágenes. Intenta con imágenes más pequeñas.', 'error');
+            mostrarToast('Error al subir imágenes. Intenta de nuevo.', 'error');
         }
         // Recargar la lista de tareas del empleado para actualizar el contador de fotos
         if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
@@ -2553,21 +2617,33 @@ async function subirImagenEvidencia() {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
+    fileInput.capture = 'environment'; // Abrir cámara trasera en móviles
     fileInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const formData = new FormData();
-        formData.append('archivo', file);
-        formData.append('tipo', 'imagen');
+        
+        mostrarToast('📸 Optimizando imagen...', 'info');
+        
         try {
-            const resp = await fetch(`/api/tareas/${TAREA_ACTUAL.id_tarea}/evidencias`, {
+            // 🖼️ OPTIMIZAR: resize 1024px + JPEG 70% (como Pillow en Python)
+            const { base64, originalKB, optimizedKB } = await optimizarImagen(file, {
+                maxSize: 1024,
+                quality: 0.70
+            });
+            
+            const resp = await fetch(`/api/tareas/${TAREA_ACTUAL.id_tarea}/evidencias/base64`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${TOKEN}` },
-                body: formData
+                headers: { 
+                    'Authorization': `Bearer ${TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
             });
             if (!resp.ok) throw new Error('Error al subir imagen');
+            
+            const ahorro = originalKB > 0 ? Math.round((1 - optimizedKB / originalKB) * 100) : 0;
             verDetalleTarea(TAREA_ACTUAL.id_tarea);
-            mostrarToast('📸 Imagen subida exitosamente', 'success');
+            mostrarToast(`📸 Imagen subida ✅ (${originalKB}KB → ${optimizedKB}KB, ${ahorro}% más ligera)`, 'success');
         } catch(err) { mostrarToast('Error al subir imagen', 'error'); }
     };
     fileInput.click();
