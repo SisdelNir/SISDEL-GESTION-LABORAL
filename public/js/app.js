@@ -1939,7 +1939,7 @@ async function cargarEstadisticasTareas() {
 
 async function cargarTareas() {
     try {
-        const estado = document.getElementById('filtro-estado')?.value || '';
+        const estado = window.FILTRO_ESTADO_ACTUAL || '';
         const prioridad = document.getElementById('filtro-prioridad')?.value || '';
 
         let url = '/api/tareas?';
@@ -3522,15 +3522,38 @@ function formatearHoraEmpresa(fechaStr) {
 // HISTORIAL DE TAREAS (ADMIN)
 // ═══════════════════════════════════════════
 function filtrarTareasPorEstado(estado) {
-    // Todos los estados usan el mismo panel principal
-    const filtro = document.getElementById('filtro-estado');
-    if (filtro) filtro.value = estado;
+    // Toggle: si ya está activo el mismo filtro, quitar filtro
+    if (window.FILTRO_ESTADO_ACTUAL === estado) {
+        window.FILTRO_ESTADO_ACTUAL = '';
+        estado = '';
+    } else {
+        window.FILTRO_ESTADO_ACTUAL = estado;
+    }
+
     cargarTareas();
+
+    // Resaltar la tarjeta activa
+    document.querySelectorAll('#panel-tareas .stat-card').forEach(card => {
+        card.style.outline = '';
+        card.style.outlineOffset = '';
+    });
+    if (estado) {
+        const labels = { 'pendiente': 'Pendientes', 'en_proceso': 'En Proceso', 'finalizada': 'Finalizadas', 'atrasada': 'Atrasadas' };
+        document.querySelectorAll('#panel-tareas .stat-card').forEach(card => {
+            const label = card.querySelector('.stat-label');
+            if (label && label.textContent === labels[estado]) {
+                card.style.outline = '2px solid var(--accent-primary)';
+                card.style.outlineOffset = '2px';
+            }
+        });
+        mostrarToast(`Mostrando: ${labels[estado] || estado}`, 'info');
+    } else {
+        mostrarToast('Mostrando todas las tareas', 'info');
+    }
+
     // Scroll al listado
     const lista = document.getElementById('lista-tareas');
     if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const labels = { 'pendiente': 'Pendientes', 'en_proceso': 'En Proceso', 'finalizada': 'Finalizadas', 'atrasada': 'Atrasadas' };
-    mostrarToast(`Mostrando: ${labels[estado] || estado}`, 'info');
 }
 
 
