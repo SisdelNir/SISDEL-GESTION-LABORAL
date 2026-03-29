@@ -182,6 +182,37 @@ router.get('/estadisticas', verificarToken, async (req, res) => {
 
 
 /**
+ * GET /api/tareas/debug/evidencias
+ * DIAGNÓSTICO: ver si hay evidencias en la BD
+ */
+router.get('/debug/evidencias', verificarToken, async (req, res) => {
+    try {
+        const total = await db.get('SELECT COUNT(*) as total FROM evidencias_tarea');
+        const recientes = await db.all(`SELECT id_evidencia, id_tarea, tipo, 
+            CASE WHEN contenido IS NOT NULL THEN LENGTH(contenido) ELSE 0 END as size_contenido, 
+            fecha_registro FROM evidencias_tarea ORDER BY fecha_registro DESC LIMIT 10`);
+        const tareasConEv = await db.all(`
+            SELECT t.id_tarea, t.titulo, t.requiere_evidencia, 
+                   COUNT(e.id_evidencia) as num_evidencias
+            FROM tareas t
+            LEFT JOIN evidencias_tarea e ON t.id_tarea = e.id_tarea
+            WHERE t.id_empresa = ? AND t.eliminado = 0
+            GROUP BY t.id_tarea, t.titulo, t.requiere_evidencia
+            HAVING COUNT(e.id_evidencia) > 0
+            ORDER BY t.fecha_creacion DESC LIMIT 20
+        `, req.usuario.id_empresa);
+        res.json({ 
+            total_evidencias_en_bd: total ? total.total : 0,
+            ultimas_10: recientes,
+            tareas_con_evidencias: tareasConEv
+        });
+    } catch (err) {
+        console.error('Error debug evidencias:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
  * GET /api/tareas/tipos/lista
  * IMPORTANTE: debe estar ANTES de /:id
  */
@@ -258,6 +289,10 @@ router.get('/:id', verificarToken, async (req, res) => {
         `, req.params.id);
 
         const evidencias = await db.all('SELECT id_evidencia, id_tarea, tipo, fecha_registro FROM evidencias_tarea WHERE id_tarea = ? ORDER BY fecha_registro DESC', req.params.id);
+        console.log(`📊 Tarea ${req.params.id}: ${evidencias.length} evidencias encontradas`);
+        if (evidencias.length > 0) {
+            console.log(`   → IDs: ${evidencias.map(e => e.id_evidencia).join(', ')}`);
+        }
 
         const comentarios = await db.all(`
             SELECT c.*, u.nombre as nombre_usuario, u.rol as rol_usuario
@@ -267,6 +302,7 @@ router.get('/:id', verificarToken, async (req, res) => {
 
         res.json({ ...tarea, historial, evidencias, comentarios });
     } catch (err) {
+        console.error('❌ Error obteniendo tarea detalle:', err);
         res.status(500).json({ error: 'Error al obtener tarea' });
     }
 });
