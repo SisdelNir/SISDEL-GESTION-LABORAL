@@ -463,6 +463,164 @@ select {
     color: var(--accent-primary-hover);
 }
 
+/* ─── Admin Nav: Módulo General + Tareas Hero ─── */
+.admin-nav-modulo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    letter-spacing: 0.3px;
+}
+.admin-nav-modulo-btn:hover {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+.admin-nav-modulo-btn.abierto {
+    background: rgba(99, 102, 241, 0.18);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary-hover);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+}
+.modulo-hamburger {
+    font-size: 1.1rem;
+    transition: transform 0.3s ease;
+}
+.admin-nav-modulo-btn.abierto .modulo-hamburger {
+    transform: rotate(90deg);
+}
+
+.admin-nav-tareas-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 28px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35),
+                0 0 40px rgba(99, 102, 241, 0.1);
+    position: relative;
+    text-transform: uppercase;
+}
+.admin-nav-tareas-btn::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #6366f1, #a78bfa, #6366f1);
+    z-index: -1;
+    opacity: 0;
+    filter: blur(8px);
+    transition: opacity 0.3s ease;
+}
+.admin-nav-tareas-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 6px 30px rgba(99, 102, 241, 0.5),
+                0 0 60px rgba(139, 92, 246, 0.2);
+}
+.admin-nav-tareas-btn:hover::before {
+    opacity: 1;
+}
+.admin-nav-tareas-btn:active {
+    transform: scale(0.97);
+}
+
+/* ─── Panel Desplegable de Módulos ─── */
+.admin-modulos-panel {
+    display: none;
+    position: relative;
+    z-index: 99;
+}
+.admin-modulos-panel.abierto {
+    display: block;
+    animation: adminModulosSlideDown 0.3s ease;
+}
+@keyframes adminModulosSlideDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.admin-modulos-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 98;
+}
+.admin-modulos-grid {
+    position: relative;
+    z-index: 99;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    padding: 16px 24px 20px;
+    background: rgba(15, 15, 35, 0.95);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    max-width: 900px;
+    margin: 0 auto;
+}
+.admin-modulo-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: center;
+}
+.admin-modulo-card span {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+}
+.admin-modulo-card:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
+}
+.admin-modulo-card:hover span {
+    color: var(--text-primary);
+}
+.admin-modulo-card:active {
+    transform: scale(0.95);
+}
+.modulo-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 .user-info {
     display: flex;
     align-items: center;
@@ -1101,6 +1259,30 @@ select {
         display: none;
     }
 
+    .admin-nav-modulo-btn span:not(.modulo-hamburger) {
+        display: none;
+    }
+    .admin-nav-modulo-btn {
+        padding: 8px 12px;
+    }
+    .admin-nav-tareas-btn {
+        padding: 8px 18px;
+        font-size: 0.82rem;
+    }
+    .admin-modulos-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        padding: 12px 16px;
+    }
+    .admin-modulo-card {
+        padding: 14px 8px;
+    }
+    .modulo-card-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+
     .sidebar {
         display: none;
     }
@@ -1152,6 +1334,10 @@ select {
 
     .brand-title {
         font-size: 1.8rem;
+    }
+
+    .admin-modulos-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 

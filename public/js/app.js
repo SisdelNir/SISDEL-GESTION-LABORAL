@@ -468,7 +468,8 @@ function abrirPanelPorRol() {
         mostrarPantalla('admin');
         document.getElementById('admin-user-name').textContent = USUARIO.nombre;
         document.getElementById('admin-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
-        cargarDashboardAdmin();
+        // Arrancar en panel Tareas por defecto
+        cambiarPanelAdmin('tareas');
     } else if (USUARIO.rol === 'SUPERVISOR') {
         mostrarPantalla('supervisor');
         document.getElementById('sup-user-name').textContent = USUARIO.nombre;
@@ -839,10 +840,8 @@ async function eliminarEmpresa(id, nombre) {
 function cambiarPanelAdmin(panel) {
     const container = document.getElementById('pantalla-admin');
     container.querySelectorAll('.panel').forEach(p => p.classList.remove('activa'));
-    document.getElementById(`panel-${panel}`).classList.add('activa');
-
-    container.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('activo'));
-    container.querySelector(`[data-panel="${panel}"]`).classList.add('activo');
+    const panelEl = document.getElementById(`panel-${panel}`);
+    if (panelEl) panelEl.classList.add('activa');
 
     if (panel === 'supervisores') cargarSupervisores();
     if (panel === 'empleados') cargarEmpleados();
@@ -852,6 +851,33 @@ function cambiarPanelAdmin(panel) {
     if (panel === 'notificaciones') cargarNotificaciones();
     if (panel === 'auditoria') cargarAuditoria();
     if (panel === 'asistencia') cargarAsistenciaAdmin();
+}
+
+// ═══════════════════════════════════════════
+// NAVEGACIÓN ADMIN: MÓDULO GENERAL
+// ═══════════════════════════════════════════
+function toggleModulosPanel() {
+    const panel = document.getElementById('admin-modulos-panel');
+    const btn = document.getElementById('btn-modulo-general');
+    const isOpen = panel.classList.contains('abierto');
+    if (isOpen) {
+        cerrarModulosPanel();
+    } else {
+        panel.classList.add('abierto');
+        btn.classList.add('abierto');
+    }
+}
+
+function cerrarModulosPanel() {
+    const panel = document.getElementById('admin-modulos-panel');
+    const btn = document.getElementById('btn-modulo-general');
+    if (panel) panel.classList.remove('abierto');
+    if (btn) btn.classList.remove('abierto');
+}
+
+function abrirModuloAdmin(panel) {
+    cerrarModulosPanel();
+    cambiarPanelAdmin(panel);
 }
 
 // ═══════════════════════════════════════════

@@ -422,17 +422,18 @@
                     <span id="admin-empresa-nombre">Empresa</span>
                 </div>
             </div>
-            <div class="header-center">
-                <nav class="header-nav">
-                    <button class="nav-btn activo" data-panel="dashboard" onclick="cambiarPanelAdmin('dashboard')">📊 Dashboard</button>
-                    <button class="nav-btn" data-panel="supervisores" onclick="cambiarPanelAdmin('supervisores')">👤 Supervisores</button>
-                    <button class="nav-btn" data-panel="empleados" onclick="cambiarPanelAdmin('empleados')">👥 Empleados</button>
-                    <button class="nav-btn" data-panel="tareas" onclick="cambiarPanelAdmin('tareas')">📋 Tareas</button>
-                    <button class="nav-btn" data-panel="ranking" onclick="cambiarPanelAdmin('ranking')">🏆 Ranking</button>
-                    <button class="nav-btn" data-panel="auditoria" onclick="cambiarPanelAdmin('auditoria')">🛡 Auditoría</button>
-                    <button class="nav-btn" data-panel="asistencia" onclick="cambiarPanelAdmin('asistencia')">📍 Asistencia</button>
-                    <button class="nav-btn" data-panel="notificaciones" onclick="cambiarPanelAdmin('notificaciones')">🔔 <span id="notif-badge-header"></span></button>
-                </nav>
+            <div class="header-center" style="display:flex;align-items:center;gap:12px;">
+                <!-- Botón Módulo General -->
+                <button class="admin-nav-modulo-btn" id="btn-modulo-general" onclick="toggleModulosPanel()">
+                    <span class="modulo-hamburger" id="modulo-hamburger-icon">☰</span>
+                    <span>Módulo General</span>
+                </button>
+                <!-- Botón TAREAS prominente (siempre visible) -->
+                <button class="admin-nav-tareas-btn" onclick="abrirModuloAdmin('tareas')">
+                    <span>📋</span> Tareas
+                </button>
+                <!-- Badge de notificaciones flotante -->
+                <span id="notif-badge-header" style="display:none;"></span>
             </div>
             <div class="header-right">
                 <div class="user-info">
@@ -445,10 +446,45 @@
             </div>
         </header>
 
+        <!-- Panel desplegable de Módulos Generales -->
+        <div class="admin-modulos-panel" id="admin-modulos-panel">
+            <div class="admin-modulos-backdrop" onclick="cerrarModulosPanel()"></div>
+            <div class="admin-modulos-grid">
+                <div class="admin-modulo-card" onclick="abrirModuloAdmin('dashboard')">
+                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);">📊</div>
+                    <span>Dashboard</span>
+                </div>
+                <div class="admin-modulo-card" onclick="abrirModuloAdmin('supervisores')">
+                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#8b5cf6,#a78bfa);">👤</div>
+                    <span>Supervisores</span>
+                </div>
+                <div class="admin-modulo-card" onclick="abrirModuloAdmin('empleados')">
+                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2);">👥</div>
+                    <span>Empleados</span>
+                </div>
+                <div class="admin-modulo-card" onclick="abrirModuloAdmin('ranking')">
+                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);">🏆</div>
+                    <span>Ranking</span>
+                </div>
+                <div class="admin-modulo-card" onclick="abrirModuloAdmin('auditoria')">
+                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#10b981,#059669);">🛡</div>
+                    <span>Auditoría</span>
+                </div>
+                <div class="admin-modulo-card" onclick="abrirModuloAdmin('asistencia')">
+                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#ec4899,#be185d);">📍</div>
+                    <span>Asistencia</span>
+                </div>
+                <div class="admin-modulo-card" onclick="abrirModuloAdmin('notificaciones')">
+                    <div class="modulo-card-icon" style="background:linear-gradient(135deg,#f97316,#ea580c);">🔔</div>
+                    <span>Notificaciones</span>
+                </div>
+            </div>
+        </div>
+
         <main class="main-content main-full">
             <div class="content-area full">
                 <!-- Dashboard Ejecutivo -->
-                <div id="panel-dashboard" class="panel activa">
+                <div id="panel-dashboard" class="panel">
                     <div class="vista-header">
                         <h3>📊 Dashboard Ejecutivo</h3>
                     </div>
@@ -534,7 +570,7 @@
                 </div>
 
                 <!-- Tareas -->
-                <div id="panel-tareas" class="panel">
+                <div id="panel-tareas" class="panel activa">
                     <div class="vista-header">
                         <h3>📋 Tareas</h3>
                         <div style="display:flex;gap:8px;">
