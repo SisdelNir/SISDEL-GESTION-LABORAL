@@ -3579,42 +3579,60 @@ async function abrirHistorialTareas() {
             document.body.appendChild(modal);
         }
 
-        const filas = tareas.map((t, i) => {
-            const fecha = t.fecha_fin ? new Date(t.fecha_fin).toLocaleDateString('es-GT', { day:'2-digit', month:'short', year:'numeric' }) : '—';
-            const hora = t.fecha_fin ? new Date(t.fecha_fin).toLocaleTimeString('es-GT', { hour:'2-digit', minute:'2-digit' }) : '';
-            let duracion = '—';
+        const tarjetas = tareas.map(t => {
+            const prioridadColor = {
+                'urgente': '#ef4444', 'alta': '#f97316', 'media': '#6366f1', 'baja': '#10b981'
+            }[t.prioridad] || '#6366f1';
+            const estadoBadgeClass = {
+                'finalizada': 'badge-success', 'finalizada_atrasada': 'badge-warning'
+            }[t.estado] || 'badge-success';
+            const estadoTexto = t.estado === 'finalizada_atrasada' ? '🟠 Fin. Atrasada' : '🟢 Finalizada';
+
+            let tiempoRealStr = '';
             if (t.fecha_inicio && t.fecha_fin) {
                 const segs = Math.round((new Date(t.fecha_fin) - new Date(t.fecha_inicio)) / 1000);
-                if (segs < 60) duracion = `${segs}s`;
-                else if (segs < 3600) duracion = `${Math.floor(segs/60)}m`;
-                else duracion = `${Math.floor(segs/3600)}h ${Math.floor((segs%3600)/60)}m`;
+                tiempoRealStr = formatearCronoAdmin(segs);
             }
-            const estadoBadge = t.estado === 'finalizada_atrasada'
-                ? '<span style="color:#f97316;">🟠 Atrasada</span>'
-                : '<span style="color:#10b981;">🟢 A tiempo</span>';
-            const prioColor = { 'urgente':'#ef4444','alta':'#f97316','media':'#818cf8','baja':'#10b981' }[t.prioridad] || '#818cf8';
 
-            return `<tr style="border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;" onclick="document.getElementById('modal-historial-tareas').style.display='none'; verDetalleTarea('${t.id_tarea}')">
-                <td style="padding:10px 8px;color:var(--text-muted);font-size:0.75rem;">${i+1}</td>
-                <td style="padding:10px 8px;">
-                    <div style="font-weight:600;font-size:0.85rem;">${t.titulo}</div>
-                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${t.nombre_empleado || 'Sin asignar'}</div>
-                </td>
-                <td style="padding:10px 8px;text-align:center;">
-                    <span style="color:${prioColor};font-size:0.78rem;font-weight:500;text-transform:capitalize;">${t.prioridad}</span>
-                </td>
-                <td style="padding:10px 8px;text-align:center;">${estadoBadge}</td>
-                <td style="padding:10px 8px;text-align:center;font-size:0.78rem;">${duracion}</td>
-                <td style="padding:10px 8px;text-align:right;font-size:0.78rem;white-space:nowrap;">
-                    <div>${fecha}</div>
-                    <div style="color:var(--text-muted);font-size:0.7rem;">${hora}</div>
-                </td>
-            </tr>`;
+            return `
+            <div class="tarea-row-wrap" style="cursor:pointer;" onclick="document.getElementById('modal-historial-tareas').style.display='none'; filtrarTareasPorEstado('finalizada'); setTimeout(()=>toggleDetalleTarea('${t.id_tarea}'),500);">
+                <div class="tarea-row glass" style="border-left:4px solid ${prioridadColor};">
+                    <!-- Prioridad -->
+                    <div class="tarea-row-prioridad" style="background:${prioridadColor}22;color:${prioridadColor};">${t.prioridad.toUpperCase()}</div>
+
+                    <!-- Info principal -->
+                    <div class="tarea-row-main">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            ${t.codigo_tarea ? `<span style="font-size:0.68rem;font-weight:700;color:var(--accent-primary);background:rgba(99,102,241,0.15);padding:2px 8px;border-radius:6px;letter-spacing:0.5px;">${t.codigo_tarea}</span>` : ''}
+                            <span style="font-size:0.95rem;font-weight:700;">${t.titulo}</span>
+                            <span class="badge ${estadoBadgeClass}" style="font-size:0.65rem;">${estadoTexto}</span>
+                            ${t.nombre_tipo ? `<span style="font-size:0.7rem;color:var(--text-muted);background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:10px;">${t.nombre_tipo}</span>` : ''}
+                        </div>
+                        ${t.descripcion ? `<div style="font-size:0.77rem;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:350px;" title="${t.descripcion}">${t.descripcion}</div>` : ''}
+                    </div>
+
+                    <!-- Info rápida -->
+                    <div class="tarea-row-info">
+                        ${t.nombre_empleado ? `<span class="empresa-stat">👤 ${t.nombre_empleado}</span>` : '<span class="empresa-stat" style="opacity:0.4;">Sin asignar</span>'}
+                        ${t.nombre_supervisor ? `<span class="empresa-stat">👁 ${t.nombre_supervisor}</span>` : ''}
+                        ${tiempoRealStr ? `<span class="empresa-stat" style="color:#00ff88;font-weight:600;">⏱ ${tiempoRealStr}</span>` : (t.tiempo_estimado_minutos ? `<span class="empresa-stat">⏳ ${formatearTiempo(t.tiempo_estimado_minutos)}</span>` : '')}
+                        ${t.total_evidencias > 0 ? `<span class="empresa-stat" style="color:#a78bfa;">📸 ${t.total_evidencias}</span>` : ''}
+                        ${t.total_comentarios > 0 ? `<span class="empresa-stat" style="color:#60a5fa;">💬 ${t.total_comentarios}</span>` : ''}
+                    </div>
+
+                    <!-- Fechas completas -->
+                    <div class="tarea-row-fecha" style="min-width:160px;">
+                        <span style="font-size:0.68rem;color:var(--text-muted);">📅 Asignada: ${formatearFecha(t.fecha_creacion)}</span>
+                        ${t.fecha_inicio ? `<span style="font-size:0.68rem;color:#3b82f6;">▶ Inicio: ${formatearFecha(t.fecha_inicio)}</span>` : ''}
+                        ${t.fecha_fin ? `<span style="font-size:0.68rem;color:#10b981;">✅ Fin: ${formatearFecha(t.fecha_fin)}</span>` : ''}
+                    </div>
+                </div>
+            </div>`;
         }).join('');
 
         modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
         modal.innerHTML = `
-            <div style="max-width:900px;width:100%;max-height:90vh;display:flex;flex-direction:column;background:var(--bg-card);border-radius:16px;border:1px solid var(--border-color);overflow:hidden;">
+            <div style="max-width:1100px;width:100%;max-height:90vh;display:flex;flex-direction:column;background:var(--bg-card);border-radius:16px;border:1px solid var(--border-color);overflow:hidden;">
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border-color);">
                     <div>
                         <h3 style="margin:0;font-size:1.1rem;">📜 Historial de Tareas Finalizadas</h3>
@@ -3622,20 +3640,10 @@ async function abrirHistorialTareas() {
                     </div>
                     <button onclick="document.getElementById('modal-historial-tareas').style.display='none'" style="background:none;border:none;color:white;font-size:1.4rem;cursor:pointer;">✕</button>
                 </div>
-                <div style="overflow-y:auto;flex:1;padding:0 10px;">
-                    <table style="width:100%;border-collapse:collapse;">
-                        <thead>
-                            <tr style="border-bottom:2px solid var(--border-color);position:sticky;top:0;background:var(--bg-card);z-index:1;">
-                                <th style="padding:10px 8px;text-align:left;font-size:0.72rem;color:var(--text-muted);font-weight:600;">#</th>
-                                <th style="padding:10px 8px;text-align:left;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Tarea / Empleado</th>
-                                <th style="padding:10px 8px;text-align:center;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Prioridad</th>
-                                <th style="padding:10px 8px;text-align:center;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Estado</th>
-                                <th style="padding:10px 8px;text-align:center;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Duración</th>
-                                <th style="padding:10px 8px;text-align:right;font-size:0.72rem;color:var(--text-muted);font-weight:600;">Fecha Fin</th>
-                            </tr>
-                        </thead>
-                        <tbody>${filas || '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--text-muted);">No hay tareas finalizadas</td></tr>'}</tbody>
-                    </table>
+                <div style="overflow-y:auto;flex:1;padding:12px 16px;">
+                    <div class="grid-cards">
+                        ${tarjetas || '<div class="empty-state"><p>No hay tareas finalizadas</p></div>'}
+                    </div>
                 </div>
             </div>
         `;
