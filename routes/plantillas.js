@@ -301,8 +301,7 @@ router.delete('/programadas/:id', verificarToken, verificarRol('ADMIN', 'SUPERVI
 async function generarTareaDesdePlantilla(plantilla, id_creador, io) {
     const id_tarea = uuidv4();
     const ahora = new Date().toISOString();
-    const estadoInicial = plantilla.id_empleado_default ? 'en_proceso' : 'pendiente';
-    const fechaInic = plantilla.id_empleado_default ? ahora : null;
+    const estadoInicial = 'pendiente';
 
     await db.run(`
         INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor,
@@ -312,19 +311,17 @@ async function generarTareaDesdePlantilla(plantilla, id_creador, io) {
        plantilla.id_empleado_default || null, plantilla.id_supervisor_default || null,
        id_creador, plantilla.id_tipo || null, plantilla.prioridad || 'media',
        plantilla.tiempo_estimado_minutos || null, plantilla.requiere_evidencia || 0,
-       estadoInicial, fechaInic);
+       estadoInicial, null);
 
     await db.run(`INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)
         VALUES (?, ?, ?, 'Tarea generada automáticamente desde plantilla')`, id_tarea, estadoInicial, id_creador);
 
+    await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
+
     if (plantilla.id_empleado_default) {
-        await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea, hora_inicio) VALUES (?, ?, ?)`,
-            uuidv4(), id_tarea, ahora);
         await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
             VALUES (?, ?, '📋 Nueva tarea asignada', ?, 'nueva_tarea')`,
-            uuidv4(), plantilla.id_empleado_default, `Tarea repetitiva: "${plantilla.titulo}"`);
-    } else {
-        await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
+            uuidv4(), plantilla.id_empleado_default, `Tarea repetitiva: "${plantilla.titulo}" - Presióna Iniciar cuando estés listo`);
     }
 
     // Actualizar plantilla
@@ -422,8 +419,7 @@ async function ejecutarCronPlantillas(io) {
 
             try {
                 const id_tarea = uuidv4();
-                const estadoInicial = tp.id_empleado ? 'en_proceso' : 'pendiente';
-                const fechaInic = tp.id_empleado ? ahora.toISOString() : null;
+                const estadoInicial = 'pendiente';
 
                 await db.run(`
                     INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor,
@@ -433,19 +429,18 @@ async function ejecutarCronPlantillas(io) {
                    tp.id_empleado || null, tp.id_supervisor || null, tp.id_creador,
                    tp.id_tipo || null, tp.prioridad || 'media',
                    tp.tiempo_estimado_minutos || null, tp.requiere_evidencia || 0,
-                   estadoInicial, fechaInic);
+                   estadoInicial, null);
 
                 await db.run(`INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)
                     VALUES (?, ?, ?, 'Tarea programada ejecutada')`, id_tarea, estadoInicial, tp.id_creador);
 
+                await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
+
+                // Notificar al empleado
                 if (tp.id_empleado) {
-                    await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea, hora_inicio) VALUES (?, ?, ?)`,
-                        uuidv4(), id_tarea, ahora.toISOString());
                     await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
                         VALUES (?, ?, '📋 Tarea programada', ?, 'nueva_tarea')`,
-                        uuidv4(), tp.id_empleado, `Se activó la tarea: "${tp.titulo}"`);
-                } else {
-                    await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
+                        uuidv4(), tp.id_empleado, `Se activó la tarea: "${tp.titulo}" - Presióna Iniciar cuando estés listo`);
                 }
 
                 await db.run('UPDATE tareas_programadas SET ejecutada = 1, id_tarea_generada = ? WHERE id_programacion = ?',

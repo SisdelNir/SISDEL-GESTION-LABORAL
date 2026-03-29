@@ -2797,6 +2797,21 @@ async function abrirModalPlantillas() {
         setupAutoSupervisor('plt-empleado', 'plt-supervisor');
         setupAutoSupervisor('cal-empleado', 'cal-supervisor');
     } catch(e) {}
+
+    // Cargar tipos de tarea
+    try {
+        const tipos = await fetchAPI('/api/tareas/tipos/lista');
+        ['plt-tipo', 'cal-tipo'].forEach(selId => {
+            const sel = document.getElementById(selId);
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- Seleccionar tipo --</option>';
+            tipos.forEach(t => {
+                const isSelected = (t.nombre && t.nombre.toLowerCase().includes('operativa')) ? 'selected' : '';
+                sel.innerHTML += `<option value="${t.id_tipo}" ${isSelected}>${t.nombre}</option>`;
+            });
+        });
+    } catch(e) {}
+
     cambiarTabPlantilla('diaria', document.querySelector('#modal-plantillas .nav-btn'));
 }
 
@@ -2943,6 +2958,7 @@ async function crearPlantilla(e) {
         descripcion: document.getElementById('plt-descripcion').value.trim(),
         id_empleado_default: document.getElementById('plt-empleado').value || undefined,
         id_supervisor_default: document.getElementById('plt-supervisor').value || undefined,
+        id_tipo: document.getElementById('plt-tipo')?.value || undefined,
         prioridad: document.getElementById('plt-prioridad').value,
         recurrencia,
         dias_semana,
@@ -3057,6 +3073,7 @@ async function programarTareaCalendario(e) {
         hora_programada: document.getElementById('cal-hora').value || '08:00',
         id_empleado: document.getElementById('cal-empleado').value || undefined,
         id_supervisor: document.getElementById('cal-supervisor')?.value || undefined,
+        id_tipo: document.getElementById('cal-tipo')?.value || undefined,
         prioridad: document.getElementById('cal-prioridad').value,
         tiempo_estimado_minutos: tiempoRaw ? (tiempoRaw * unidad) : undefined,
         requiere_evidencia: document.getElementById('cal-req-evidencia')?.checked || false
