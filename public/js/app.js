@@ -2148,23 +2148,7 @@ async function toggleDetalleTarea(idTarea) {
             </div>`;
         }
 
-        // Historial de estados
-        let historialHTML = '';
-        if (t.historial && t.historial.length > 0) {
-            historialHTML = `
-            <div class="detalle-seccion">
-                <div class="detalle-seccion-titulo">📋 Historial de estados</div>
-                <div style="display:flex;flex-direction:column;gap:4px;">
-                    ${t.historial.slice(0,5).map(h => `
-                    <div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;">
-                        <span style="color:var(--text-muted);min-width:140px;">${formatearFechaHora(h.fecha)}</span>
-                        <span class="badge ${h.estado_nuevo==='finalizada'?'badge-success':h.estado_nuevo==='en_proceso'?'badge-primary':h.estado_nuevo==='atrasada'?'badge-danger':'badge-warning'}" style="font-size:0.65rem;">${h.estado_nuevo}</span>
-                        <span style="color:var(--text-secondary);">${h.nombre_usuario || 'Sistema'}</span>
-                        ${h.comentario ? `<span style="color:var(--text-muted);font-style:italic;">— ${h.comentario}</span>` : ''}
-                    </div>`).join('')}
-                </div>
-            </div>`;
-        }
+
 
         panel.innerHTML = `
         <div class="tarea-detalle-content">
@@ -2201,7 +2185,7 @@ async function toggleDetalleTarea(idTarea) {
                 ${comentariosHTML || '<div></div>'}
             </div>
 
-            ${historialHTML}
+
         </div>`;
     } catch(err) {
         panel.innerHTML = '<div style="padding:12px;color:var(--accent-red);font-size:0.85rem;">Error al cargar detalles</div>';
