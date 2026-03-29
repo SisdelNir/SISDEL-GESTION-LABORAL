@@ -2759,18 +2759,43 @@ async function abrirModalPlantillas() {
     // Cargar empleados y supervisores en los selects
     try {
         const usuarios = await fetchAPI('/api/usuarios');
-        ['plt-empleado', 'plt-supervisor', 'cal-empleado'].forEach(selId => {
+        const empSelects = ['plt-empleado', 'cal-empleado'];
+        const supSelects = ['plt-supervisor', 'cal-supervisor'];
+
+        // Poblar selects de empleados con data-supervisor
+        empSelects.forEach(selId => {
             const sel = document.getElementById(selId);
             if (!sel) return;
             sel.innerHTML = '<option value="">-- Seleccionar --</option>';
-            usuarios.forEach(u => {
-                if (selId.includes('supervisor') && u.rol === 'SUPERVISOR') {
-                    sel.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
-                } else if (!selId.includes('supervisor') && u.rol === 'EMPLEADO') {
-                    sel.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
-                }
+            usuarios.filter(u => u.rol === 'EMPLEADO').forEach(u => {
+                const idSup = u.id_jefe || (u.supervisor && u.supervisor.id_supervisor) || '';
+                sel.innerHTML += `<option value="${u.id_usuario}" data-supervisor="${idSup}">${u.nombre}</option>`;
             });
         });
+
+        // Poblar selects de supervisores
+        supSelects.forEach(selId => {
+            const sel = document.getElementById(selId);
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+            usuarios.filter(u => u.rol === 'SUPERVISOR').forEach(u => {
+                sel.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
+            });
+        });
+
+        // Auto-selecionar supervisor al elegir empleado
+        function setupAutoSupervisor(empId, supId) {
+            const selEmp = document.getElementById(empId);
+            const selSup = document.getElementById(supId);
+            if (!selEmp || !selSup) return;
+            selEmp.onchange = function() {
+                const opt = this.options[this.selectedIndex];
+                const idSup = opt.getAttribute('data-supervisor');
+                selSup.value = idSup || '';
+            };
+        }
+        setupAutoSupervisor('plt-empleado', 'plt-supervisor');
+        setupAutoSupervisor('cal-empleado', 'cal-supervisor');
     } catch(e) {}
     cambiarTabPlantilla('diaria', document.querySelector('#modal-plantillas .nav-btn'));
 }
@@ -2923,7 +2948,8 @@ async function crearPlantilla(e) {
         dias_semana,
         hora_creacion: obtenerHora12a24(),
         tiempo_estimado_minutos: tiempoRaw ? (tiempoRaw * unidad) : undefined,
-        incluir_finsemana: document.getElementById('plt-finsemana').checked
+        incluir_finsemana: document.getElementById('plt-finsemana').checked,
+        requiere_evidencia: document.getElementById('plt-req-evidencia')?.checked || false
     };
 
     try {
@@ -3030,8 +3056,10 @@ async function programarTareaCalendario(e) {
         fecha_programada: document.getElementById('cal-fecha').value,
         hora_programada: document.getElementById('cal-hora').value || '08:00',
         id_empleado: document.getElementById('cal-empleado').value || undefined,
+        id_supervisor: document.getElementById('cal-supervisor')?.value || undefined,
         prioridad: document.getElementById('cal-prioridad').value,
-        tiempo_estimado_minutos: tiempoRaw ? (tiempoRaw * unidad) : undefined
+        tiempo_estimado_minutos: tiempoRaw ? (tiempoRaw * unidad) : undefined,
+        requiere_evidencia: document.getElementById('cal-req-evidencia')?.checked || false
     };
 
     try {

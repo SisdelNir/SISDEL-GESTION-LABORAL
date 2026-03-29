@@ -366,7 +366,9 @@ async function inicializarDB() {
     const migracionesPlantillas = [
         'ALTER TABLE plantillas_tarea ADD COLUMN incluir_finsemana INTEGER DEFAULT 1',
         'ALTER TABLE plantillas_tarea ADD COLUMN ultima_ejecucion TEXT',
-        'ALTER TABLE plantillas_tarea ADD COLUMN total_generadas INTEGER DEFAULT 0'
+        'ALTER TABLE plantillas_tarea ADD COLUMN total_generadas INTEGER DEFAULT 0',
+        'ALTER TABLE plantillas_tarea ADD COLUMN requiere_evidencia INTEGER DEFAULT 0',
+        'ALTER TABLE tareas_programadas ADD COLUMN requiere_evidencia INTEGER DEFAULT 0'
     ];
     for (const mig of migracionesPlantillas) {
         try { await db.run(mig); } catch(e) { /* ya existe */ }

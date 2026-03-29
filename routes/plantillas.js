@@ -51,7 +51,7 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
     try {
         const { titulo, descripcion, id_tipo, tiempo_estimado_minutos, prioridad,
                 recurrencia, dias_semana, hora_creacion, id_empleado_default,
-                id_supervisor_default, incluir_finsemana } = req.body;
+                id_supervisor_default, incluir_finsemana, requiere_evidencia } = req.body;
 
         if (!titulo) return res.status(400).json({ error: 'Título requerido' });
         if (!recurrencia || !['diaria', 'semanal', 'mensual', 'anual'].includes(recurrencia)) {
@@ -65,12 +65,13 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
         await db.run(`
             INSERT INTO plantillas_tarea (id_plantilla, id_empresa, titulo, descripcion, id_tipo,
                 tiempo_estimado_minutos, prioridad, recurrencia, dias_semana, hora_creacion,
-                id_empleado_default, id_supervisor_default, incluir_finsemana)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id_empleado_default, id_supervisor_default, incluir_finsemana, requiere_evidencia)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, id_plantilla, id_empresa, titulo, descripcion || '', id_tipo || null,
            tiempo_estimado_minutos || null, prioridad || 'media', recurrencia,
            dias_semana || null, hora_creacion || '08:00',
-           id_empleado_default || null, supFinal, incluir_finsemana !== undefined ? (incluir_finsemana ? 1 : 0) : 1);
+           id_empleado_default || null, supFinal, incluir_finsemana !== undefined ? (incluir_finsemana ? 1 : 0) : 1,
+           requiere_evidencia ? 1 : 0);
 
         registrarAuditoria(id_empresa, req.usuario.id_usuario, 'CREAR_PLANTILLA', `Plantilla "${titulo}" (${recurrencia})`);
 
@@ -140,7 +141,7 @@ router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (r
 
         const { titulo, descripcion, id_tipo, tiempo_estimado_minutos, prioridad,
                 recurrencia, dias_semana, hora_creacion, id_empleado_default,
-                id_supervisor_default, incluir_finsemana } = req.body;
+                id_supervisor_default, incluir_finsemana, requiere_evidencia } = req.body;
 
         await db.run(`
             UPDATE plantillas_tarea SET
@@ -150,11 +151,13 @@ router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (r
                 dias_semana = COALESCE(?, dias_semana), hora_creacion = COALESCE(?, hora_creacion),
                 id_empleado_default = COALESCE(?, id_empleado_default),
                 id_supervisor_default = COALESCE(?, id_supervisor_default),
-                incluir_finsemana = COALESCE(?, incluir_finsemana)
+                incluir_finsemana = COALESCE(?, incluir_finsemana),
+                requiere_evidencia = COALESCE(?, requiere_evidencia)
             WHERE id_plantilla = ?
         `, titulo, descripcion, id_tipo, tiempo_estimado_minutos, prioridad,
            recurrencia, dias_semana, hora_creacion, id_empleado_default,
            id_supervisor_default, incluir_finsemana !== undefined ? (incluir_finsemana ? 1 : 0) : null,
+           requiere_evidencia !== undefined ? (requiere_evidencia ? 1 : 0) : null,
            req.params.id);
 
         res.json({ mensaje: 'Plantilla actualizada' });
@@ -247,7 +250,7 @@ router.get('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), 
 router.post('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
     try {
         const { titulo, descripcion, id_tipo, tiempo_estimado_minutos, prioridad,
-                id_empleado, id_supervisor, fecha_programada, hora_programada } = req.body;
+                id_empleado, id_supervisor, fecha_programada, hora_programada, requiere_evidencia } = req.body;
 
         if (!titulo || !fecha_programada) {
             return res.status(400).json({ error: 'Título y fecha programada son requeridos' });
@@ -260,12 +263,12 @@ router.post('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'),
         await db.run(`
             INSERT INTO tareas_programadas (id_programacion, id_empresa, titulo, descripcion, id_tipo,
                 tiempo_estimado_minutos, prioridad, id_empleado, id_supervisor, id_creador,
-                fecha_programada, hora_programada)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                fecha_programada, hora_programada, requiere_evidencia)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, id_programacion, id_empresa, titulo, descripcion || '', id_tipo || null,
            tiempo_estimado_minutos || null, prioridad || 'media',
            id_empleado || null, supFinal, req.usuario.id_usuario,
-           fecha_programada, hora_programada || '08:00');
+           fecha_programada, hora_programada || '08:00', requiere_evidencia ? 1 : 0);
 
         registrarAuditoria(id_empresa, req.usuario.id_usuario, 'PROGRAMAR_TAREA',
             `Tarea "${titulo}" programada para ${fecha_programada}`);
@@ -303,12 +306,13 @@ async function generarTareaDesdePlantilla(plantilla, id_creador, io) {
 
     await db.run(`
         INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor,
-            id_creador, id_tipo, prioridad, tiempo_estimado_minutos, estado, fecha_inicio)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, id_tarea, plantilla.id_empresa, plantilla.titulo, plantilla.descripcion || '',
        plantilla.id_empleado_default || null, plantilla.id_supervisor_default || null,
        id_creador, plantilla.id_tipo || null, plantilla.prioridad || 'media',
-       plantilla.tiempo_estimado_minutos || null, estadoInicial, fechaInic);
+       plantilla.tiempo_estimado_minutos || null, plantilla.requiere_evidencia || 0,
+       estadoInicial, fechaInic);
 
     await db.run(`INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)
         VALUES (?, ?, ?, 'Tarea generada automáticamente desde plantilla')`, id_tarea, estadoInicial, id_creador);
@@ -423,12 +427,13 @@ async function ejecutarCronPlantillas(io) {
 
                 await db.run(`
                     INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor,
-                        id_creador, id_tipo, prioridad, tiempo_estimado_minutos, estado, fecha_inicio)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, id_tarea, tp.id_empresa, tp.titulo, tp.descripcion || '',
                    tp.id_empleado || null, tp.id_supervisor || null, tp.id_creador,
                    tp.id_tipo || null, tp.prioridad || 'media',
-                   tp.tiempo_estimado_minutos || null, estadoInicial, fechaInic);
+                   tp.tiempo_estimado_minutos || null, tp.requiere_evidencia || 0,
+                   estadoInicial, fechaInic);
 
                 await db.run(`INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)
                     VALUES (?, ?, ?, 'Tarea programada ejecutada')`, id_tarea, estadoInicial, tp.id_creador);
