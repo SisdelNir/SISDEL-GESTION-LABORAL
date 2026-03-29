@@ -6,6 +6,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../database/init');
 const { verificarToken, verificarRol, registrarAuditoria } = require('../middleware/auth');
+const { generarCodigoTarea } = require('../utils/codigoTarea');
 
 // ═══════════════════════════════════════════
 // PLANTILLAS REPETITIVAS
@@ -303,11 +304,13 @@ async function generarTareaDesdePlantilla(plantilla, id_creador, io) {
     const ahora = new Date().toISOString();
     const estadoInicial = 'pendiente';
 
+    const codigo_tarea = await generarCodigoTarea(plantilla.id_empresa);
+
     await db.run(`
-        INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor,
+        INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor,
             id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, id_tarea, plantilla.id_empresa, plantilla.titulo, plantilla.descripcion || '',
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, id_tarea, plantilla.id_empresa, codigo_tarea, plantilla.titulo, plantilla.descripcion || '',
        plantilla.id_empleado_default || null, plantilla.id_supervisor_default || null,
        id_creador, plantilla.id_tipo || null, plantilla.prioridad || 'media',
        plantilla.tiempo_estimado_minutos || null, plantilla.requiere_evidencia || 0,
@@ -421,11 +424,13 @@ async function ejecutarCronPlantillas(io) {
                 const id_tarea = uuidv4();
                 const estadoInicial = 'pendiente';
 
+                const codigo_tarea = await generarCodigoTarea(tp.id_empresa);
+
                 await db.run(`
-                    INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor,
+                    INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor,
                         id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, id_tarea, tp.id_empresa, tp.titulo, tp.descripcion || '',
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, id_tarea, tp.id_empresa, codigo_tarea, tp.titulo, tp.descripcion || '',
                    tp.id_empleado || null, tp.id_supervisor || null, tp.id_creador,
                    tp.id_tipo || null, tp.prioridad || 'media',
                    tp.tiempo_estimado_minutos || null, tp.requiere_evidencia || 0,

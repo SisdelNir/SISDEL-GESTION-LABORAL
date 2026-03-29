@@ -452,6 +452,11 @@ async function inicializarDB() {
         await db.run("ALTER TABLE tareas ADD COLUMN requiere_evidencia INTEGER DEFAULT 0");
     } catch(e) { /* ya existe */ }
 
+    // Migración: código de tarea automático
+    try {
+        await db.run("ALTER TABLE tareas ADD COLUMN codigo_tarea TEXT");
+    } catch(e) { /* ya existe */ }
+
     await db.exec(`
         CREATE TABLE IF NOT EXISTS auditoria (
             id_auditoria ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},

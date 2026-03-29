@@ -3,6 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../database/init');
 const { verificarToken, verificarRol, registrarAuditoria } = require('../middleware/auth');
+const { generarCodigoTarea } = require('../utils/codigoTarea');
 
 // ═══════════════════════════════════════════
 // CRUD DE TAREAS
@@ -52,10 +53,12 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
 
         const reqEvidenciaNum = requiere_evidencia ? 1 : 0;
 
+        const codigo_tarea = await generarCodigoTarea(id_empresa);
+
         await db.run(`
-            INSERT INTO tareas (id_tarea, id_empresa, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_tarea, id_empresa, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null, reqEvidenciaNum, estadoInicial, fechaInic);
+            INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, id_tarea, id_empresa, codigo_tarea, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null, reqEvidenciaNum, estadoInicial, fechaInic);
 
         await db.run(`
             INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)

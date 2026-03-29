@@ -2008,6 +2008,7 @@ async function cargarTareas() {
                     <!-- Info principal -->
                     <div class="tarea-row-main">
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            ${t.codigo_tarea ? `<span style="font-size:0.68rem;font-weight:700;color:var(--accent-primary);background:rgba(99,102,241,0.15);padding:2px 8px;border-radius:6px;letter-spacing:0.5px;">${t.codigo_tarea}</span>` : ''}
                             <span style="font-size:0.95rem;font-weight:700;">${t.titulo}</span>
                             <span class="badge ${estadoBadgeClass}" style="font-size:0.65rem;">${estadoTexto}</span>
                             ${t.nombre_tipo ? `<span style="font-size:0.7rem;color:var(--text-muted);background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:10px;">${t.nombre_tipo}</span>` : ''}
