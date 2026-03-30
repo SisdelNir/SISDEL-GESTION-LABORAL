@@ -321,10 +321,18 @@ async function generarTareaDesdePlantilla(plantilla, id_creador, io) {
 
     await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
 
+    // Notificar al empleado
     if (plantilla.id_empleado_default) {
         await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
             VALUES (?, ?, '📋 Nueva tarea asignada', ?, 'nueva_tarea')`,
-            uuidv4(), plantilla.id_empleado_default, `Tarea repetitiva: "${plantilla.titulo}" - Presióna Iniciar cuando estés listo`);
+            uuidv4(), plantilla.id_empleado_default, `Tarea repetitiva: "${plantilla.titulo}" - Presiona Iniciar cuando estés listo`);
+    }
+
+    // Notificar al supervisor
+    if (plantilla.id_supervisor_default) {
+        await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
+            VALUES (?, ?, '📋 Tarea asignada a tu equipo', ?, 'nueva_tarea')`,
+            uuidv4(), plantilla.id_supervisor_default, `Tarea repetitiva: "${plantilla.titulo}" ha sido generada`);
     }
 
     // Actualizar plantilla
@@ -336,6 +344,9 @@ async function generarTareaDesdePlantilla(plantilla, id_creador, io) {
             id_tarea, titulo: plantilla.titulo, prioridad: plantilla.prioridad,
             estado: estadoInicial, fecha_creacion: ahora
         });
+        // Notificación directa al empleado y supervisor
+        if (plantilla.id_empleado_default) io.to(`user_${plantilla.id_empleado_default}`).emit('notificacion', { titulo: '📋 Nueva tarea asignada', mensaje: `Tarea: "${plantilla.titulo}"` });
+        if (plantilla.id_supervisor_default) io.to(`user_${plantilla.id_supervisor_default}`).emit('notificacion', { titulo: '📋 Tarea asignada a tu equipo', mensaje: `Tarea: "${plantilla.titulo}"` });
     }
 
     return { id_tarea, titulo: plantilla.titulo, estado: estadoInicial };
@@ -445,7 +456,14 @@ async function ejecutarCronPlantillas(io) {
                 if (tp.id_empleado) {
                     await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
                         VALUES (?, ?, '📋 Tarea programada', ?, 'nueva_tarea')`,
-                        uuidv4(), tp.id_empleado, `Se activó la tarea: "${tp.titulo}" - Presióna Iniciar cuando estés listo`);
+                        uuidv4(), tp.id_empleado, `Se activó la tarea: "${tp.titulo}" - Presiona Iniciar cuando estés listo`);
+                }
+
+                // Notificar al supervisor
+                if (tp.id_supervisor) {
+                    await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
+                        VALUES (?, ?, '📋 Tarea programada a tu equipo', ?, 'nueva_tarea')`,
+                        uuidv4(), tp.id_supervisor, `Tarea programada: "${tp.titulo}" ha sido generada`);
                 }
 
                 await db.run('UPDATE tareas_programadas SET ejecutada = 1, id_tarea_generada = ? WHERE id_programacion = ?',
@@ -456,6 +474,9 @@ async function ejecutarCronPlantillas(io) {
                         id_tarea, titulo: tp.titulo, prioridad: tp.prioridad,
                         estado: estadoInicial, fecha_creacion: ahora.toISOString()
                     });
+                    // Notificación directa al empleado y supervisor
+                    if (tp.id_empleado) io.to(`user_${tp.id_empleado}`).emit('notificacion', { titulo: '📋 Tarea programada', mensaje: `Tarea: "${tp.titulo}"` });
+                    if (tp.id_supervisor) io.to(`user_${tp.id_supervisor}`).emit('notificacion', { titulo: '📋 Tarea programada a tu equipo', mensaje: `Tarea: "${tp.titulo}"` });
                 }
                 console.log(`📅 Tarea programada ejecutada: "${tp.titulo}"`);
             } catch (e) {

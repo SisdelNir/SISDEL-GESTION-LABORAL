@@ -71,11 +71,20 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
             await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
         }
 
+        // Notificar al empleado
         if (id_empleado) {
             await db.run(`
                 INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
                 VALUES (?, ?, ?, ?, 'nueva_tarea')
-            `, uuidv4(), id_empleado, '📋 Nueva tarea asignada', `Se te asignó la tarea: "${titulo}"`);
+            `, uuidv4(), id_empleado, '📋 Nueva tarea asignada', `Se te asignó la tarea: "${titulo}" - Presiona Iniciar cuando estés listo`);
+        }
+
+        // Notificar al supervisor
+        if (supervisorFinal) {
+            await db.run(`
+                INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo)
+                VALUES (?, ?, ?, ?, 'nueva_tarea')
+            `, uuidv4(), supervisorFinal, '📋 Tarea asignada a tu equipo', `Nueva tarea: "${titulo}" ha sido asignada`);
         }
 
         const io = req.app.get('io');
@@ -85,6 +94,9 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
                 estado: estadoInicial, fecha_creacion: new Date().toISOString()
             };
             io.to(`empresa_${id_empresa}`).emit('nueva_tarea', payload);
+            // Notificación directa al empleado y supervisor
+            if (id_empleado) io.to(`user_${id_empleado}`).emit('notificacion', { titulo: '📋 Nueva tarea asignada', mensaje: `Tarea: "${titulo}"` });
+            if (supervisorFinal) io.to(`user_${supervisorFinal}`).emit('notificacion', { titulo: '📋 Tarea asignada a tu equipo', mensaje: `Tarea: "${titulo}"` });
             console.log(`📨 Emitido nueva_tarea a empresa_${id_empresa}:`, JSON.stringify(payload));
         } else {
             console.log('⚠️ Socket.IO no disponible para emitir nueva_tarea');
