@@ -2244,6 +2244,8 @@ async function cargarSupervisores() {
                                     <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignarEmpleados('${u.id_usuario}', '${u.nombre}')">👥 Asignar</button>
                                     ${USUARIO.rol === 'ADMIN' ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'GERENTE', '${u.nombre.replace(/'/g, "\\'")}')" title="Promover a Gerente">👔 Gerente</button>` : ''}
                                     <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'EMPLEADO', '${u.nombre.replace(/'/g, "\\'")}')" title="Degradar a Empleado">⬇️ Empleado</button>
+                                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-size:0.72rem;padding:5px 10px;" onclick="abrirEditarUsuario('${u.id_usuario}')" title="Editar">✏️</button>
+                                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:white;font-size:0.72rem;padding:5px 10px;" onclick="eliminarUsuario('${u.id_usuario}', '${u.nombre.replace(/'/g, "\\'")}')" title="Eliminar">🗑️</button>
                                 </div>
                             </td>
                         </tr>
@@ -2362,7 +2364,11 @@ async function cargarEmpleados() {
                             <td>${u.supervisor ? u.supervisor.nombre_supervisor : '<span style="color:var(--text-muted)">Sin asignar</span>'}</td>
                             <td><span class="badge ${u.estado ? 'badge-success' : 'badge-danger'}">${u.estado ? 'Activo' : 'Inactivo'}</span></td>
                             <td>
-                                <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'SUPERVISOR', '${u.nombre.replace(/'/g, "\\'")}')" title="Promover a Supervisor">⬆️ Supervisor</button>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'SUPERVISOR', '${u.nombre.replace(/'/g, "\\'")}')" title="Promover a Supervisor">⬆️ Supervisor</button>
+                                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-size:0.72rem;padding:5px 10px;" onclick="abrirEditarUsuario('${u.id_usuario}')" title="Editar">✏️</button>
+                                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:white;font-size:0.72rem;padding:5px 10px;" onclick="eliminarUsuario('${u.id_usuario}', '${u.nombre.replace(/'/g, "\\'")}')" title="Eliminar">🗑️</button>
+                                </div>
                             </td>
                         </tr>
                     `).join('')}
@@ -2387,6 +2393,68 @@ async function cambiarRolUsuario(idUsuario, nuevoRol, nombre) {
         cargarEmpleados();
     } catch(err) {
         mostrarToast(err.message || 'Error al cambiar rol', 'error');
+    }
+}
+
+// ═══════════════════════════════════════════
+// EDITAR / ELIMINAR USUARIOS
+// ═══════════════════════════════════════════
+async function abrirEditarUsuario(idUsuario) {
+    try {
+        const usuarios = await fetchAPI('/api/usuarios');
+        const u = usuarios.find(x => x.id_usuario === idUsuario);
+        if (!u) return mostrarToast('Usuario no encontrado', 'error');
+        
+        document.getElementById('editar-usu-id').value = u.id_usuario;
+        document.getElementById('editar-usu-nombre').value = u.nombre || '';
+        document.getElementById('editar-usu-identificacion').value = u.identificacion || '';
+        document.getElementById('editar-usu-telefono').value = u.telefono || '';
+        document.getElementById('editar-usu-correo').value = u.correo || '';
+        document.getElementById('editar-usu-estado').value = u.estado ? '1' : '0';
+        document.getElementById('editar-usu-titulo').textContent = `✏️ Editar ${u.rol === 'SUPERVISOR' ? 'Supervisor' : u.rol === 'GERENTE' ? 'Gerente' : 'Empleado'}: ${u.nombre}`;
+        document.getElementById('modal-editar-usuario').style.display = 'flex';
+    } catch(err) {
+        mostrarToast('Error cargando datos del usuario', 'error');
+    }
+}
+
+function cerrarModalEditarUsuario() {
+    document.getElementById('modal-editar-usuario').style.display = 'none';
+}
+
+async function guardarEdicionUsuario(e) {
+    e.preventDefault();
+    const id = document.getElementById('editar-usu-id').value;
+    const body = {
+        nombre: document.getElementById('editar-usu-nombre').value.trim(),
+        identificacion: document.getElementById('editar-usu-identificacion').value.trim(),
+        telefono: document.getElementById('editar-usu-telefono').value.trim(),
+        correo: document.getElementById('editar-usu-correo').value.trim(),
+        estado: parseInt(document.getElementById('editar-usu-estado').value)
+    };
+    if (!body.nombre) return mostrarToast('El nombre es requerido', 'error');
+    try {
+        const res = await fetchAPI(`/api/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+        if (res.error) return mostrarToast(res.error, 'error');
+        mostrarToast('Usuario actualizado ✅', 'success');
+        cerrarModalEditarUsuario();
+        cargarSupervisores();
+        cargarEmpleados();
+    } catch(err) {
+        mostrarToast(err.message || 'Error al guardar', 'error');
+    }
+}
+
+async function eliminarUsuario(idUsuario, nombre) {
+    if (!confirm(`⚠️ ¿Eliminar a "${nombre}"?\n\nEsta acción NO se puede deshacer.\nEl usuario quedará inactivo permanentemente.`)) return;
+    try {
+        const res = await fetchAPI(`/api/usuarios/${idUsuario}`, { method: 'DELETE' });
+        if (res.error) return mostrarToast(res.error, 'error');
+        mostrarToast(`"${nombre}" eliminado correctamente`, 'success');
+        cargarSupervisores();
+        cargarEmpleados();
+    } catch(err) {
+        mostrarToast(err.message || 'Error al eliminar', 'error');
     }
 }
 

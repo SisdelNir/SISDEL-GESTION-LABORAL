@@ -158,7 +158,7 @@ router.get('/:id', verificarToken, async (req, res) => {
 /**
  * PUT /api/usuarios/:id
  */
-router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const { nombre, identificacion, telefono, correo, id_departamento, id_jefe, estado } = req.body;
         const usuario = await db.get('SELECT * FROM usuarios WHERE id_usuario = ? AND eliminado = 0', req.params.id);
@@ -195,7 +195,7 @@ router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (r
 /**
  * DELETE /api/usuarios/:id
  */
-router.delete('/:id', verificarToken, verificarRol('ADMIN'), async (req, res) => {
+router.delete('/:id', verificarToken, verificarRol('ADMIN', 'GERENTE'), async (req, res) => {
     try {
         const usuario = await db.get('SELECT * FROM usuarios WHERE id_usuario = ? AND eliminado = 0', req.params.id);
         if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
