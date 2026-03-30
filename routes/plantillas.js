@@ -15,7 +15,7 @@ const { generarCodigoTarea } = require('../utils/codigoTarea');
 /**
  * GET /api/plantillas
  */
-router.get('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.get('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const id_empresa = req.usuario.id_empresa;
         const { recurrencia } = req.query;
@@ -48,7 +48,7 @@ router.get('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req,
 /**
  * POST /api/plantillas
  */
-router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const { titulo, descripcion, id_tipo, tiempo_estimado_minutos, prioridad,
                 recurrencia, dias_semana, hora_creacion, id_empleado_default,
@@ -135,7 +135,7 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
 /**
  * PUT /api/plantillas/:id
  */
-router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const plantilla = await db.get('SELECT * FROM plantillas_tarea WHERE id_plantilla = ?', req.params.id);
         if (!plantilla) return res.status(404).json({ error: 'Plantilla no encontrada' });
@@ -170,7 +170,7 @@ router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (r
 /**
  * PUT /api/plantillas/:id/toggle - Activar/Pausar
  */
-router.put('/:id/toggle', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.put('/:id/toggle', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const plantilla = await db.get('SELECT * FROM plantillas_tarea WHERE id_plantilla = ?', req.params.id);
         if (!plantilla) return res.status(404).json({ error: 'Plantilla no encontrada' });
@@ -189,7 +189,7 @@ router.put('/:id/toggle', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), a
 /**
  * DELETE /api/plantillas/:id
  */
-router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const plantilla = await db.get('SELECT * FROM plantillas_tarea WHERE id_plantilla = ?', req.params.id);
         if (!plantilla) return res.status(404).json({ error: 'Plantilla no encontrada' });
@@ -206,7 +206,7 @@ router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async
 /**
  * POST /api/plantillas/:id/ejecutar — Generar tarea manualmente desde plantilla
  */
-router.post('/:id/ejecutar', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.post('/:id/ejecutar', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const plantilla = await db.get('SELECT * FROM plantillas_tarea WHERE id_plantilla = ?', req.params.id);
         if (!plantilla) return res.status(404).json({ error: 'Plantilla no encontrada' });
@@ -226,7 +226,7 @@ router.post('/:id/ejecutar', verificarToken, verificarRol('ADMIN', 'SUPERVISOR')
 /**
  * GET /api/plantillas/programadas
  */
-router.get('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.get('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const id_empresa = req.usuario.id_empresa;
         const programadas = await db.all(`
@@ -248,7 +248,7 @@ router.get('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), 
 /**
  * POST /api/plantillas/programadas
  */
-router.post('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.post('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const { titulo, descripcion, id_tipo, tiempo_estimado_minutos, prioridad,
                 id_empleado, id_supervisor, fecha_programada, hora_programada, requiere_evidencia } = req.body;
@@ -283,7 +283,7 @@ router.post('/programadas', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'),
 /**
  * DELETE /api/plantillas/programadas/:id
  */
-router.delete('/programadas/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.delete('/programadas/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const prog = await db.get('SELECT * FROM tareas_programadas WHERE id_programacion = ?', req.params.id);
         if (!prog) return res.status(404).json({ error: 'Programación no encontrada' });

@@ -3073,6 +3073,10 @@ async function mostrarFormularioTarea() {
         const selSup = document.getElementById('tarea-supervisor');
         selEmp.innerHTML = '<option value="">-- Seleccionar --</option>';
         selSup.innerHTML = '<option value="">-- Seleccionar --</option>';
+        // Si es GERENTE, agregarse como opción de supervisor
+        if (USUARIO.rol === 'GERENTE') {
+            selSup.innerHTML += `<option value="${USUARIO.id_usuario}">${USUARIO.nombre} (Gerente)</option>`;
+        }
         usuarios.forEach(u => {
             if (u.rol === 'EMPLEADO') {
                 const idSup = u.id_jefe || (u.supervisor && u.supervisor.id_supervisor) || '';
