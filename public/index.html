@@ -766,47 +766,69 @@
                 <!-- Sup Tareas -->
                 <div id="panel-sup-tareas" class="panel">
                     <div class="vista-header"><h3>📋 Gestión de Tareas</h3>
-                        <div style="display:flex;gap:8px;">
-                            <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTarea()">➕ Nueva Tarea</button>
+                        <div id="sup-btns-crear-tareas" style="display:flex;gap:8px;">
+                            <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTarea()">
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                Nueva Tarea
+                            </button>
                             <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;" onclick="abrirModalPlantillas()">🔄 Repetitivas</button>
+                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#6b7280,#374151);color:white;" onclick="abrirHistorialTareas()">📜 Historial</button>
                         </div>
                     </div>
 
-                    <!-- Mis Tareas Asignadas (como ejecutor) -->
-                    <div style="margin-bottom:20px;">
-                        <h4 style="margin-bottom:10px;">📌 Mis Tareas Asignadas</h4>
-                        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">
-                            <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('pendiente')">
-                                <div class="stat-icon" style="background:var(--accent-amber);">🟡</div>
-                                <div class="stat-number" id="sup-mis-stat-pendientes">0</div>
-                                <div class="stat-label">Pendientes</div>
-                            </div>
-                            <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('en_proceso')">
-                                <div class="stat-icon" style="background:var(--accent-primary);">🔵</div>
-                                <div class="stat-number" id="sup-mis-stat-proceso">0</div>
-                                <div class="stat-label">En Proceso</div>
-                            </div>
-                            <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('finalizada')">
-                                <div class="stat-icon" style="background:var(--accent-success);">🟢</div>
-                                <div class="stat-number" id="sup-mis-stat-finalizadas">0</div>
-                                <div class="stat-label">Finalizadas</div>
-                            </div>
-                            <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('atrasada')">
-                                <div class="stat-icon" style="background:var(--accent-danger);">🔴</div>
-                                <div class="stat-number" id="sup-mis-stat-atrasadas">0</div>
-                                <div class="stat-label">Atrasadas</div>
-                            </div>
+                    <!-- Status cards equipo (idéntico al admin) -->
+                    <div class="stats-grid" style="margin-bottom:16px;">
+                        <div class="stat-card glass" onclick="filtrarTareasSupEquipo('pendiente')" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 0 15px rgba(245,158,11,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🟡</div>
+                            <div class="stat-info"><span class="stat-value" id="sup-equipo-pendientes">0</span><span class="stat-label">Pendientes</span></div>
                         </div>
-                        <div id="sup-mis-tareas-lista" class="grid-cards"></div>
+                        <div class="stat-card glass" onclick="filtrarTareasSupEquipo('en_proceso')" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 0 15px rgba(59,130,246,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">🔵</div>
+                            <div class="stat-info"><span class="stat-value" id="sup-equipo-proceso">0</span><span class="stat-label">En Proceso</span></div>
+                        </div>
+                        <div class="stat-card glass" onclick="filtrarTareasSupEquipo('finalizada')" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 0 15px rgba(16,185,129,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">🟢</div>
+                            <div class="stat-info"><span class="stat-value" id="sup-equipo-finalizadas">0</span><span class="stat-label">Finalizadas</span></div>
+                        </div>
+                        <div class="stat-card glass" onclick="filtrarTareasSupEquipo('atrasada')" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 0 15px rgba(239,68,68,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">🔴</div>
+                            <div class="stat-info"><span class="stat-value" id="sup-equipo-atrasadas">0</span><span class="stat-label">Atrasadas</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de tareas del equipo (idéntico al admin) -->
+                    <div id="sup-lista-tareas" class="grid-cards">
+                        <div class="empty-state"><p>No hay tareas registradas</p></div>
                     </div>
 
                     <!-- Separador -->
                     <hr style="border-color:var(--border-color);margin:24px 0;">
 
-                    <!-- Tareas del equipo -->
-                    <h4 style="margin-bottom:10px;">👥 Tareas del Equipo</h4>
-                    <div id="sup-estadisticas-tareas" style="margin-bottom:16px;"></div>
-                    <div id="sup-lista-tareas" class="grid-cards"></div>
+                    <!-- Mis Tareas Asignadas (como ejecutor) -->
+                    <h4 style="margin-bottom:10px;">📌 Mis Tareas Asignadas</h4>
+                    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">
+                        <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('pendiente')">
+                            <div class="stat-icon" style="background:var(--accent-amber);">🟡</div>
+                            <div class="stat-number" id="sup-mis-stat-pendientes">0</div>
+                            <div class="stat-label">Pendientes</div>
+                        </div>
+                        <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('en_proceso')">
+                            <div class="stat-icon" style="background:var(--accent-primary);">🔵</div>
+                            <div class="stat-number" id="sup-mis-stat-proceso">0</div>
+                            <div class="stat-label">En Proceso</div>
+                        </div>
+                        <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('finalizada')">
+                            <div class="stat-icon" style="background:var(--accent-success);">🟢</div>
+                            <div class="stat-number" id="sup-mis-stat-finalizadas">0</div>
+                            <div class="stat-label">Finalizadas</div>
+                        </div>
+                        <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('atrasada')">
+                            <div class="stat-icon" style="background:var(--accent-danger);">🔴</div>
+                            <div class="stat-number" id="sup-mis-stat-atrasadas">0</div>
+                            <div class="stat-label">Atrasadas</div>
+                        </div>
+                    </div>
+                    <div id="sup-mis-tareas-lista" class="grid-cards"></div>
                 </div>
 
                 <!-- Sup Notificaciones -->

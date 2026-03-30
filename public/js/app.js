@@ -1995,18 +1995,25 @@ async function cargarEstadisticasTareas() {
             const elF = document.getElementById('stat-finalizadas'); if(elF) elF.textContent = stats.finalizadas;
             const elA = document.getElementById('stat-atrasadas'); if(elA) elA.textContent = stats.atrasadas;
         } else if (USUARIO.rol === 'SUPERVISOR') {
-            const supStats = document.getElementById('sup-estadisticas-tareas');
-            if (supStats) {
-                supStats.innerHTML = `
-                <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
-                    <div class="stat-card glass"><div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🟡</div><div class="stat-info"><span class="stat-value">${stats.pendientes}</span><span class="stat-label">Pendientes</span></div></div>
-                    <div class="stat-card glass"><div class="stat-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">🔵</div><div class="stat-info"><span class="stat-value">${stats.en_proceso}</span><span class="stat-label">En Proceso</span></div></div>
-                    <div class="stat-card glass"><div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">🟢</div><div class="stat-info"><span class="stat-value">${stats.finalizadas}</span><span class="stat-label">Finalizadas</span></div></div>
-                    <div class="stat-card glass"><div class="stat-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">🔴</div><div class="stat-info"><span class="stat-value">${stats.atrasadas}</span><span class="stat-label">Atrasadas</span></div></div>
-                </div>`;
-            }
+            // Actualizar status cards del equipo
+            const elP = document.getElementById('sup-equipo-pendientes'); if(elP) elP.textContent = stats.pendientes;
+            const elEp = document.getElementById('sup-equipo-proceso'); if(elEp) elEp.textContent = stats.en_proceso;
+            const elF = document.getElementById('sup-equipo-finalizadas'); if(elF) elF.textContent = stats.finalizadas;
+            const elA = document.getElementById('sup-equipo-atrasadas'); if(elA) elA.textContent = stats.atrasadas;
         }
     } catch(e) {}
+}
+
+// Filtrar tareas del equipo del supervisor por estado (clic en status cards)
+let _filtroEquipoSupActual = null;
+function filtrarTareasSupEquipo(estado) {
+    if (_filtroEquipoSupActual === estado) {
+        _filtroEquipoSupActual = null; // Toggle off
+    } else {
+        _filtroEquipoSupActual = estado;
+    }
+    window.FILTRO_ESTADO_ACTUAL = _filtroEquipoSupActual || '';
+    cargarTareas();
 }
 
 async function cargarTareas() {
@@ -3569,15 +3576,12 @@ async function verificarPermisosSupervisor() {
         if (!supContainer) return;
 
         // Permisos de asignación de tareas
-        const botonesNuevaTarea = supContainer.querySelectorAll('button[onclick*="mostrarFormularioTarea"]');
-        const botonesRepetitivas = supContainer.querySelectorAll('button[onclick*="abrirModalPlantillas"]');
+        const btnContainer = document.getElementById('sup-btns-crear-tareas');
 
         if (!config.permite_supervisor_asignar) {
-            botonesNuevaTarea.forEach(btn => btn.style.display = 'none');
-            botonesRepetitivas.forEach(btn => btn.style.display = 'none');
+            if (btnContainer) btnContainer.style.display = 'none';
         } else {
-            botonesNuevaTarea.forEach(btn => btn.style.display = '');
-            botonesRepetitivas.forEach(btn => btn.style.display = '');
+            if (btnContainer) btnContainer.style.display = 'flex';
         }
 
         // Visibilidad de tareas terminadas para supervisor
