@@ -410,6 +410,19 @@ async function cargarEmpresas() {
     }
 }
 
+function previsualizarLogo(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('emp-logo-preview');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        document.getElementById('emp-logo-text').textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+}
+
 async function crearEmpresa(e) {
     e.preventDefault();
 
@@ -438,6 +451,14 @@ async function crearEmpresa(e) {
         supervisor_puede_modificar: document.getElementById('cfg-sup-modificar').checked,
         modalidad_trabajo: document.getElementById('cfg-modalidad-trabajo').value
     };
+
+    // Logo: convertir a base64 optimizado
+    const logoInput = document.getElementById('emp-logo-input');
+    if (logoInput.files[0]) {
+        try {
+            datos.logo_url = await optimizarImagenBase64(logoInput.files[0]);
+        } catch(e) { console.error('Error optimizando logo:', e); }
+    }
 
     try {
         const res = await fetchAPI('/api/empresas', {
@@ -513,6 +534,18 @@ async function editarEmpresa(id) {
         document.getElementById('emp-correo').value = empresa.correo || '';
         document.getElementById('emp-direccion').value = empresa.direccion || '';
 
+        // Logo existente
+        const logoPreview = document.getElementById('emp-logo-preview');
+        const logoText = document.getElementById('emp-logo-text');
+        if (empresa.logo_url) {
+            logoPreview.src = empresa.logo_url;
+            logoPreview.style.display = 'block';
+            logoText.textContent = '✅ Logo actual (click para cambiar)';
+        } else {
+            logoPreview.style.display = 'none';
+            logoText.textContent = '📤 Click para subir logotipo (JPG, PNG, WebP)';
+        }
+
         // País
         const paisSel = document.getElementById('emp-pais');
         if (paisSel && empresa.pais) {
@@ -582,6 +615,14 @@ async function editarEmpresa(id) {
                 direccion: document.getElementById('emp-direccion').value.trim(),
                 nombre_administrador: document.getElementById('admin-nombre').value.trim()
             };
+
+            // Logo: si se seleccionó uno nuevo, convertir a base64
+            const logoInput = document.getElementById('emp-logo-input');
+            if (logoInput && logoInput.files[0]) {
+                try {
+                    body.logo_url = await optimizarImagenBase64(logoInput.files[0]);
+                } catch(e) { console.error('Error optimizando logo:', e); }
+            }
 
             try {
                 // 1. Guardar info de la empresa

@@ -13,7 +13,7 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
     try {
         const {
             nombre, identificacion_empresa, nombre_administrador,
-            pais, moneda, zona_horaria, telefono, correo, direccion,
+            pais, moneda, zona_horaria, telefono, correo, direccion, logo_url,
             admin_identificacion, admin_telefono, admin_correo,
             permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo
         } = req.body;
@@ -28,9 +28,9 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
         const codigo_admin = await generarCodigoAcceso(nombre);
 
         await db.run(`
-            INSERT INTO empresas (id_empresa, nombre, identificacion_empresa, nombre_administrador, pais, moneda, zona_horaria, telefono, correo, direccion, codigo_admin)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_empresa, nombre, identificacion_empresa || '', nombre_administrador, pais || 'MX', moneda || 'MXN', zona_horaria || 'America/Mexico_City', telefono || '', correo || '', direccion || '', codigo_admin);
+            INSERT INTO empresas (id_empresa, nombre, identificacion_empresa, nombre_administrador, pais, moneda, zona_horaria, telefono, correo, direccion, codigo_admin, logo_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, id_empresa, nombre, identificacion_empresa || '', nombre_administrador, pais || 'MX', moneda || 'MXN', zona_horaria || 'America/Mexico_City', telefono || '', correo || '', direccion || '', codigo_admin, logo_url || null);
 
         await db.run(`
             INSERT INTO usuarios (id_usuario, id_empresa, identificacion, nombre, telefono, correo, rol, codigo_acceso)
@@ -161,7 +161,7 @@ router.put('/:id', verificarToken, async (req, res) => {
             return res.status(403).json({ error: 'No tienes acceso a esta empresa' });
         }
 
-        const { nombre, identificacion_empresa, pais, moneda, zona_horaria, telefono, correo, direccion } = req.body;
+        const { nombre, identificacion_empresa, pais, moneda, zona_horaria, telefono, correo, direccion, logo_url } = req.body;
 
         await db.run(`
             UPDATE empresas SET
@@ -172,9 +172,10 @@ router.put('/:id', verificarToken, async (req, res) => {
                 zona_horaria = COALESCE(?, zona_horaria),
                 telefono = COALESCE(?, telefono),
                 correo = COALESCE(?, correo),
-                direccion = COALESCE(?, direccion)
+                direccion = COALESCE(?, direccion),
+                logo_url = COALESCE(?, logo_url)
             WHERE id_empresa = ? AND eliminado = 0
-        `, nombre, identificacion_empresa, pais, moneda, zona_horaria, telefono, correo, direccion, idEmpresa);
+        `, nombre, identificacion_empresa, pais, moneda, zona_horaria, telefono, correo, direccion, logo_url || null, idEmpresa);
 
         registrarAuditoria(idEmpresa, req.usuario.id_usuario, 'EDITAR_EMPRESA', `Empresa actualizada`);
         const empresaActualizada = await db.get('SELECT * FROM empresas WHERE id_empresa = ?', idEmpresa);
