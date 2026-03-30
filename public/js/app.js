@@ -808,7 +808,7 @@ async function filtrarTareasEquipoSup(estado) {
                     </div>
                     ${t.descripcion ? `<p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">${t.descripcion}</p>` : ''}
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:0.75rem;">
-                        <span style="background:rgba(59,130,246,0.15);padding:2px 8px;border-radius:6px;">👤 ${t.empleado_nombre || 'Sin asignar'}</span>
+                        <span style="background:rgba(59,130,246,0.15);padding:2px 8px;border-radius:6px;">👤 ${t.nombre_empleado || 'Sin asignar'}</span>
                         <span style="background:${prioColor}22;color:${prioColor};padding:2px 8px;border-radius:6px;font-weight:600;">${t.prioridad.toUpperCase()}</span>
                         ${t.tiempo_estimado_minutos ? `<span>⏱ ${t.tiempo_estimado_minutos} min</span>` : ''}
                         ${t.fecha_creacion ? `<span style="color:var(--text-muted);">📅 ${formatearFechaHora(t.fecha_creacion)}</span>` : ''}
