@@ -207,6 +207,58 @@ router.delete('/:id', verificarToken, verificarRol('ADMIN'), async (req, res) =>
 });
 
 /**
+ * PUT /api/usuarios/:id/rol — Cambiar rol (Promover/Degradar)
+ */
+router.put('/:id/rol', verificarToken, verificarRol('ADMIN'), async (req, res) => {
+    try {
+        const { rol } = req.body;
+        if (!rol || !['SUPERVISOR', 'EMPLEADO'].includes(rol)) {
+            return res.status(400).json({ error: 'Rol debe ser SUPERVISOR o EMPLEADO' });
+        }
+
+        const usuario = await db.get('SELECT * FROM usuarios WHERE id_usuario = ? AND eliminado = 0', req.params.id);
+        if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+        if (req.usuario.id_empresa !== usuario.id_empresa) return res.status(403).json({ error: 'No tienes acceso' });
+        if (usuario.rol === rol) return res.status(400).json({ error: `El usuario ya es ${rol}` });
+        if (usuario.rol === 'ADMIN') return res.status(400).json({ error: 'No se puede cambiar el rol del administrador' });
+
+        const rolAnterior = usuario.rol;
+
+        // Cambiar rol
+        await db.run('UPDATE usuarios SET rol = ? WHERE id_usuario = ?', rol, req.params.id);
+
+        if (rol === 'SUPERVISOR') {
+            // Promovido a supervisor: quitar relación con su supervisor anterior
+            await db.run('DELETE FROM supervisores_empleados WHERE id_empleado = ?', req.params.id);
+            // Asignar permisos default de supervisor
+            const permisosDefault = ['ASIGNAR_TAREAS', 'VER_REPORTES', 'VER_EVIDENCIAS'];
+            const placeholders = permisosDefault.map(() => '?').join(',');
+            const permisos = await db.all(`SELECT id_permiso FROM permisos WHERE codigo IN (${placeholders})`, ...permisosDefault);
+            for (const p of permisos) {
+                try {
+                    if (isPostgres) {
+                        await db.run('INSERT INTO rol_permisos (id_rol, id_permiso, id_empresa) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', 'SUPERVISOR', p.id_permiso, usuario.id_empresa);
+                    } else {
+                        await db.run('INSERT OR IGNORE INTO rol_permisos (id_rol, id_permiso, id_empresa) VALUES (?, ?, ?)', 'SUPERVISOR', p.id_permiso, usuario.id_empresa);
+                    }
+                } catch(e) {}
+            }
+        } else {
+            // Degradado a empleado: liberar sus empleados asignados
+            await db.run('DELETE FROM supervisores_empleados WHERE id_supervisor = ?', req.params.id);
+        }
+
+        registrarAuditoria(usuario.id_empresa, req.usuario.id_usuario, 'CAMBIAR_ROL',
+            `"${usuario.nombre}" cambiado de ${rolAnterior} a ${rol}`);
+
+        res.json({ mensaje: `${usuario.nombre} ahora es ${rol}`, rol });
+    } catch (err) {
+        console.error('Error cambiando rol:', err);
+        res.status(500).json({ error: 'Error al cambiar rol' });
+    }
+});
+
+/**
  * POST /api/usuarios/asignar-supervisor
  */
 router.post('/asignar-supervisor', verificarToken, verificarRol('ADMIN'), async (req, res) => {

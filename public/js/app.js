@@ -1866,7 +1866,10 @@ async function cargarSupervisores() {
                             <td><span class="badge badge-info">${u.total_empleados || 0}</span></td>
                             <td><span class="badge ${u.estado ? 'badge-success' : 'badge-danger'}">${u.estado ? 'Activo' : 'Inactivo'}</span></td>
                             <td>
-                                <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignarEmpleados('${u.id_usuario}', '${u.nombre}')">👥 Asignar Empleados</button>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignarEmpleados('${u.id_usuario}', '${u.nombre}')">👥 Asignar</button>
+                                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'EMPLEADO', '${u.nombre.replace(/'/g, "\\'")}')" title="Degradar a Empleado">⬇️ Empleado</button>
+                                </div>
                             </td>
                         </tr>
                     `).join('')}
@@ -1972,6 +1975,7 @@ async function cargarEmpleados() {
                         <th>Teléfono</th>
                         <th>Supervisor</th>
                         <th>Estado</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1982,6 +1986,9 @@ async function cargarEmpleados() {
                             <td>${u.telefono || '-'}</td>
                             <td>${u.supervisor ? u.supervisor.nombre_supervisor : '<span style="color:var(--text-muted)">Sin asignar</span>'}</td>
                             <td><span class="badge ${u.estado ? 'badge-success' : 'badge-danger'}">${u.estado ? 'Activo' : 'Inactivo'}</span></td>
+                            <td>
+                                <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'SUPERVISOR', '${u.nombre.replace(/'/g, "\\'")}')" title="Promover a Supervisor">⬆️ Supervisor</button>
+                            </td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -1989,6 +1996,22 @@ async function cargarEmpleados() {
         `;
     } catch(err) {
         console.error('Error cargando empleados:', err);
+    }
+}
+
+async function cambiarRolUsuario(idUsuario, nuevoRol, nombre) {
+    const accion = nuevoRol === 'SUPERVISOR' ? 'PROMOVER a Supervisor' : 'CAMBIAR a Empleado';
+    if (!confirm(`¿${accion} a "${nombre}"?\n\nSu código de acceso se mantendrá.`)) return;
+    try {
+        await fetchAPI(`/api/usuarios/${idUsuario}/rol`, {
+            method: 'PUT',
+            body: JSON.stringify({ rol: nuevoRol })
+        });
+        mostrarToast(`${nombre} ahora es ${nuevoRol}`, 'success');
+        cargarSupervisores();
+        cargarEmpleados();
+    } catch(err) {
+        mostrarToast(err.message || 'Error al cambiar rol', 'error');
     }
 }
 
