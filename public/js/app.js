@@ -3808,7 +3808,7 @@ async function abrirHistorialTareas() {
             }
 
             return `
-            <div class="tarea-row-wrap" style="cursor:pointer;" onclick="document.getElementById('modal-historial-tareas').style.display='none'; filtrarTareasPorEstado('finalizada'); setTimeout(()=>toggleDetalleTarea('${t.id_tarea}'),500);">
+            <div class="tarea-row-wrap historial-card" data-search="${(t.codigo_tarea || '').toLowerCase()} ${(t.titulo || '').toLowerCase()} ${(t.nombre_empleado || '').toLowerCase()} ${(t.nombre_supervisor || '').toLowerCase()}" style="cursor:pointer;" onclick="document.getElementById('modal-historial-tareas').style.display='none'; filtrarTareasPorEstado('finalizada'); setTimeout(()=>toggleDetalleTarea('${t.id_tarea}'),500);">
                 <div class="tarea-row glass" style="border-left:4px solid ${prioridadColor};">
                     <!-- Prioridad -->
                     <div class="tarea-row-prioridad" style="background:${prioridadColor}22;color:${prioridadColor};">${t.prioridad.toUpperCase()}</div>
@@ -3849,12 +3849,17 @@ async function abrirHistorialTareas() {
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border-color);">
                     <div>
                         <h3 style="margin:0;font-size:1.1rem;">📜 Historial de Tareas Finalizadas</h3>
-                        <span style="font-size:0.78rem;color:var(--text-muted);">${tareas.length} tareas completadas en total</span>
+                        <span style="font-size:0.78rem;color:var(--text-muted);" id="historial-count">${tareas.length} tareas completadas en total</span>
                     </div>
                     <button onclick="document.getElementById('modal-historial-tareas').style.display='none'" style="background:none;border:none;color:white;font-size:1.4rem;cursor:pointer;">✕</button>
                 </div>
+                <div style="padding:12px 22px 0;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+                    <input type="text" id="historial-busqueda" placeholder="🔍 Buscar por No. tarea, empleado o supervisor..." 
+                        style="width:100%;padding:10px 16px;background:rgba(15,15,35,0.6);border:1px solid var(--border-color);border-radius:10px;color:var(--text-primary);font-size:0.88rem;outline:none;"
+                        oninput="filtrarHistorialBusqueda(this.value)">
+                </div>
                 <div style="overflow-y:auto;flex:1;padding:12px 16px;">
-                    <div class="grid-cards">
+                    <div class="grid-cards" id="historial-grid">
                         ${tarjetas || '<div class="empty-state"><p>No hay tareas finalizadas</p></div>'}
                     </div>
                 </div>
@@ -3863,6 +3868,20 @@ async function abrirHistorialTareas() {
     } catch(err) {
         mostrarToast('Error al cargar historial: ' + (err.message || ''), 'error');
     }
+}
+
+function filtrarHistorialBusqueda(texto) {
+    const busqueda = texto.toLowerCase().trim();
+    const cards = document.querySelectorAll('#historial-grid .historial-card');
+    let visibles = 0;
+    cards.forEach(card => {
+        const data = card.getAttribute('data-search') || '';
+        const match = !busqueda || data.includes(busqueda);
+        card.style.display = match ? '' : 'none';
+        if (match) visibles++;
+    });
+    const countEl = document.getElementById('historial-count');
+    if (countEl) countEl.textContent = busqueda ? `${visibles} resultado(s) de ${cards.length}` : `${cards.length} tareas completadas en total`;
 }
 
 async function verEvidenciasTarea(idTarea) {
