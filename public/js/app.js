@@ -1280,6 +1280,11 @@ async function cargarTareasEmpleado() {
     try {
         let tareas = await fetchAPI('/api/tareas');
 
+        // Para supervisor: solo mostrar sus propias tareas (no las del equipo)
+        if (USUARIO.rol === 'SUPERVISOR') {
+            tareas = tareas.filter(t => t.id_empleado === USUARIO.id_usuario);
+        }
+
         // Cargar config de empresa
         let empPuedeIniciar = true;
         try {
