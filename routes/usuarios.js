@@ -8,15 +8,18 @@ const { generarCodigoAcceso } = require('../utils/codigoAcceso');
 /**
  * POST /api/usuarios
  */
-router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const { nombre, identificacion, telefono, correo, rol, id_departamento, id_jefe } = req.body;
 
         if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son requeridos' });
         if (!['SUPERVISOR', 'EMPLEADO'].includes(rol)) return res.status(400).json({ error: 'Rol debe ser SUPERVISOR o EMPLEADO' });
-        if (rol === 'SUPERVISOR' && req.usuario.rol !== 'ADMIN') {
-            return res.status(403).json({ error: 'Solo el administrador puede crear supervisores' });
+        if (rol === 'SUPERVISOR' && req.usuario.rol !== 'ADMIN' && req.usuario.rol !== 'GERENTE') {
+            return res.status(403).json({ error: 'Solo el administrador o gerente puede crear supervisores' });
         }
+
+        // GERENTE auto-asigna su departamento a los usuarios que crea
+        const deptoFinal = req.usuario.rol === 'GERENTE' ? req.usuario.id_departamento : (id_departamento || null);
 
         const id_empresa = req.usuario.id_empresa;
         const empresa = await db.get('SELECT nombre FROM empresas WHERE id_empresa = ?', id_empresa);
@@ -28,7 +31,7 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
         await db.run(`
             INSERT INTO usuarios (id_usuario, id_empresa, identificacion, nombre, telefono, correo, rol, codigo_acceso, id_departamento, id_jefe)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_usuario, id_empresa, identificacion || '', nombre, telefono || '', correo || '', rol, codigo_acceso, id_departamento || null, id_jefe || null);
+        `, id_usuario, id_empresa, identificacion || '', nombre, telefono || '', correo || '', rol, codigo_acceso, deptoFinal, id_jefe || null);
 
         if (rol === 'EMPLEADO' && id_jefe) {
             await db.run(`
@@ -66,7 +69,7 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req
 /**
  * GET /api/usuarios
  */
-router.get('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.get('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const id_empresa = req.usuario.id_empresa;
         const { rol, departamento } = req.query;
@@ -82,7 +85,11 @@ router.get('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req,
         if (rol) { query += ' AND u.rol = ?'; params.push(rol); }
         if (departamento) { query += ' AND u.id_departamento = ?'; params.push(departamento); }
 
-        if (req.usuario.rol === 'SUPERVISOR') {
+        if (req.usuario.rol === 'GERENTE') {
+            // Gerente solo ve usuarios de SU departamento/gerencia
+            query += ' AND u.id_departamento = ?';
+            params.push(req.usuario.id_departamento);
+        } else if (req.usuario.rol === 'SUPERVISOR') {
             const tieneAccesoGlobal = await db.get(`
                 SELECT 1 FROM permisos_usuario pu
                 JOIN permisos p ON pu.id_permiso = p.id_permiso
@@ -209,11 +216,15 @@ router.delete('/:id', verificarToken, verificarRol('ADMIN'), async (req, res) =>
 /**
  * PUT /api/usuarios/:id/rol — Cambiar rol (Promover/Degradar)
  */
-router.put('/:id/rol', verificarToken, verificarRol('ADMIN'), async (req, res) => {
+router.put('/:id/rol', verificarToken, verificarRol('ADMIN', 'GERENTE'), async (req, res) => {
     try {
         const { rol } = req.body;
-        if (!rol || !['SUPERVISOR', 'EMPLEADO'].includes(rol)) {
-            return res.status(400).json({ error: 'Rol debe ser SUPERVISOR o EMPLEADO' });
+        if (!rol || !['SUPERVISOR', 'EMPLEADO', 'GERENTE'].includes(rol)) {
+            return res.status(400).json({ error: 'Rol debe ser SUPERVISOR, EMPLEADO o GERENTE' });
+        }
+        // Solo ADMIN puede promover a GERENTE
+        if (rol === 'GERENTE' && req.usuario.rol !== 'ADMIN' && req.usuario.rol !== 'ROOT') {
+            return res.status(403).json({ error: 'Solo el administrador puede promover a Gerente' });
         }
 
         const usuario = await db.get('SELECT * FROM usuarios WHERE id_usuario = ? AND eliminado = 0', req.params.id);

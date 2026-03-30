@@ -85,6 +85,7 @@ router.post('/login', async (req, res) => {
             {
                 id_usuario: usuario.id_usuario,
                 id_empresa: usuario.id_empresa,
+                id_departamento: usuario.id_departamento || null,
                 rol: usuario.rol,
                 nombre: usuario.nombre
             },
@@ -113,6 +114,7 @@ router.post('/login', async (req, res) => {
                 foto_url: usuario.foto_url,
                 codigo_acceso: usuario.codigo_acceso,
                 id_empresa: usuario.id_empresa,
+                id_departamento: usuario.id_departamento || null,
                 nombre_empresa: usuario.nombre_empresa,
                 logo_empresa: usuario.logo_empresa
             },
@@ -161,6 +163,7 @@ router.get('/me', verificarToken, async (req, res) => {
             foto_url: usuario.foto_url,
             codigo_acceso: usuario.codigo_acceso,
             id_empresa: usuario.id_empresa,
+            id_departamento: usuario.id_departamento || null,
             nombre_empresa: usuario.nombre_empresa,
             logo_empresa: usuario.logo_empresa
         });

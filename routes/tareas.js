@@ -12,7 +12,7 @@ const { generarCodigoTarea } = require('../utils/codigoTarea');
 /**
  * POST /api/tareas
  */
-router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const { titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia } = req.body;
         if (!titulo) return res.status(400).json({ error: 'El título es requerido' });
@@ -155,6 +155,10 @@ router.get('/', verificarToken, async (req, res) => {
         } else if (req.usuario.rol === 'SUPERVISOR') {
             query += ' AND (t.id_empleado = ? OR EXISTS (SELECT 1 FROM usuarios emp2 WHERE emp2.id_usuario = t.id_empleado AND emp2.id_jefe = ?))';
             params.push(req.usuario.id_usuario, req.usuario.id_usuario);
+        } else if (req.usuario.rol === 'GERENTE') {
+            // Gerente ve tareas de empleados de SU departamento/gerencia
+            query += ' AND t.id_empleado IN (SELECT id_usuario FROM usuarios WHERE id_departamento = ? AND eliminado = 0)';
+            params.push(req.usuario.id_departamento);
         }
 
         query += ` ORDER BY CASE t.prioridad WHEN 'urgente' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 WHEN 'baja' THEN 4 END, t.fecha_creacion DESC`;
@@ -470,7 +474,7 @@ router.put('/:id/finalizar', verificarToken, async (req, res) => {
 /**
  * PUT /api/tareas/:id
  */
-router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
@@ -504,7 +508,7 @@ router.put('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (r
 /**
  * DELETE /api/tareas/:id
  */
-router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR'), async (req, res) => {
+router.delete('/:id', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
         const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });

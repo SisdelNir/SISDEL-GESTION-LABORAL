@@ -51,7 +51,7 @@ function inicializarSocket() {
                 cargarTareasEmpleado(); // Recargar Mis Tareas (funciona para ambos roles)
             } else if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
                 // Tarea de equipo, no necesita recargar Mis Tareas
-            } else if (USUARIO && USUARIO.rol === 'ADMIN') {
+            } else if (USUARIO && (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE')) {
                 if (typeof cargarTareas === 'function') cargarTareas();
             }
         });
@@ -293,11 +293,10 @@ function abrirPanelPorRol() {
         socket.emit('unirse_empresa', USUARIO.id_empresa);
     }
 
-    if (USUARIO.rol === 'ADMIN') {
+    if (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE') {
         mostrarPantalla('admin');
         document.getElementById('admin-user-name').textContent = USUARIO.nombre;
-        document.getElementById('admin-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
-        // Arrancar en panel Tareas por defecto
+        document.getElementById('admin-empresa-nombre').textContent = USUARIO.rol === 'GERENTE' ? `${USUARIO.nombre_empresa} • Gerente` : (USUARIO.nombre_empresa || 'Empresa');
         cambiarPanelAdmin('tareas');
     } else if (USUARIO.rol === 'SUPERVISOR') {
         mostrarPantalla('supervisor');
@@ -2243,6 +2242,7 @@ async function cargarSupervisores() {
                             <td>
                                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                                     <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignarEmpleados('${u.id_usuario}', '${u.nombre}')">👥 Asignar</button>
+                                    ${USUARIO.rol === 'ADMIN' ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'GERENTE', '${u.nombre.replace(/'/g, "\\'")}')" title="Promover a Gerente">👔 Gerente</button>` : ''}
                                     <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'EMPLEADO', '${u.nombre.replace(/'/g, "\\'")}')" title="Degradar a Empleado">⬇️ Empleado</button>
                                 </div>
                             </td>
@@ -2375,7 +2375,7 @@ async function cargarEmpleados() {
 }
 
 async function cambiarRolUsuario(idUsuario, nuevoRol, nombre) {
-    const accion = nuevoRol === 'SUPERVISOR' ? 'PROMOVER a Supervisor' : 'CAMBIAR a Empleado';
+    const accion = nuevoRol === 'SUPERVISOR' ? 'PROMOVER a Supervisor' : nuevoRol === 'GERENTE' ? 'PROMOVER a Gerente' : 'CAMBIAR a Empleado';
     if (!confirm(`¿${accion} a "${nombre}"?\n\nSu código de acceso se mantendrá.`)) return;
     try {
         await fetchAPI(`/api/usuarios/${idUsuario}/rol`, {
