@@ -477,6 +477,7 @@ function abrirPanelPorRol() {
         cargarDashboardSupervisor();
         verificarEstadoCheckin();
         verificarPermisosSupervisor();
+        iniciarAlertasEmpleado(); // Alertas de tareas asignadas al supervisor
     } else if (USUARIO.rol === 'EMPLEADO') {
         mostrarPantalla('empleado');
         document.getElementById('emp-panel-user-name').textContent = USUARIO.nombre;
@@ -912,8 +913,95 @@ async function cargarDashboardSupervisor() {
                     <div style="font-size:0.78rem;color:var(--text-muted);">${a.tarea_titulo} · ${formatearFechaHora(a.fecha)}</div>
                 </div>
             `).join('') : '<p style="color:var(--text-muted);font-size:0.85rem;">Sin actividad reciente</p>';
+
+        // Cargar tareas asignadas al supervisor
+        cargarMisTareasAsignadasSupervisor();
     } catch(err) {
         console.error('Error cargando dashboard supervisor:', err);
+    }
+}
+
+// ═══════════════════════════════════════════
+// MIS TAREAS ASIGNADAS (SUPERVISOR como ejecutor)
+// ═══════════════════════════════════════════
+async function cargarMisTareasAsignadasSupervisor() {
+    try {
+        const tareas = await fetchAPI('/api/tareas');
+        const misTareas = tareas.filter(t => t.id_empleado === USUARIO.id_usuario && !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
+        const container = document.getElementById('sup-mis-tareas-asignadas');
+        if (!container) return;
+
+        if (!misTareas.length) {
+            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">No tienes tareas asignadas directamente</p>';
+            return;
+        }
+
+        // Cargar config de empresa
+        let empPuedeIniciar = true;
+        try {
+            const config = await fetchAPI('/api/empresas/mi-config');
+            empPuedeIniciar = config.empleado_puede_iniciar !== 0 && config.empleado_puede_iniciar !== false;
+        } catch(e) {}
+
+        container.innerHTML = misTareas.map(t => {
+            const prioColor = { 'urgente':'#ef4444','alta':'#f97316','media':'#6366f1','baja':'#10b981' }[t.prioridad] || '#6366f1';
+            const estadoTexto = { 'pendiente':'🟡 Pendiente','en_proceso':'🔵 En Proceso','atrasada':'🔴 Atrasada' }[t.estado] || t.estado;
+
+            let acciones = '';
+            if (t.estado === 'pendiente') {
+                if (empPuedeIniciar) {
+                    acciones = `<button class="btn btn-sm" style="background:#10b981;color:white;font-weight:600;" onclick="event.stopPropagation(); iniciarTareaEmpleado('${t.id_tarea}')">▶ Iniciar</button>`;
+                }
+            } else if (t.estado === 'en_proceso') {
+                acciones = `
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span id="sup-crono-${t.id_tarea}" style="font-family:monospace;font-size:0.9rem;color:#00ff88;font-weight:700;">00:00:00</span>
+                        <button class="btn btn-sm" style="background:#ef4444;color:white;font-weight:600;" onclick="event.stopPropagation(); finalizarTareaEmpleado('${t.id_tarea}')">⏹ Finalizar</button>
+                    </div>`;
+            }
+
+            let tiempoInfo = '';
+            if (t.tiempo_estimado_minutos) {
+                tiempoInfo = `<span style="font-size:0.72rem;color:var(--text-muted);">⏳ Est: ${formatearTiempo(t.tiempo_estimado_minutos)}</span>`;
+            }
+
+            return `
+            <div style="padding:12px;border-radius:10px;border-left:4px solid ${prioColor};background:rgba(255,255,255,0.03);margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                    <div style="flex:1;">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            ${t.codigo_tarea ? `<span style="font-size:0.68rem;font-weight:700;color:var(--accent-primary);background:rgba(99,102,241,0.15);padding:2px 8px;border-radius:6px;">${t.codigo_tarea}</span>` : ''}
+                            <span style="font-weight:700;font-size:0.9rem;">${t.titulo}</span>
+                            <span style="font-size:0.7rem;padding:2px 6px;border-radius:6px;background:${prioColor}22;color:${prioColor};">${t.prioridad.toUpperCase()}</span>
+                        </div>
+                        <div style="display:flex;gap:12px;margin-top:4px;align-items:center;">
+                            <span style="font-size:0.72rem;">${estadoTexto}</span>
+                            ${tiempoInfo}
+                            <span style="font-size:0.68rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_creacion)}</span>
+                        </div>
+                    </div>
+                    <div>${acciones}</div>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Iniciar cronómetros para tareas en proceso
+        misTareas.filter(t => t.estado === 'en_proceso' && t.fecha_inicio).forEach(t => {
+            const el = document.getElementById(`sup-crono-${t.id_tarea}`);
+            if (el) {
+                const inicio = new Date(t.fecha_inicio);
+                const intervalo = setInterval(() => {
+                    const segs = Math.round((Date.now() - inicio.getTime()) / 1000);
+                    const h = String(Math.floor(segs/3600)).padStart(2,'0');
+                    const m = String(Math.floor((segs%3600)/60)).padStart(2,'0');
+                    const s = String(segs%60).padStart(2,'0');
+                    if (el) el.textContent = `${h}:${m}:${s}`;
+                }, 1000);
+                cronoIntervalos[`sup-${t.id_tarea}`] = intervalo;
+            }
+        });
+    } catch(err) {
+        console.error('Error cargando tareas asignadas supervisor:', err);
     }
 }
 
@@ -2219,7 +2307,11 @@ async function mostrarFormularioTarea() {
                 const idSup = u.id_jefe || (u.supervisor && u.supervisor.id_supervisor) || '';
                 selEmp.innerHTML += `<option value="${u.id_usuario}" data-supervisor="${idSup}">${u.nombre}</option>`;
             }
-            if (u.rol === 'SUPERVISOR') selSup.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
+            if (u.rol === 'SUPERVISOR') {
+                selSup.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
+                // También agregar supervisores como asignables
+                selEmp.innerHTML += `<option value="${u.id_usuario}" data-supervisor="">[SUP] ${u.nombre}</option>`;
+            }
         });
 
         // Event listener to auto-select supervisor when employee changes
@@ -2773,6 +2865,10 @@ async function abrirModalPlantillas() {
             usuarios.filter(u => u.rol === 'EMPLEADO').forEach(u => {
                 const idSup = u.id_jefe || (u.supervisor && u.supervisor.id_supervisor) || '';
                 sel.innerHTML += `<option value="${u.id_usuario}" data-supervisor="${idSup}">${u.nombre}</option>`;
+            });
+            // También agregar supervisores como asignables
+            usuarios.filter(u => u.rol === 'SUPERVISOR').forEach(u => {
+                sel.innerHTML += `<option value="${u.id_usuario}" data-supervisor="">[SUP] ${u.nombre}</option>`;
             });
         });
 

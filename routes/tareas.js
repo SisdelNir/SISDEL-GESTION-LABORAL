@@ -153,8 +153,8 @@ router.get('/', verificarToken, async (req, res) => {
             query += ' AND t.id_empleado = ?';
             params.push(req.usuario.id_usuario);
         } else if (req.usuario.rol === 'SUPERVISOR') {
-            query += ' AND (t.id_supervisor = ? OR t.id_creador = ?)';
-            params.push(req.usuario.id_usuario, req.usuario.id_usuario);
+            query += ' AND (t.id_supervisor = ? OR t.id_creador = ? OR t.id_empleado = ?)';
+            params.push(req.usuario.id_usuario, req.usuario.id_usuario, req.usuario.id_usuario);
         }
 
         query += ` ORDER BY CASE t.prioridad WHEN 'urgente' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 WHEN 'baja' THEN 4 END, t.fecha_creacion DESC`;
