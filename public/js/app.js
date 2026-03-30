@@ -956,7 +956,7 @@ async function cargarMisTareasAsignadasSupervisor() {
                 acciones = `
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span id="sup-crono-${t.id_tarea}" style="font-family:monospace;font-size:0.9rem;color:#00ff88;font-weight:700;">00:00:00</span>
-                        <button class="btn btn-sm" style="background:#ef4444;color:white;font-weight:600;" onclick="event.stopPropagation(); finalizarTareaEmpleado('${t.id_tarea}')">⏹ Finalizar</button>
+                        <button class="btn btn-sm" style="background:#ef4444;color:white;font-weight:600;" onclick="event.stopPropagation(); completarTareaEmpleado('${t.id_tarea}')">⏹ Finalizar</button>
                     </div>`;
             }
 
@@ -1410,6 +1410,8 @@ async function iniciarTareaEmpleado(idTarea) {
         const res = await fetchAPI(`/api/tareas/${idTarea}/iniciar`, { method: 'PUT' });
         mostrarToast('⏱ Tarea iniciada — ¡el cronómetro corre!', 'success');
         cargarTareasEmpleado();
+        // Si es supervisor, también recargar su panel
+        if (USUARIO.rol === 'SUPERVISOR') cargarMisTareasAsignadasSupervisor();
     } catch(err) {
         mostrarToast(err.message || 'Error al iniciar tarea', 'error');
     }
@@ -1431,6 +1433,8 @@ async function completarTareaEmpleado(idTarea) {
         }
         mostrarToast('✅ ¡Tarea completada! Buen trabajo', 'success');
         cargarTareasEmpleado();
+        // Si es supervisor, también recargar su panel
+        if (USUARIO.rol === 'SUPERVISOR') cargarMisTareasAsignadasSupervisor();
     } catch(err) {
         if (err.message && err.message.includes('evidencias para finalizar')) {
             Swal.fire({

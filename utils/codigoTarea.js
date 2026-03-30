@@ -29,8 +29,8 @@ async function generarCodigoTarea(id_empresa) {
     );
     const siguiente = (resultado ? resultado.total : 0) + 1;
 
-    // Formato: FCG-0001
-    const numero = String(siguiente).padStart(4, '0');
+    // Formato: FCG-001
+    const numero = String(siguiente).padStart(3, '0');
     return `${prefijo}-${numero}`;
 }
 
