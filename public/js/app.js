@@ -1267,12 +1267,17 @@ async function verificarAlertasTareas() {
             tareas = tareas.filter(t => t.id_empleado === USUARIO.id_usuario);
         }
 
+        const hoyStr = new Date().toISOString().slice(0, 10); // "2026-03-30"
+
         tareas.forEach(t => {
             if (tareasYaAlertadas.has(t.id_tarea)) return;
             if (['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado)) return;
 
-            // Alertar por CUALQUIER tarea pendiente nueva (no solo urgente)
-            if (t.estado === 'pendiente') {
+            // Solo alertar por tareas del DÍA DE HOY
+            const fechaTarea = (t.fecha_programada || t.fecha_creacion || '').slice(0, 10);
+            const esDeHoy = fechaTarea === hoyStr;
+
+            if (t.estado === 'pendiente' && esDeHoy) {
                 tareasYaAlertadas.add(t.id_tarea);
                 const esUrgente = t.prioridad === 'urgente' || t.prioridad === 'alta';
                 alertaSonoraYVibracion(esUrgente ? 'urgente' : 'normal');
@@ -1280,9 +1285,9 @@ async function verificarAlertasTareas() {
                 return;
             }
 
-            // Alertar por tarea en_proceso (ya iniciada, pero aún no alertada)
-            if (t.estado === 'en_proceso' || t.estado === 'atrasada') {
-                tareasYaAlertadas.add(t.id_tarea); // Marcar como vista sin alertar
+            // Marcar tareas no-hoy o ya iniciadas como vistas (sin alertar)
+            if (t.estado !== 'pendiente' || !esDeHoy) {
+                tareasYaAlertadas.add(t.id_tarea);
             }
         });
     } catch(e) {}
