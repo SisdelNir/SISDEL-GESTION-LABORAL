@@ -771,6 +771,40 @@
                             <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;" onclick="abrirModalPlantillas()">🔄 Repetitivas</button>
                         </div>
                     </div>
+
+                    <!-- Mis Tareas Asignadas (como ejecutor) -->
+                    <div style="margin-bottom:20px;">
+                        <h4 style="margin-bottom:10px;">📌 Mis Tareas Asignadas</h4>
+                        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">
+                            <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('pendiente')">
+                                <div class="stat-icon" style="background:var(--accent-amber);">🟡</div>
+                                <div class="stat-number" id="sup-mis-stat-pendientes">0</div>
+                                <div class="stat-label">Pendientes</div>
+                            </div>
+                            <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('en_proceso')">
+                                <div class="stat-icon" style="background:var(--accent-primary);">🔵</div>
+                                <div class="stat-number" id="sup-mis-stat-proceso">0</div>
+                                <div class="stat-label">En Proceso</div>
+                            </div>
+                            <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('finalizada')">
+                                <div class="stat-icon" style="background:var(--accent-success);">🟢</div>
+                                <div class="stat-number" id="sup-mis-stat-finalizadas">0</div>
+                                <div class="stat-label">Finalizadas</div>
+                            </div>
+                            <div class="stat-card glass" style="cursor:pointer;" onclick="filtrarMisTareasSup('atrasada')">
+                                <div class="stat-icon" style="background:var(--accent-danger);">🔴</div>
+                                <div class="stat-number" id="sup-mis-stat-atrasadas">0</div>
+                                <div class="stat-label">Atrasadas</div>
+                            </div>
+                        </div>
+                        <div id="sup-mis-tareas-lista" class="grid-cards"></div>
+                    </div>
+
+                    <!-- Separador -->
+                    <hr style="border-color:var(--border-color);margin:24px 0;">
+
+                    <!-- Tareas del equipo -->
+                    <h4 style="margin-bottom:10px;">👥 Tareas del Equipo</h4>
                     <div id="sup-estadisticas-tareas" style="margin-bottom:16px;"></div>
                     <div id="sup-lista-tareas" class="grid-cards"></div>
                 </div>

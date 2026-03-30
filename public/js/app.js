@@ -894,7 +894,7 @@ function cambiarPanelSupervisor(panel) {
 
     if (panel === 'sup-dashboard') cargarDashboardSupervisor();
     if (panel === 'sup-empleados') cargarEmpleadosSupervisor();
-    if (panel === 'sup-tareas') { cargarTareas(); cargarEstadisticasTareas(); }
+    if (panel === 'sup-tareas') { cargarMisTareasAsignadasSupervisor(); cargarTareas(); cargarEstadisticasTareas(); }
     if (panel === 'sup-notificaciones') cargarNotificaciones();
 }
 
@@ -921,88 +921,168 @@ async function cargarDashboardSupervisor() {
     }
 }
 
-// ═══════════════════════════════════════════
-// MIS TAREAS ASIGNADAS (SUPERVISOR como ejecutor)
-// ═══════════════════════════════════════════
+// Variable global para filtro de tareas del supervisor
+window.SUP_FILTRO_MIS_TAREAS = null;
+
 async function cargarMisTareasAsignadasSupervisor() {
     try {
-        const tareas = await fetchAPI('/api/tareas');
-        const misTareas = tareas.filter(t => t.id_empleado === USUARIO.id_usuario && !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
-        const container = document.getElementById('sup-mis-tareas-asignadas');
-        if (!container) return;
+        const todasTareas = await fetchAPI('/api/tareas');
+        const misTareas = todasTareas.filter(t => t.id_empleado === USUARIO.id_usuario);
 
-        if (!misTareas.length) {
-            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">No tienes tareas asignadas directamente</p>';
-            return;
+        // Estadísticas
+        const pendientes = misTareas.filter(t => t.estado === 'pendiente').length;
+        const enProceso = misTareas.filter(t => t.estado === 'en_proceso').length;
+        const finalizadas = misTareas.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada').length;
+        const atrasadas = misTareas.filter(t => t.estado === 'atrasada').length;
+
+        const elPend = document.getElementById('sup-mis-stat-pendientes');
+        const elProc = document.getElementById('sup-mis-stat-proceso');
+        const elFin = document.getElementById('sup-mis-stat-finalizadas');
+        const elAtr = document.getElementById('sup-mis-stat-atrasadas');
+        if (elPend) elPend.textContent = pendientes;
+        if (elProc) elProc.textContent = enProceso;
+        if (elFin) elFin.textContent = finalizadas;
+        if (elAtr) elAtr.textContent = atrasadas;
+
+        // Dashboard "Mis Tareas Asignadas" (solo activas, sin filtro)
+        const containerDash = document.getElementById('sup-mis-tareas-asignadas');
+        if (containerDash) {
+            const activas = misTareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
+            containerDash.innerHTML = activas.length 
+                ? renderTareasSupCards(activas) 
+                : '<p style="color:var(--text-muted);font-size:0.85rem;">No tienes tareas asignadas directamente</p>';
+            iniciarCronosSupervisor(activas);
         }
 
-        // Cargar config de empresa
-        let empPuedeIniciar = true;
-        try {
-            const config = await fetchAPI('/api/empresas/mi-config');
-            empPuedeIniciar = config.empleado_puede_iniciar !== 0 && config.empleado_puede_iniciar !== false;
-        } catch(e) {}
-
-        container.innerHTML = misTareas.map(t => {
-            const prioColor = { 'urgente':'#ef4444','alta':'#f97316','media':'#6366f1','baja':'#10b981' }[t.prioridad] || '#6366f1';
-            const estadoTexto = { 'pendiente':'🟡 Pendiente','en_proceso':'🔵 En Proceso','atrasada':'🔴 Atrasada' }[t.estado] || t.estado;
-
-            let acciones = '';
-            if (t.estado === 'pendiente') {
-                if (empPuedeIniciar) {
-                    acciones = `<button class="btn btn-sm" style="background:#10b981;color:white;font-weight:600;" onclick="event.stopPropagation(); iniciarTareaEmpleado('${t.id_tarea}')">▶ Iniciar</button>`;
+        // Tareas panel (con filtro)  
+        const containerLista = document.getElementById('sup-mis-tareas-lista');
+        if (containerLista) {
+            let tareasVista = misTareas;
+            if (window.SUP_FILTRO_MIS_TAREAS) {
+                if (window.SUP_FILTRO_MIS_TAREAS === 'finalizada') {
+                    tareasVista = misTareas.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada');
+                } else {
+                    tareasVista = misTareas.filter(t => t.estado === window.SUP_FILTRO_MIS_TAREAS);
                 }
-            } else if (t.estado === 'en_proceso') {
-                acciones = `
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span id="sup-crono-${t.id_tarea}" style="font-family:monospace;font-size:0.9rem;color:#00ff88;font-weight:700;">00:00:00</span>
-                        <button class="btn btn-sm" style="background:#ef4444;color:white;font-weight:600;" onclick="event.stopPropagation(); completarTareaEmpleado('${t.id_tarea}')">⏹ Finalizar</button>
-                    </div>`;
+            } else {
+                // Sin filtro = solo activas
+                tareasVista = misTareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
             }
-
-            let tiempoInfo = '';
-            if (t.tiempo_estimado_minutos) {
-                tiempoInfo = `<span style="font-size:0.72rem;color:var(--text-muted);">⏳ Est: ${formatearTiempo(t.tiempo_estimado_minutos)}</span>`;
-            }
-
-            return `
-            <div style="padding:12px;border-radius:10px;border-left:4px solid ${prioColor};background:rgba(255,255,255,0.03);margin-bottom:8px;">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-                    <div style="flex:1;">
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                            ${t.codigo_tarea ? `<span style="font-size:0.68rem;font-weight:700;color:var(--accent-primary);background:rgba(99,102,241,0.15);padding:2px 8px;border-radius:6px;">${t.codigo_tarea}</span>` : ''}
-                            <span style="font-weight:700;font-size:0.9rem;">${t.titulo}</span>
-                            <span style="font-size:0.7rem;padding:2px 6px;border-radius:6px;background:${prioColor}22;color:${prioColor};">${t.prioridad.toUpperCase()}</span>
-                        </div>
-                        <div style="display:flex;gap:12px;margin-top:4px;align-items:center;">
-                            <span style="font-size:0.72rem;">${estadoTexto}</span>
-                            ${tiempoInfo}
-                            <span style="font-size:0.68rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_creacion)}</span>
-                        </div>
-                    </div>
-                    <div>${acciones}</div>
-                </div>
-            </div>`;
-        }).join('');
-
-        // Iniciar cronómetros para tareas en proceso
-        misTareas.filter(t => t.estado === 'en_proceso' && t.fecha_inicio).forEach(t => {
-            const el = document.getElementById(`sup-crono-${t.id_tarea}`);
-            if (el) {
-                const inicio = new Date(t.fecha_inicio);
-                const intervalo = setInterval(() => {
-                    const segs = Math.round((Date.now() - inicio.getTime()) / 1000);
-                    const h = String(Math.floor(segs/3600)).padStart(2,'0');
-                    const m = String(Math.floor((segs%3600)/60)).padStart(2,'0');
-                    const s = String(segs%60).padStart(2,'0');
-                    if (el) el.textContent = `${h}:${m}:${s}`;
-                }, 1000);
-                cronoIntervalos[`sup-${t.id_tarea}`] = intervalo;
-            }
-        });
+            containerLista.innerHTML = tareasVista.length 
+                ? renderTareasSupCards(tareasVista) 
+                : '<p style="color:var(--text-muted);font-size:0.85rem;">No hay tareas en este filtro</p>';
+            iniciarCronosSupervisor(tareasVista);
+        }
     } catch(err) {
         console.error('Error cargando tareas asignadas supervisor:', err);
     }
+}
+
+function filtrarMisTareasSup(estado) {
+    // Toggle: si ya está seleccionado, quitar filtro
+    if (window.SUP_FILTRO_MIS_TAREAS === estado) {
+        window.SUP_FILTRO_MIS_TAREAS = null;
+    } else {
+        window.SUP_FILTRO_MIS_TAREAS = estado;
+    }
+    // Highlight visual
+    document.querySelectorAll('#panel-sup-tareas .stat-card').forEach(c => c.style.outline = 'none');
+    if (window.SUP_FILTRO_MIS_TAREAS) {
+        const idx = {'pendiente':0,'en_proceso':1,'finalizada':2,'atrasada':3}[window.SUP_FILTRO_MIS_TAREAS];
+        const cards = document.querySelectorAll('#panel-sup-tareas .stat-card');
+        if (cards[idx]) cards[idx].style.outline = '2px solid var(--accent-primary)';
+    }
+    cargarMisTareasAsignadasSupervisor();
+}
+
+function renderTareasSupCards(tareas) {
+    // Cargar config  
+    return tareas.map(t => {
+        const prioColor = { 'urgente':'#ef4444','alta':'#f97316','media':'#6366f1','baja':'#10b981' }[t.prioridad] || '#6366f1';
+        const estadoTexto = { 'pendiente':'🟡 Pendiente','en_proceso':'🔵 En Proceso','atrasada':'🔴 Atrasada',
+            'finalizada':'🟢 Finalizada','finalizada_atrasada':'🟠 Fin. Atrasada' }[t.estado] || t.estado;
+
+        let acciones = '';
+        if (t.estado === 'pendiente') {
+            acciones = `<button class="btn btn-sm" style="background:#10b981;color:white;font-weight:600;" onclick="event.stopPropagation(); iniciarTareaEmpleado('${t.id_tarea}')">▶ Iniciar</button>`;
+        } else if (t.estado === 'en_proceso') {
+            acciones = `
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span id="sup-crono-${t.id_tarea}" style="font-family:monospace;font-size:0.9rem;color:#00ff88;font-weight:700;">00:00:00</span>
+                    <button class="btn btn-sm" style="background:#ef4444;color:white;font-weight:600;" onclick="event.stopPropagation(); completarTareaEmpleado('${t.id_tarea}')">⏹ Finalizar</button>
+                </div>`;
+        }
+
+        // Evidencias
+        let evidenciaBtns = '';
+        const reqEv = t.requiere_evidencia === 1 || t.requiere_evidencia === '1' || t.requiere_evidencia === true;
+        if (reqEv && t.estado === 'en_proceso') {
+            const cantEv = t.total_evidencias || 0;
+            evidenciaBtns = `
+                <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;">
+                    <button class="btn-crono" onclick="event.stopPropagation(); subirImagenRapida('${t.id_tarea}')" style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:8px;font-size:0.75rem;border:none;cursor:pointer;">
+                        📸 Subir Foto
+                    </button>
+                    <span style="font-size:0.7rem;color:${cantEv > 0 ? '#10b981' : '#ef4444'};font-weight:700;">
+                        ${cantEv > 0 ? '✅ ' + cantEv + ' foto(s)' : '⚠️ Sin fotos (obligatorio)'}
+                    </span>
+                </div>`;
+        }
+
+        let tiempoInfo = '';
+        if (t.tiempo_estimado_minutos) tiempoInfo = `<span style="font-size:0.72rem;color:var(--text-muted);">⏳ Est: ${formatearTiempo(t.tiempo_estimado_minutos)}</span>`;
+
+        let tiempoRealStr = '';
+        if ((t.estado === 'finalizada' || t.estado === 'finalizada_atrasada') && t.fecha_inicio && t.fecha_fin) {
+            const segs = Math.round((new Date(t.fecha_fin) - new Date(t.fecha_inicio)) / 1000);
+            tiempoRealStr = `<span style="font-size:0.72rem;color:#00ff88;font-weight:600;">⏱ ${formatearCronoAdmin(segs)}</span>`;
+        }
+
+        return `
+        <div style="padding:12px;border-radius:10px;border-left:4px solid ${prioColor};background:rgba(255,255,255,0.03);margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                <div style="flex:1;">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        ${t.codigo_tarea ? `<span style="font-size:0.68rem;font-weight:700;color:var(--accent-primary);background:rgba(99,102,241,0.15);padding:2px 8px;border-radius:6px;">${t.codigo_tarea}</span>` : ''}
+                        <span style="font-weight:700;font-size:0.9rem;">${t.titulo}</span>
+                        <span style="font-size:0.7rem;padding:2px 6px;border-radius:6px;background:${prioColor}22;color:${prioColor};">${t.prioridad.toUpperCase()}</span>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-top:4px;align-items:center;flex-wrap:wrap;">
+                        <span style="font-size:0.72rem;">${estadoTexto}</span>
+                        ${tiempoInfo}
+                        ${tiempoRealStr}
+                        <span style="font-size:0.68rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_creacion)}</span>
+                        ${t.fecha_inicio ? `<span style="font-size:0.68rem;color:#3b82f6;">▶ ${formatearFecha(t.fecha_inicio)}</span>` : ''}
+                        ${t.fecha_fin ? `<span style="font-size:0.68rem;color:#10b981;">✅ ${formatearFecha(t.fecha_fin)}</span>` : ''}
+                    </div>
+                    ${evidenciaBtns}
+                </div>
+                <div>${acciones}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function iniciarCronosSupervisor(tareas) {
+    // Limpiar cronómetros anteriores de supervisor
+    Object.keys(cronoIntervalos).filter(k => k.startsWith('sup-')).forEach(k => {
+        clearInterval(cronoIntervalos[k]);
+        delete cronoIntervalos[k];
+    });
+    tareas.filter(t => t.estado === 'en_proceso' && t.fecha_inicio).forEach(t => {
+        const el = document.getElementById(`sup-crono-${t.id_tarea}`);
+        if (el) {
+            const inicio = new Date(t.fecha_inicio);
+            const intervalo = setInterval(() => {
+                const segs = Math.round((Date.now() - inicio.getTime()) / 1000);
+                const h = String(Math.floor(segs/3600)).padStart(2,'0');
+                const m = String(Math.floor((segs%3600)/60)).padStart(2,'0');
+                const s = String(segs%60).padStart(2,'0');
+                el.textContent = `${h}:${m}:${s}`;
+            }, 1000);
+            cronoIntervalos[`sup-${t.id_tarea}`] = intervalo;
+        }
+    });
 }
 
 async function cargarEmpleadosSupervisor() {
