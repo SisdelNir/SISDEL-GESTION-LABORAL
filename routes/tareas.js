@@ -349,6 +349,13 @@ router.put('/:id/iniciar', verificarToken, async (req, res) => {
             });
         }
 
+        // Notificar al supervisor que su empleado inició la tarea
+        if (tarea.id_supervisor && tarea.id_supervisor !== req.usuario.id_usuario) {
+            await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'tarea_iniciada')`,
+                uuidv4(), tarea.id_supervisor, '▶️ Tarea iniciada', `${req.usuario.nombre} inició la tarea: "${tarea.titulo}"`);
+            if (io) io.to(`user_${tarea.id_supervisor}`).emit('notificacion', { titulo: '▶️ Tarea iniciada', mensaje: `${req.usuario.nombre} inició: "${tarea.titulo}"` });
+        }
+
         registrarAuditoria(tarea.id_empresa, req.usuario.id_usuario, 'INICIAR_TAREA', `Tarea "${tarea.titulo}" iniciada`);
         res.json({ mensaje: 'Tarea iniciada', estado: 'en_proceso', fecha_inicio: ahora });
     } catch (err) {
@@ -411,12 +418,23 @@ router.put('/:id/finalizar', verificarToken, async (req, res) => {
                 tarea.id_empleado, req.params.id, puntos, motivo, `Tarea "${tarea.titulo}" ${estadoFinal === 'finalizada' ? 'a tiempo' : 'atrasada'}`);
         }
 
+        const io = req.app.get('io');
+
+        // Notificar al supervisor (si un empleado completó la tarea)
         if (tarea.id_supervisor) {
             await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'tarea_finalizada')`,
-                uuidv4(), tarea.id_supervisor, '✅ Tarea finalizada', `La tarea "${tarea.titulo}" fue finalizada`);
+                uuidv4(), tarea.id_supervisor, '✅ Tarea finalizada', `La tarea "${tarea.titulo}" fue completada ${estadoFinal === 'finalizada' ? 'a tiempo ✅' : 'con retraso ⚠️'}`);
+            if (io) io.to(`user_${tarea.id_supervisor}`).emit('notificacion', { titulo: '✅ Tarea finalizada', mensaje: `"${tarea.titulo}" completada` });
         }
 
-        const io = req.app.get('io');
+        // Notificar al admin (toda tarea completada sube al admin)
+        const admins = await db.all('SELECT id_usuario FROM usuarios WHERE id_empresa = ? AND rol = ? AND estado = 1', tarea.id_empresa, 'ADMIN');
+        for (const admin of admins) {
+            await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'tarea_finalizada')`,
+                uuidv4(), admin.id_usuario, '✅ Tarea completada', `"${tarea.titulo}" finalizada por ${req.usuario.nombre}`);
+            if (io) io.to(`user_${admin.id_usuario}`).emit('notificacion', { titulo: '✅ Tarea completada', mensaje: `"${tarea.titulo}" por ${req.usuario.nombre}` });
+        }
+
         if (io) {
             io.to(`empresa_${tarea.id_empresa}`).emit('tarea_actualizada', {
                 id_tarea: req.params.id, estado: estadoFinal, fecha_fin: ahora, tiempo_real_segundos: tiempoRealSegundos
