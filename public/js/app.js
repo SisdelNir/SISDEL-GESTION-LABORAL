@@ -48,14 +48,9 @@ function inicializarSocket() {
             if (USUARIO && ['EMPLEADO', 'SUPERVISOR'].includes(USUARIO.rol) && data.id_empleado === USUARIO.id_usuario) {
                 console.log('✅ Tarea asignada al usuario actual, lanzando alerta');
                 lanzarAlertaNuevaTarea(data);
-                if (USUARIO.rol === 'EMPLEADO') {
-                    cargarTareasEmpleado();
-                } else if (USUARIO.rol === 'SUPERVISOR') {
-                    if (typeof cargarTareas === 'function') { cargarTareas(); };
-                    if (typeof cargarMisTareasAsignadasSupervisor === 'function') { cargarMisTareasAsignadasSupervisor(); }
-                }
+                cargarTareasEmpleado(); // Recargar Mis Tareas (funciona para ambos roles)
             } else if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
-                if (typeof cargarTareas === 'function') cargarTareas();
+                // Tarea de equipo, no necesita recargar Mis Tareas
             } else if (USUARIO && USUARIO.rol === 'ADMIN') {
                 if (typeof cargarTareas === 'function') cargarTareas();
             }
@@ -2126,7 +2121,9 @@ async function cargarTareas() {
         if (prioridad) url += `prioridad=${prioridad}&`;
 
         let tareas = await fetchAPI(url);
-        const containerId = USUARIO.rol === 'SUPERVISOR' ? 'sup-lista-tareas' : 'lista-tareas';
+        // Supervisor usa cargarTareasEmpleado() para Mis Tareas, no esta función
+        if (USUARIO.rol === 'SUPERVISOR') return;
+        const containerId = 'lista-tareas';
         const container = document.getElementById(containerId);
         if (!container) return;
 
