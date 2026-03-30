@@ -1250,7 +1250,7 @@ function mostrarAlertaTarea(tarea, tipo) {
 })();
 
 async function verificarAlertasTareas() {
-    if (!USUARIO || USUARIO.rol !== 'EMPLEADO') return;
+    if (!USUARIO || !['EMPLEADO', 'SUPERVISOR'].includes(USUARIO.rol)) return;
     try {
         const tareas = await fetchAPI('/api/tareas');
         const ahora = new Date();
