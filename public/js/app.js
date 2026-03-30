@@ -2667,11 +2667,15 @@ async function mostrarFormularioUsuario(rol) {
     
     if (rol === 'EMPLEADO') {
         grupoJefe.style.display = 'block';
-        labelJefe.textContent = 'Jefe Inmediato (Supervisor) *';
-        selectJefe.setAttribute('required', 'required');
+        labelJefe.textContent = 'Jefe Inmediato (Supervisor)';
+        selectJefe.removeAttribute('required');
         try {
             const supervisores = await fetchAPI('/api/usuarios?rol=SUPERVISOR');
-            selectJefe.innerHTML = '<option value="">-- Seleccionar Supervisor --</option>';
+            selectJefe.innerHTML = '<option value="">-- Sin Supervisor (Directo) --</option>';
+            // Si es GERENTE, agregarse como opción
+            if (USUARIO.rol === 'GERENTE') {
+                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
+            }
             supervisores.forEach(s => selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`);
             // Auto-seleccionar al supervisor que está creando el empleado
             if (USUARIO.rol === 'SUPERVISOR') {
@@ -2680,11 +2684,15 @@ async function mostrarFormularioUsuario(rol) {
         } catch(e) {}
     } else if (rol === 'SUPERVISOR') {
         grupoJefe.style.display = 'block';
-        labelJefe.textContent = 'Jefe Inmediato (Administrador) *';
-        selectJefe.setAttribute('required', 'required');
+        labelJefe.textContent = 'Jefe Inmediato';
+        selectJefe.removeAttribute('required');
         try {
+            // Incluir ADMINs y GERENTEs como posibles jefes de supervisores
             const admins = await fetchAPI('/api/usuarios?rol=ADMIN');
-            selectJefe.innerHTML = '<option value="">-- Seleccionar Administrador --</option>';
+            selectJefe.innerHTML = '<option value="">-- Seleccionar --</option>';
+            if (USUARIO.rol === 'GERENTE') {
+                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
+            }
             admins.forEach(a => selectJefe.innerHTML += `<option value="${a.id_usuario}">${a.nombre}</option>`);
         } catch(e) {}
     } else {
@@ -2698,14 +2706,14 @@ async function mostrarFormularioUsuario(rol) {
 function cerrarModalUsuario() {
     document.getElementById('modal-usuario').style.display = 'none';
     // Refrescar lista
-    if (USUARIO && USUARIO.rol === 'ADMIN') {
+    if (USUARIO && (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE')) {
         const panelActual = document.querySelector('.nav-btn.activo');
         if (panelActual) {
             const panel = panelActual.dataset.panel;
             if (panel === 'supervisores') cargarSupervisores();
             if (panel === 'empleados') cargarEmpleados();
-            cargarDashboardAdmin();
         }
+        cargarEmpleados();
     } else if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
         cargarEmpleadosSupervisor();
         cargarDashboardSupervisor();
