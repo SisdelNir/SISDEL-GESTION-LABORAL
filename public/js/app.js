@@ -1260,32 +1260,29 @@ function mostrarAlertaTarea(tarea, tipo) {
 async function verificarAlertasTareas() {
     if (!USUARIO || !['EMPLEADO', 'SUPERVISOR'].includes(USUARIO.rol)) return;
     try {
-        const tareas = await fetchAPI('/api/tareas');
-        const ahora = new Date();
+        let tareas = await fetchAPI('/api/tareas');
+
+        // Para supervisor: solo alertar por sus propias tareas, no las del equipo
+        if (USUARIO.rol === 'SUPERVISOR') {
+            tareas = tareas.filter(t => t.id_empleado === USUARIO.id_usuario);
+        }
 
         tareas.forEach(t => {
             if (tareasYaAlertadas.has(t.id_tarea)) return;
             if (['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado)) return;
 
-            // Alerta por tarea URGENTE pendiente
-            if (t.prioridad === 'urgente' && t.estado === 'pendiente') {
+            // Alertar por CUALQUIER tarea pendiente nueva (no solo urgente)
+            if (t.estado === 'pendiente') {
                 tareasYaAlertadas.add(t.id_tarea);
-                alertaSonoraYVibracion('urgente');
-                mostrarAlertaTarea(t, 'urgente');
+                const esUrgente = t.prioridad === 'urgente' || t.prioridad === 'alta';
+                alertaSonoraYVibracion(esUrgente ? 'urgente' : 'normal');
+                mostrarAlertaTarea(t, esUrgente ? 'urgente' : 'normal');
                 return;
             }
 
-            // Alerta por hora programada (si la tarea tiene fecha_programada o fecha_vencimiento)
-            const fechaProg = t.fecha_programada || t.fecha_vencimiento;
-            if (fechaProg && t.estado === 'pendiente') {
-                const prog = new Date(fechaProg);
-                const diffMin = (prog - ahora) / 60000;
-                // Alertar si faltan 5 minutos o menos, o ya pasó la hora
-                if (diffMin <= 5 && diffMin > -30) {
-                    tareasYaAlertadas.add(t.id_tarea);
-                    alertaSonoraYVibracion('normal');
-                    mostrarAlertaTarea(t, 'programada');
-                }
+            // Alertar por tarea en_proceso (ya iniciada, pero aún no alertada)
+            if (t.estado === 'en_proceso' || t.estado === 'atrasada') {
+                tareasYaAlertadas.add(t.id_tarea); // Marcar como vista sin alertar
             }
         });
     } catch(e) {}
@@ -1293,10 +1290,20 @@ async function verificarAlertasTareas() {
 
 function iniciarAlertasEmpleado() {
     if (intervaloAlertasEmpleado) clearInterval(intervaloAlertasEmpleado);
-    // Verificar inmediatamente
-    setTimeout(() => verificarAlertasTareas(), 2000);
-    // Luego cada 60 segundos
-    intervaloAlertasEmpleado = setInterval(verificarAlertasTareas, 60000);
+    // Primero: semillar tareas existentes para no alertar en masa al abrir
+    fetchAPI('/api/tareas').then(tareas => {
+        if (USUARIO.rol === 'SUPERVISOR') {
+            tareas = tareas.filter(t => t.id_empleado === USUARIO.id_usuario);
+        }
+        tareas.forEach(t => tareasYaAlertadas.add(t.id_tarea));
+        console.log(`🔕 Semilladas ${tareasYaAlertadas.size} tareas existentes (no alertarán)`);
+        // AHORA sí iniciar polling — solo tareas NUEVAS activarán alerta
+        intervaloAlertasEmpleado = setInterval(verificarAlertasTareas, 30000); // cada 30s
+    }).catch(e => {
+        // Si falla el seed, iniciar polling normal después de 5 segundos
+        setTimeout(() => verificarAlertasTareas(), 5000);
+        intervaloAlertasEmpleado = setInterval(verificarAlertasTareas, 30000);
+    });
 }
 
 async function cargarTareasEmpleado() {
