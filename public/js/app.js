@@ -2632,75 +2632,78 @@ async function eliminarUsuario(idUsuario, nombre) {
 // GESTIÓN DE USUARIOS (Modal)
 // ═══════════════════════════════════════════
 async function mostrarFormularioUsuario(rol) {
-    document.getElementById('usu-rol').value = rol;
-    document.getElementById('modal-usuario-titulo').textContent = `Nuevo ${rol === 'SUPERVISOR' ? 'Supervisor' : 'Empleado'}`;
-    document.getElementById('form-usuario').reset();
-    document.getElementById('form-usuario').style.display = 'block';
-    document.getElementById('resultado-usuario').style.display = 'none';
+    try {
+        document.getElementById('usu-rol').value = rol;
+        document.getElementById('modal-usuario-titulo').textContent = `Nuevo ${rol === 'SUPERVISOR' ? 'Supervisor' : 'Empleado'}`;
+        document.getElementById('form-usuario').reset();
+        document.getElementById('form-usuario').style.display = 'block';
+        document.getElementById('resultado-usuario').style.display = 'none';
 
-    document.getElementById('usu-lada').value = '+52'; // Por defecto
-    if (USUARIO && USUARIO.id_empresa) {
-        fetchAPI(`/api/empresas/${USUARIO.id_empresa}`).then(emp => {
-            if (emp) {
-                // Mapeo básico de países a LADAS por si no hay teléfono guardado
-                const ladas = {
-                    'MX': '+52', 'GT': '+502', 'SV': '+503', 'HN': '+504',
-                    'NI': '+505', 'CR': '+506', 'PA': '+507', 'CO': '+57',
-                    'VE': '+58', 'EC': '+593', 'PE': '+51', 'BO': '+591',
-                    'CL': '+56', 'AR': '+54', 'UY': '+598', 'PY': '+595',
-                    'BR': '+55', 'DO': '+1', 'CU': '+53', 'PR': '+1',
-                    'ES': '+34', 'US': '+1'
-                };
-                if (emp.pais && ladas[emp.pais]) {
-                    document.getElementById('usu-lada').value = ladas[emp.pais];
-                } else if (emp.telefono && emp.telefono.includes(' ')) {
-                    document.getElementById('usu-lada').value = emp.telefono.split(' ')[0];
+        // OPEN MODAL FIRST — before any async calls
+        document.getElementById('modal-usuario').style.display = 'flex';
+
+        document.getElementById('usu-lada').value = '+502'; // Default Guatemala
+        try {
+            if (USUARIO && USUARIO.id_empresa) {
+                const emp = await fetchAPI(`/api/empresas/${USUARIO.id_empresa}`);
+                if (emp) {
+                    const ladas = {
+                        'MX': '+52', 'GT': '+502', 'SV': '+503', 'HN': '+504',
+                        'NI': '+505', 'CR': '+506', 'PA': '+507', 'CO': '+57',
+                        'VE': '+58', 'EC': '+593', 'PE': '+51', 'BO': '+591',
+                        'CL': '+56', 'AR': '+54', 'UY': '+598', 'PY': '+595',
+                        'BR': '+55', 'DO': '+1', 'CU': '+53', 'PR': '+1',
+                        'ES': '+34', 'US': '+1'
+                    };
+                    if (emp.pais && ladas[emp.pais]) {
+                        document.getElementById('usu-lada').value = ladas[emp.pais];
+                    }
                 }
             }
-        }).catch(()=>console.log('No se pudo obtener lada'));
-    }
+        } catch(e) { console.log('No se pudo obtener lada:', e); }
 
-    // Lógica dinámica para jefe inmediato
-    const grupoJefe = document.getElementById('grupo-jefe');
-    const selectJefe = document.getElementById('usu-jefe');
-    const labelJefe = document.getElementById('label-jefe');
-    
-    if (rol === 'EMPLEADO') {
-        grupoJefe.style.display = 'block';
-        labelJefe.textContent = 'Jefe Inmediato (Supervisor)';
-        selectJefe.removeAttribute('required');
-        try {
-            const supervisores = await fetchAPI('/api/usuarios?rol=SUPERVISOR');
+        // Lógica dinámica para jefe inmediato
+        const grupoJefe = document.getElementById('grupo-jefe');
+        const selectJefe = document.getElementById('usu-jefe');
+        const labelJefe = document.getElementById('label-jefe');
+        
+        if (rol === 'EMPLEADO') {
+            grupoJefe.style.display = 'block';
+            labelJefe.textContent = 'Jefe Inmediato (Supervisor)';
+            selectJefe.removeAttribute('required');
             selectJefe.innerHTML = '<option value="">-- Sin Supervisor (Directo) --</option>';
             // Si es GERENTE, agregarse como opción
             if (USUARIO.rol === 'GERENTE') {
                 selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
             }
-            supervisores.forEach(s => selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`);
-            // Auto-seleccionar al supervisor que está creando el empleado
+            try {
+                const supervisores = await fetchAPI('/api/usuarios?rol=SUPERVISOR');
+                supervisores.forEach(s => selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`);
+            } catch(e) { console.log('No se pudo cargar supervisores:', e); }
             if (USUARIO.rol === 'SUPERVISOR') {
                 selectJefe.value = USUARIO.id_usuario;
             }
-        } catch(e) {}
-    } else if (rol === 'SUPERVISOR') {
-        grupoJefe.style.display = 'block';
-        labelJefe.textContent = 'Jefe Inmediato';
-        selectJefe.removeAttribute('required');
-        try {
-            // Incluir ADMINs y GERENTEs como posibles jefes de supervisores
-            const admins = await fetchAPI('/api/usuarios?rol=ADMIN');
+        } else if (rol === 'SUPERVISOR') {
+            grupoJefe.style.display = 'block';
+            labelJefe.textContent = 'Jefe Inmediato';
+            selectJefe.removeAttribute('required');
             selectJefe.innerHTML = '<option value="">-- Seleccionar --</option>';
             if (USUARIO.rol === 'GERENTE') {
                 selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
             }
-            admins.forEach(a => selectJefe.innerHTML += `<option value="${a.id_usuario}">${a.nombre}</option>`);
-        } catch(e) {}
-    } else {
-        grupoJefe.style.display = 'none';
-        selectJefe.removeAttribute('required');
+            try {
+                const admins = await fetchAPI('/api/usuarios?rol=ADMIN');
+                admins.forEach(a => selectJefe.innerHTML += `<option value="${a.id_usuario}">${a.nombre}</option>`);
+            } catch(e) { console.log('No se pudo cargar admins:', e); }
+        } else {
+            grupoJefe.style.display = 'none';
+            selectJefe.removeAttribute('required');
+        }
+    } catch(err) {
+        console.error('Error abriendo formulario usuario:', err);
+        // Asegurar que el modal se abra aún con error
+        document.getElementById('modal-usuario').style.display = 'flex';
     }
-
-    document.getElementById('modal-usuario').style.display = 'flex';
 }
 
 function cerrarModalUsuario() {
