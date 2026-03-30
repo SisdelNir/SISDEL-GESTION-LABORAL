@@ -1242,8 +1242,23 @@ select {
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
-    .header-nav {
+    /* Solo ocultar nav en admin (usa hamburger) */
+    #pantalla-admin .header-nav {
         display: none;
+    }
+    /* Supervisor y Empleado mantienen nav visible en mobile */
+    #pantalla-supervisor .header-nav,
+    #pantalla-empleado .header-nav {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    #pantalla-supervisor .nav-btn,
+    #pantalla-empleado .nav-btn {
+        padding: 6px 10px;
+        font-size: 0.72rem;
+        white-space: nowrap;
     }
 
     .admin-nav-modulo-btn span:not(.modulo-hamburger) {
