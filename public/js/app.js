@@ -1183,43 +1183,89 @@ function alertaSonoraYVibracion(tipo) {
 }
 
 function mostrarAlertaTarea(tarea, tipo) {
-    // Remover alertas previas del mismo tipo
-    const existente = document.getElementById(`alerta-tarea-${tarea.id_tarea}`);
-    if (existente) existente.remove();
+    // Evitar múltiples alertas de la misma tarea
+    if (document.getElementById(`modal-alerta-tarea-${tarea.id_tarea}`)) return;
 
     const esUrgente = tipo === 'urgente';
     const bgGrad = esUrgente
-        ? 'linear-gradient(135deg,rgba(239,68,68,0.95),rgba(220,38,38,0.95))'
-        : 'linear-gradient(135deg,rgba(59,130,246,0.95),rgba(37,99,235,0.95))';
+        ? 'linear-gradient(135deg, rgba(220,38,38,0.98), rgba(153,27,27,0.98))'
+        : 'linear-gradient(135deg, rgba(37,99,235,0.98), rgba(30,58,138,0.98))';
     const emoji = esUrgente ? '🚨' : '⏰';
-    const titulo = esUrgente ? '¡TAREA URGENTE!' : '¡Tarea programada!';
-    const animName = esUrgente ? 'alertaUrgentePulse' : 'alertaNormalPulse';
+    const titulo = esUrgente ? '¡NUEVA TAREA URGENTE!' : '¡NUEVA TAREA ASIGNADA!';
+    const sombra = esUrgente ? 'rgba(239,68,68,0.6)' : 'rgba(59,130,246,0.6)';
 
-    const alerta = document.createElement('div');
-    alerta.id = `alerta-tarea-${tarea.id_tarea}`;
-    alerta.style.cssText = `
-        position:fixed;top:0;left:0;right:0;z-index:9998;padding:14px 20px;
-        background:${bgGrad};color:white;
-        display:flex;align-items:center;gap:12px;
-        box-shadow:0 4px 20px rgba(0,0,0,0.4);
-        animation:${animName} 1s infinite,slideDownAlerta 0.4s ease;
-        cursor:pointer;
+    // Crear overlay de pantalla completa
+    const overlay = document.createElement('div');
+    overlay.id = `modal-alerta-tarea-${tarea.id_tarea}`;
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.85);
+        backdrop-filter: blur(8px);
+        z-index: 99999;
+        display: flex; justify-content: center; align-items: center;
+        opacity: 0; transition: opacity 0.3s ease;
     `;
-    alerta.innerHTML = `
-        <span style="font-size:1.8rem;animation:shakeEmoji 0.5s infinite;">${emoji}</span>
-        <div style="flex:1;">
-            <div style="font-weight:800;font-size:0.9rem;text-transform:uppercase;letter-spacing:1px;">${titulo}</div>
-            <div style="font-size:0.78rem;opacity:0.95;margin-top:2px;">${tarea.titulo}</div>
+
+    // Modal interior
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: ${bgGrad};
+        width: 90%; max-width: 500px;
+        border-radius: 20px;
+        padding: 40px 30px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 20px 50px ${sombra}, inset 0 0 0 1px rgba(255,255,255,0.2);
+        transform: scale(0.9) translateY(20px);
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: modalAlertaPulse 2s infinite;
+    `;
+
+    modal.innerHTML = `
+        <div style="font-size: 5rem; line-height: 1; margin-bottom: 20px; animation: shakeEmoji 0.5s infinite;">
+            ${emoji}
         </div>
-        <button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:6px 14px;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.75rem;">✕ Cerrar</button>
-    `;
-    alerta.onclick = (e) => {
-        if (e.target.tagName !== 'BUTTON') alerta.remove();
-    };
-    document.body.appendChild(alerta);
+        <h2 style="font-size: 1.8rem; font-weight: 900; letter-spacing: 1px; margin: 0 0 10px 0; text-transform: uppercase;">
+            ${titulo}
+        </h2>
+        <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 20px; margin: 25px 0; border: 1px solid rgba(255,255,255,0.1);">
+            <p style="font-size: 1.3rem; font-weight: 700; margin: 0 0 10px 0;">${tarea.titulo}</p>
+            <p style="font-size: 0.95rem; opacity: 0.9; margin: 0;"><strong>Código:</strong> ${tarea.codigo_tarea || '-'}</p>
+            ${tarea.descripcion ? `<p style="font-size: 0.95rem; opacity: 0.9; margin: 10px 0 0 0;">${tarea.descripcion}</p>` : ''}
+        </div>
+        
+        <p style="font-size: 1.1rem; margin-bottom: 30px; font-weight: 500;">
+            ${esUrgente ? 'Esta tarea requiere tu atención inmediata.' : 'Tienes una nueva tarea asignada en tu panel.'}
+        </p>
 
-    // Auto-cerrar después de 8 segundos
-    setTimeout(() => { if (alerta.parentElement) alerta.remove(); }, 8000);
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <button id="btn-cerrar-alerta-${tarea.id_tarea}" style="
+                background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.5);
+                color: white; padding: 14px 28px; border-radius: 12px; font-size: 1.1rem;
+                font-weight: bold; cursor: pointer; transition: all 0.2s;
+            " onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                Aceptar y Cerrar
+            </button>
+        </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Animación de entrada
+    requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+        modal.style.transform = 'scale(1) translateY(0)';
+    });
+
+    // Cerrar
+    document.getElementById(`btn-cerrar-alerta-${tarea.id_tarea}`).onclick = () => {
+        overlay.style.opacity = '0';
+        modal.style.transform = 'scale(0.9) translateY(20px)';
+        setTimeout(() => overlay.remove(), 300);
+    };
+    
+    // NOTA: NO hay setTimeout para auto-cerrar. Exige que el usuario haga clic.
 }
 
 // Inyectar estilos de animación
@@ -1228,22 +1274,14 @@ function mostrarAlertaTarea(tarea, tipo) {
     const style = document.createElement('style');
     style.id = 'alerta-styles';
     style.textContent = `
-        @keyframes alertaUrgentePulse {
-            0%,100% { box-shadow:0 4px 20px rgba(239,68,68,0.4); }
-            50% { box-shadow:0 4px 35px rgba(239,68,68,0.8),0 0 60px rgba(239,68,68,0.3); }
-        }
-        @keyframes alertaNormalPulse {
-            0%,100% { box-shadow:0 4px 20px rgba(59,130,246,0.3); }
-            50% { box-shadow:0 4px 30px rgba(59,130,246,0.6); }
-        }
-        @keyframes slideDownAlerta {
-            from { transform:translateY(-100%); }
-            to { transform:translateY(0); }
+        @keyframes modalAlertaPulse {
+            0%, 100% { box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.2); }
+            50% { box-shadow: 0 20px 70px rgba(255,255,255,0.2), inset 0 0 0 2px rgba(255,255,255,0.4); }
         }
         @keyframes shakeEmoji {
-            0%,100% { transform:rotate(0); }
-            25% { transform:rotate(-10deg); }
-            75% { transform:rotate(10deg); }
+            0%,100% { transform:rotate(0) scale(1); }
+            25% { transform:rotate(-15deg) scale(1.1); }
+            75% { transform:rotate(15deg) scale(1.1); }
         }
     `;
     document.head.appendChild(style);
