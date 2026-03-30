@@ -308,9 +308,8 @@ function abrirPanelPorRol() {
         mostrarPantalla('supervisor');
         document.getElementById('sup-user-name').textContent = USUARIO.nombre;
         document.getElementById('sup-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
-        cargarDashboardSupervisor();
+        cargarTareasEmpleado(); // Igual que empleado
         verificarEstadoCheckin();
-        verificarPermisosSupervisor();
         iniciarAlertasEmpleado(); // Alertas de tareas asignadas al supervisor
     } else if (USUARIO.rol === 'EMPLEADO') {
         mostrarPantalla('empleado');
@@ -726,9 +725,7 @@ function cambiarPanelSupervisor(panel) {
     container.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('activo'));
     container.querySelector(`[data-panel="${panel}"]`).classList.add('activo');
 
-    if (panel === 'sup-dashboard') cargarDashboardSupervisor();
-    if (panel === 'sup-empleados') cargarEmpleadosSupervisor();
-    if (panel === 'sup-tareas') { cargarMisTareasAsignadasSupervisor(); cargarTareas(); cargarEstadisticasTareas(); }
+    if (panel === 'sup-mis-tareas') cargarTareasEmpleado();
     if (panel === 'sup-notificaciones') cargarNotificaciones();
 }
 
@@ -1205,10 +1202,12 @@ async function cargarTareasEmpleado() {
         const finalizadas = tareas.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada').length;
         const atrasadas = tareas.filter(t => t.estado === 'atrasada').length;
 
-        document.getElementById('emp-stat-pendientes').textContent = pendientes;
-        document.getElementById('emp-stat-proceso').textContent = enProceso;
-        document.getElementById('emp-stat-finalizadas').textContent = finalizadas;
-        document.getElementById('emp-stat-atrasadas').textContent = atrasadas;
+        // Usar IDs correctos según rol
+        const prefix = USUARIO.rol === 'SUPERVISOR' ? 'sup' : 'emp';
+        const elP = document.getElementById(`${prefix}-stat-pendientes`); if(elP) elP.textContent = pendientes;
+        const elPr = document.getElementById(`${prefix}-stat-proceso`); if(elPr) elPr.textContent = enProceso;
+        const elF = document.getElementById(`${prefix}-stat-finalizadas`); if(elF) elF.textContent = finalizadas;
+        const elA = document.getElementById(`${prefix}-stat-atrasadas`); if(elA) elA.textContent = atrasadas;
 
         // Limpiar intervalos anteriores
         Object.keys(cronoIntervalos).forEach(k => {
@@ -1216,7 +1215,7 @@ async function cargarTareasEmpleado() {
             delete cronoIntervalos[k];
         });
 
-        const container = document.getElementById('emp-lista-tareas');
+        const container = document.getElementById(`${prefix}-lista-tareas`);
 
         // Solo tareas no completadas
         tareas = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
