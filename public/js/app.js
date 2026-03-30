@@ -727,6 +727,98 @@ function cambiarPanelSupervisor(panel) {
 
     if (panel === 'sup-mis-tareas') cargarTareasEmpleado();
     if (panel === 'sup-notificaciones') cargarNotificaciones();
+    if (panel === 'sup-modulo') { /* no auto-load, user picks section */ }
+}
+
+// ═══ MODU SUPERVISOR: sub-secciones ═══
+function cambiarSeccionModSup(seccion) {
+    document.getElementById('sup-mod-sec-empleados').style.display = seccion === 'empleados' ? '' : 'none';
+    document.getElementById('sup-mod-sec-tareas').style.display = seccion === 'tareas' ? '' : 'none';
+
+    // Resaltar botón activo
+    document.getElementById('sup-mod-btn-empleados').style.opacity = seccion === 'empleados' ? '1' : '0.6';
+    document.getElementById('sup-mod-btn-tareas').style.opacity = seccion === 'tareas' ? '1' : '0.6';
+
+    if (seccion === 'empleados') cargarEmpleadosModSup();
+    if (seccion === 'tareas') filtrarTareasEquipoSup(''); // Cargar todas
+}
+
+async function cargarEmpleadosModSup() {
+    try {
+        const usuarios = await fetchAPI('/api/usuarios?rol=EMPLEADO');
+        const container = document.getElementById('sup-mod-lista-empleados');
+        if (!usuarios.length) {
+            container.innerHTML = '<div class="empty-state"><p>No tienes empleados asignados</p></div>';
+            return;
+        }
+        container.innerHTML = usuarios.map(u => `
+            <div class="user-card glass">
+                <div class="user-card-header">
+                    <div class="user-avatar">${u.nombre.charAt(0)}</div>
+                    <div>
+                        <h4>${u.nombre}</h4>
+                        <span class="badge badge-success">EMPLEADO</span>
+                    </div>
+                </div>
+                <div class="user-card-body">
+                    <span>📞 ${u.telefono || 'N/A'}</span>
+                    <span>📧 ${u.correo || 'N/A'}</span>
+                    <span>🔑 ${u.codigo_acceso}</span>
+                </div>
+            </div>
+        `).join('');
+    } catch(err) {
+        console.error('Error cargando empleados mod sup:', err);
+    }
+}
+
+async function filtrarTareasEquipoSup(estado) {
+    try {
+        let url = '/api/tareas?';
+        if (estado) url += `estado=${estado}&`;
+        // Incluir finalizadas_atrasadas cuando se filtran terminadas
+        let tareas = await fetchAPI(url);
+
+        if (estado === 'finalizada') {
+            try {
+                const atrasadas = await fetchAPI('/api/tareas?estado=finalizada_atrasada');
+                tareas = [...tareas, ...atrasadas];
+            } catch(e) {}
+        }
+
+        const container = document.getElementById('sup-mod-lista-tareas');
+
+        // Excluir tareas propias del supervisor — solo del equipo
+        tareas = tareas.filter(t => t.id_empleado !== USUARIO.id_usuario);
+
+        if (!tareas.length) {
+            container.innerHTML = `<div class="empty-state"><p>No hay tareas ${estado ? 'con estado "' + estado.replace('_',' ') + '"' : ''} en tu equipo</p></div>`;
+            return;
+        }
+
+        container.innerHTML = tareas.map(t => {
+            const estadoColor = t.estado === 'pendiente' ? '#f59e0b' : t.estado === 'en_proceso' ? '#3b82f6' : t.estado === 'atrasada' ? '#ef4444' : '#10b981';
+            const prioColor = t.prioridad === 'urgente' ? '#ef4444' : t.prioridad === 'alta' ? '#f97316' : t.prioridad === 'media' ? '#f59e0b' : '#10b981';
+            
+            return `
+                <div class="glass" style="padding:14px;border-radius:12px;border-left:4px solid ${estadoColor};">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <strong style="font-size:0.9rem;">${t.titulo}</strong>
+                        <span class="badge" style="background:${estadoColor};color:white;font-size:0.68rem;">${t.estado.replace('_',' ').toUpperCase()}</span>
+                    </div>
+                    ${t.descripcion ? `<p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">${t.descripcion}</p>` : ''}
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:0.75rem;">
+                        <span style="background:rgba(59,130,246,0.15);padding:2px 8px;border-radius:6px;">👤 ${t.empleado_nombre || 'Sin asignar'}</span>
+                        <span style="background:${prioColor}22;color:${prioColor};padding:2px 8px;border-radius:6px;font-weight:600;">${t.prioridad.toUpperCase()}</span>
+                        ${t.tiempo_estimado_minutos ? `<span>⏱ ${t.tiempo_estimado_minutos} min</span>` : ''}
+                        ${t.fecha_creacion ? `<span style="color:var(--text-muted);">📅 ${formatearFechaHora(t.fecha_creacion)}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch(err) {
+        console.error('Error filtrando tareas equipo:', err);
+    }
 }
 
 async function cargarDashboardSupervisor() {

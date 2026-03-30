@@ -709,6 +709,7 @@
             <div class="header-center">
                 <nav class="header-nav">
                     <button class="nav-btn activo" data-panel="sup-mis-tareas" onclick="cambiarPanelSupervisor('sup-mis-tareas')">📋 Mis Tareas</button>
+                    <button class="nav-btn" data-panel="sup-modulo" onclick="cambiarPanelSupervisor('sup-modulo')">🛡️ Modu Supervisor</button>
                     <button class="nav-btn" data-panel="sup-notificaciones" onclick="cambiarPanelSupervisor('sup-notificaciones')">🔔</button>
                 </nav>
             </div>
@@ -749,6 +750,49 @@
                 <div id="panel-sup-notificaciones" class="panel">
                     <div class="vista-header"><h3>🔔 Notificaciones</h3></div>
                     <div id="sup-lista-notificaciones"></div>
+                </div>
+
+                <!-- MODU SUPERVISOR (gestión de equipo) -->
+                <div id="panel-sup-modulo" class="panel">
+                    <div class="vista-header"><h3>🛡️ Módulo Supervisor</h3></div>
+
+                    <!-- Botones de sección -->
+                    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                        <button class="btn btn-sm" id="sup-mod-btn-empleados" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="cambiarSeccionModSup('empleados')">
+                            👥 Empleados
+                        </button>
+                        <button class="btn btn-sm" id="sup-mod-btn-tareas" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="cambiarSeccionModSup('tareas')">
+                            📋 Tareas
+                        </button>
+                    </div>
+
+                    <!-- Sección Empleados -->
+                    <div id="sup-mod-sec-empleados" style="display:none;">
+                        <div class="vista-header"><h3>👥 Mis Empleados</h3></div>
+                        <div id="sup-mod-lista-empleados" class="grid-cards"></div>
+                    </div>
+
+                    <!-- Sección Tareas del Equipo -->
+                    <div id="sup-mod-sec-tareas" style="display:none;">
+                        <div class="vista-header"><h3>📋 Tareas del Equipo</h3></div>
+                        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                            <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('pendiente')">
+                                🟡 Pendientes
+                            </button>
+                            <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('en_proceso')">
+                                🔵 En Proceso
+                            </button>
+                            <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('finalizada')">
+                                🟢 Terminadas
+                            </button>
+                            <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#6b7280,#374151);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('')">
+                                📋 Todas
+                            </button>
+                        </div>
+                        <div id="sup-mod-lista-tareas" class="grid-cards">
+                            <div class="empty-state"><p>Selecciona un filtro para ver las tareas</p></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
