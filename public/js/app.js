@@ -2010,6 +2010,10 @@ async function mostrarFormularioUsuario(rol) {
             const supervisores = await fetchAPI('/api/usuarios?rol=SUPERVISOR');
             selectJefe.innerHTML = '<option value="">-- Seleccionar Supervisor --</option>';
             supervisores.forEach(s => selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`);
+            // Auto-seleccionar al supervisor que está creando el empleado
+            if (USUARIO.rol === 'SUPERVISOR') {
+                selectJefe.value = USUARIO.id_usuario;
+            }
         } catch(e) {}
     } else if (rol === 'SUPERVISOR') {
         grupoJefe.style.display = 'block';
