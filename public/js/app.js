@@ -423,6 +423,291 @@ function previsualizarLogo(input) {
     reader.readAsDataURL(file);
 }
 
+// ═══════════════════════════════════════════
+// STEPPER - Navegación
+// ═══════════════════════════════════════════
+let pasoActual = 1;
+const TOTAL_PASOS = 4;
+
+function irPasoStepper(n) {
+    if (n < 1 || n > TOTAL_PASOS) return;
+    // Validar paso actual antes de avanzar
+    if (n > pasoActual && !validarPaso(pasoActual)) return;
+    
+    document.querySelectorAll('.stepper-paso').forEach(p => p.style.display = 'none');
+    document.getElementById(`paso-${n}`).style.display = 'block';
+    
+    // Actualizar indicadores
+    document.querySelectorAll('.step-indicator').forEach((ind, i) => {
+        ind.classList.remove('activo', 'completado');
+        if (i + 1 === n) ind.classList.add('activo');
+        else if (i + 1 < n) ind.classList.add('completado');
+    });
+    document.querySelectorAll('.step-line').forEach((line, i) => {
+        line.classList.toggle('activo', i + 1 < n);
+    });
+    
+    pasoActual = n;
+    
+    // Al entrar al paso 2, cargar departamentos según país
+    if (n === 2) actualizarDepartamentos();
+}
+
+function siguientePaso() { irPasoStepper(pasoActual + 1); }
+function anteriorPaso() { irPasoStepper(pasoActual - 1); }
+
+function validarPaso(n) {
+    if (n === 1) {
+        const nombre = document.getElementById('emp-nombre').value.trim();
+        const pais = document.getElementById('emp-pais').value;
+        if (!nombre) { mostrarToast('Nombre de empresa es requerido', 'error'); return false; }
+        if (!pais) { mostrarToast('Selecciona un país', 'error'); return false; }
+        return true;
+    }
+    if (n === 3) {
+        const dir = document.getElementById('emp-director-general').value.trim();
+        if (!dir) { mostrarToast('Director General es requerido', 'error'); return false; }
+        return true;
+    }
+    return true;
+}
+
+// ═══════════════════════════════════════════
+// DEPARTAMENTOS / MUNICIPIOS POR PAÍS
+// ═══════════════════════════════════════════
+const DATOS_PAISES = {
+    GT: {
+        label: 'Departamento', labelM: 'Municipio',
+        deptos: {
+            'Guatemala': ['Guatemala','Mixco','Villa Nueva','San Miguel Petapa','Amatitlán','Chinautla','Santa Catarina Pinula','Villa Canales','Fraijanes','San José Pinula','San Juan Sacatepéquez','San Pedro Ayampuc','San Pedro Sacatepéquez','San Raymundo','Chuarrancho','Palencia'],
+            'Sacatepéquez': ['Antigua Guatemala','Jocotenango','Ciudad Vieja','San Lucas Sacatepéquez','Sumpango','Santo Domingo Xenacoj','Santiago Sacatepéquez'],
+            'Chimaltenango': ['Chimaltenango','San Martín Jilotepeque','San Juan Comalapa','Patzún','Tecpán Guatemala','Patzicía'],
+            'Escuintla': ['Escuintla','Santa Lucía Cotzumalguapa','Siquinalá','Tiquisate','La Democracia','La Gomera','Puerto San José'],
+            'Quetzaltenango': ['Quetzaltenango','Salcajá','Olintepeque','San Carlos Sija','Almolonga','Cantel','Coatepeque','Colomba','San Juan Ostuncalco'],
+            'Huehuetenango': ['Huehuetenango','Chiantla','Santa Cruz Barillas','Jacaltenango','Soloma','San Pedro Necta'],
+            'San Marcos': ['San Marcos','San Pedro Sacatepéquez','Malacatán','Pajapita','Ayutla','Catarina'],
+            'Alta Verapaz': ['Cobán','San Pedro Carchá','San Cristóbal Verapaz','Tactic','Tucurú','Chahal'],
+            'Baja Verapaz': ['Salamá','Rabinal','Cubulco','Granados','Purulhá','San Miguel Chicaj'],
+            'Petén': ['Flores','San Benito','Santa Elena','La Libertad','San Francisco','Sayaxché','Melchor de Mencos'],
+            'Izabal': ['Puerto Barrios','Livingston','Morales','Los Amates','El Estor'],
+            'Zacapa': ['Zacapa','Estanzuela','Río Hondo','Gualán','Teculután','Huité'],
+            'Chiquimula': ['Chiquimula','Esquipulas','Jocotán','Camotán','Olopa','Quezaltepeque'],
+            'Jalapa': ['Jalapa','San Pedro Pinula','Monjas','San Manuel Chaparrón'],
+            'Jutiapa': ['Jutiapa','Asunción Mita','Santa Catarina Mita','Agua Blanca','Moyuta','El Progreso'],
+            'Santa Rosa': ['Cuilapa','Barberena','Santa Rosa de Lima','Guazacapán','Chiquimulilla','Taxisco'],
+            'Sololá': ['Sololá','Panajachel','Santiago Atitlán','San Pedro La Laguna','San Lucas Tolimán'],
+            'Totonicapán': ['Totonicapán','San Cristóbal Totonicapán','Momostenango','San Francisco El Alto'],
+            'Quiché': ['Santa Cruz del Quiché','Chichicastenango','Nebaj','Uspantán','Sacapulas','Joyabaj'],
+            'Suchitepéquez': ['Mazatenango','San Antonio Suchitepéquez','Chicacao','Patulul','Santo Tomás La Unión'],
+            'Retalhuleu': ['Retalhuleu','Champerico','San Sebastián','Santa Cruz Muluá','San Martín Zapotitlán'],
+            'El Progreso': ['Guastatoya','Morazán','San Agustín Acasaguastlán','San Cristóbal Acasaguastlán','El Jícaro','Sansare']
+        }
+    },
+    MX: {
+        label: 'Estado', labelM: 'Municipio',
+        deptos: {
+            'Aguascalientes': ['Aguascalientes','Jesús María','Calvillo','Rincón de Romos'],
+            'Baja California': ['Tijuana','Mexicali','Ensenada','Rosarito','Tecate'],
+            'Baja California Sur': ['La Paz','Los Cabos','Comondú','Loreto'],
+            'Campeche': ['Campeche','Ciudad del Carmen','Champotón','Calkiní'],
+            'Chiapas': ['Tuxtla Gutiérrez','San Cristóbal de las Casas','Tapachula','Comitán','Palenque'],
+            'Chihuahua': ['Chihuahua','Ciudad Juárez','Delicias','Cuauhtémoc','Parral'],
+            'Ciudad de México': ['Álvaro Obregón','Benito Juárez','Coyoacán','Cuauhtémoc','Gustavo A. Madero','Iztapalapa','Miguel Hidalgo','Tlalpan','Xochimilco'],
+            'Coahuila': ['Saltillo','Torreón','Monclova','Piedras Negras','Acuña'],
+            'Colima': ['Colima','Manzanillo','Tecomán','Villa de Álvarez'],
+            'Durango': ['Durango','Gómez Palacio','Lerdo','Santiago Papasquiaro'],
+            'Estado de México': ['Toluca','Naucalpan','Ecatepec','Tlalnepantla','Nezahualcóyotl','Huixquilucan'],
+            'Guanajuato': ['León','Guanajuato','Irapuato','Celaya','Salamanca','San Miguel de Allende'],
+            'Guerrero': ['Acapulco','Chilpancingo','Iguala','Taxco','Zihuatanejo'],
+            'Hidalgo': ['Pachuca','Tulancingo','Tula','Huejutla'],
+            'Jalisco': ['Guadalajara','Zapopan','Tlaquepaque','Puerto Vallarta','Tonalá','Tlajomulco'],
+            'Michoacán': ['Morelia','Uruapan','Zamora','Lázaro Cárdenas','Pátzcuaro'],
+            'Morelos': ['Cuernavaca','Jiutepec','Cuautla','Temixco'],
+            'Nayarit': ['Tepic','Bahía de Banderas','Compostela','Santiago Ixcuintla'],
+            'Nuevo León': ['Monterrey','San Pedro Garza García','San Nicolás','Guadalupe','Apodaca','Santa Catarina'],
+            'Oaxaca': ['Oaxaca de Juárez','Salina Cruz','Juchitán','Huatulco','Tuxtepec'],
+            'Puebla': ['Puebla','Tehuacán','San Andrés Cholula','Atlixco','San Martín Texmelucan'],
+            'Querétaro': ['Querétaro','San Juan del Río','El Marqués','Corregidora'],
+            'Quintana Roo': ['Cancún','Playa del Carmen','Chetumal','Tulum','Cozumel'],
+            'San Luis Potosí': ['San Luis Potosí','Ciudad Valles','Soledad','Matehuala'],
+            'Sinaloa': ['Culiacán','Mazatlán','Los Mochis','Guasave','Navolato'],
+            'Sonora': ['Hermosillo','Ciudad Obregón','Nogales','Guaymas','Navojoa'],
+            'Tabasco': ['Villahermosa','Cárdenas','Comalcalco','Macuspana'],
+            'Tamaulipas': ['Reynosa','Matamoros','Tampico','Nuevo Laredo','Ciudad Victoria'],
+            'Tlaxcala': ['Tlaxcala','Apizaco','Huamantla','Chiautempan'],
+            'Veracruz': ['Veracruz','Xalapa','Coatzacoalcos','Córdoba','Poza Rica','Boca del Río'],
+            'Yucatán': ['Mérida','Valladolid','Progreso','Tizimín','Umán'],
+            'Zacatecas': ['Zacatecas','Fresnillo','Guadalupe','Jerez','Río Grande']
+        }
+    },
+    SV: {
+        label: 'Departamento', labelM: 'Municipio',
+        deptos: {
+            'San Salvador': ['San Salvador','Mejicanos','Soyapango','Apopa','Ilopango','Ciudad Delgado','Ayutuxtepeque'],
+            'La Libertad': ['Santa Tecla','Antiguo Cuscatlán','Ciudad Arce','Colón','Quezaltepeque','San Juan Opico'],
+            'Santa Ana': ['Santa Ana','Metapán','Chalchuapa','Texistepeque','Candelaria de la Frontera'],
+            'San Miguel': ['San Miguel','Ciudad Barrios','Chinameca','Moncagua'],
+            'Usulután': ['Usulután','Jiquilisco','Santiago de María','Berlín'],
+            'Sonsonate': ['Sonsonate','Izalco','Nahuizalco','Acajutla'],
+            'La Paz': ['Zacatecoluca','San Luis Talpa','Olocuilta','Santiago Nonualco'],
+            'Chalatenango': ['Chalatenango','Nueva Concepción','La Palma','Tejutla'],
+            'Cuscatlán': ['Cojutepeque','Suchitoto','San Pedro Perulapán'],
+            'Ahuachapán': ['Ahuachapán','Atiquizaya','Jujutla','Tacuba'],
+            'San Vicente': ['San Vicente','Tecoluca','Apastepeque'],
+            'La Unión': ['La Unión','Santa Rosa de Lima','Conchagua','El Carmen'],
+            'Morazán': ['San Francisco Gotera','Jocoro','Sociedad','Corinto'],
+            'Cabañas': ['Sensuntepeque','Ilobasco','Victoria','Jutiapa']
+        }
+    },
+    HN: {
+        label: 'Departamento', labelM: 'Municipio',
+        deptos: {
+            'Francisco Morazán': ['Tegucigalpa','Comayagüela','Valle de Ángeles','Santa Lucía'],
+            'Cortés': ['San Pedro Sula','Puerto Cortés','Choloma','La Lima','Villanueva','Omoa'],
+            'Atlántida': ['La Ceiba','Tela','El Porvenir','Jutiapa','San Francisco'],
+            'Comayagua': ['Comayagua','Siguatepeque','La Paz','San Jerónimo'],
+            'Olancho': ['Juticalpa','Catacamas','Campamento','San Francisco de la Paz'],
+            'Choluteca': ['Choluteca','San Marcos de Colón','Pespire','Marcovia'],
+            'Yoro': ['El Progreso','Yoro','Morazán','Olanchito','Santa Rita'],
+            'Copán': ['Santa Rosa de Copán','Copán Ruinas','La Entrada','Florida'],
+            'Lempira': ['Gracias','La Esperanza','Erandique','San Manuel Colohete'],
+            'Intibucá': ['La Esperanza','Intibucá','Jesús de Otoro','San Juan'],
+            'Valle': ['Nacaome','San Lorenzo','Amapala','Langue'],
+            'Santa Bárbara': ['Santa Bárbara','San Pedro Zacapa','Macuelizo','Trinidad'],
+            'La Paz': ['La Paz','Marcala','Santiago Puringla','San Pedro de Tutule'],
+            'Ocotepeque': ['Ocotepeque','Nueva Ocotepeque','La Labor','Sinuapa'],
+            'Colón': ['Trujillo','Tocoa','Sonaguera','Sabá'],
+            'El Paraíso': ['Yuscarán','Danlí','El Paraíso','Trojes'],
+            'Islas de la Bahía': ['Roatán','Utila','Guanaja','José Santos Guardiola'],
+            'Gracias a Dios': ['Puerto Lempira','Brus Laguna','Ahuas','Juan Francisco Bulnes']
+        }
+    }
+};
+
+function actualizarDepartamentos() {
+    const pais = document.getElementById('emp-pais').value;
+    const selDepto = document.getElementById('emp-dir-depto');
+    const selMuni = document.getElementById('emp-dir-muni');
+    const grupoDepto = document.getElementById('grupo-dir-depto');
+    const grupoMuni = document.getElementById('grupo-dir-muni');
+    
+    if (DATOS_PAISES[pais]) {
+        const data = DATOS_PAISES[pais];
+        // Cambiar labels
+        grupoDepto.querySelector('label').textContent = data.label;
+        grupoMuni.querySelector('label').textContent = data.labelM;
+        // Convertir a select
+        selDepto.innerHTML = '<option value="">Seleccionar...</option>';
+        Object.keys(data.deptos).sort().forEach(d => {
+            selDepto.innerHTML += `<option value="${d}">${d}</option>`;
+        });
+        selDepto.disabled = false;
+        selMuni.innerHTML = '<option value="">Seleccionar...</option>';
+    } else {
+        // País sin datos: convertir a texto libre
+        grupoDepto.querySelector('label').textContent = 'Estado / Provincia';
+        grupoMuni.querySelector('label').textContent = 'Ciudad';
+        selDepto.innerHTML = '<option value="">Escribir manualmente...</option>';
+        selMuni.innerHTML = '<option value="">Escribir manualmente...</option>';
+    }
+}
+
+function actualizarMunicipios() {
+    const pais = document.getElementById('emp-pais').value;
+    const depto = document.getElementById('emp-dir-depto').value;
+    const selMuni = document.getElementById('emp-dir-muni');
+    
+    selMuni.innerHTML = '<option value="">Seleccionar...</option>';
+    if (DATOS_PAISES[pais] && DATOS_PAISES[pais].deptos[depto]) {
+        DATOS_PAISES[pais].deptos[depto].forEach(m => {
+            selMuni.innerHTML += `<option value="${m}">${m}</option>`;
+        });
+    }
+}
+
+// ═══════════════════════════════════════════
+// GERENCIAS DINÁMICAS
+// ═══════════════════════════════════════════
+let contadorGerencias = 0;
+
+function agregarGerencia(nombre = '', codigoCostos = '') {
+    contadorGerencias++;
+    const lista = document.getElementById('lista-gerencias');
+    const div = document.createElement('div');
+    div.className = 'gerencia-item';
+    div.id = `gerencia-${contadorGerencias}`;
+    div.innerHTML = `
+        <span style="font-size:1.1rem;">🏢</span>
+        <input type="text" class="ger-nombre" placeholder="Nombre de la gerencia" value="${nombre}" style="flex:2;">
+        <input type="text" class="ger-codigo" placeholder="Cód. costos (opc)" value="${codigoCostos}" style="flex:1;max-width:120px;">
+        <button type="button" class="btn-borrar" onclick="eliminarGerencia(${contadorGerencias})">✕</button>
+    `;
+    lista.appendChild(div);
+    document.getElementById('sin-gerencias-msg').style.display = 'none';
+    // Focus en el nombre si está vacío
+    if (!nombre) div.querySelector('.ger-nombre').focus();
+}
+
+function sugerirGerencia(nombre) {
+    agregarGerencia(nombre);
+    // Marcar botón como usado
+    document.querySelectorAll('.btn-sugerencia').forEach(btn => {
+        if (btn.textContent.includes(nombre.split(' ').pop()) || btn.onclick.toString().includes(nombre)) {
+            btn.classList.add('usada');
+        }
+    });
+    // Buscar y desactivar el correcto
+    document.querySelectorAll('.btn-sugerencia').forEach(btn => {
+        const onclickStr = btn.getAttribute('onclick') || '';
+        if (onclickStr.includes(nombre)) btn.classList.add('usada');
+    });
+}
+
+function eliminarGerencia(id) {
+    const el = document.getElementById(`gerencia-${id}`);
+    if (el) {
+        const nombre = el.querySelector('.ger-nombre').value;
+        el.remove();
+        // Reactivar sugerencia si aplica
+        document.querySelectorAll('.btn-sugerencia').forEach(btn => {
+            const onclickStr = btn.getAttribute('onclick') || '';
+            if (onclickStr.includes(nombre)) btn.classList.remove('usada');
+        });
+    }
+    if (!document.getElementById('lista-gerencias').children.length) {
+        document.getElementById('sin-gerencias-msg').style.display = 'block';
+    }
+}
+
+function obtenerGerencias() {
+    const items = document.querySelectorAll('.gerencia-item');
+    return Array.from(items).map(item => ({
+        nombre: item.querySelector('.ger-nombre').value.trim(),
+        codigo_costos: item.querySelector('.ger-codigo').value.trim() || null
+    })).filter(g => g.nombre);
+}
+
+// ═══════════════════════════════════════════
+// VALIDACIÓN NIT GUATEMALA
+// ═══════════════════════════════════════════
+function validarNIT(input) {
+    const pais = document.getElementById('emp-pais').value;
+    const feedback = document.getElementById('nit-feedback');
+    if (pais !== 'GT' || !input.value.trim()) {
+        feedback.textContent = '';
+        return;
+    }
+    const nit = input.value.replace(/[^0-9kK-]/g, '');
+    if (/^\d{6,10}-?[\dkK]$/.test(nit)) {
+        feedback.textContent = '✅ Formato NIT válido';
+        feedback.style.color = '#10b981';
+    } else {
+        feedback.textContent = '⚠️ Formato: 1234567-8';
+        feedback.style.color = '#f59e0b';
+    }
+}
+
+
 async function crearEmpresa(e) {
     e.preventDefault();
 
@@ -439,11 +724,21 @@ async function crearEmpresa(e) {
         zona_horaria: document.getElementById('emp-zona-horaria').value,
         telefono: telEmpresa ? `${lada} ${telEmpresa}` : '',
         correo: document.getElementById('emp-correo').value.trim(),
-        direccion: document.getElementById('emp-direccion').value.trim(),
+        // Dirección estructurada
+        direccion_departamento: document.getElementById('emp-dir-depto')?.value || '',
+        direccion_municipio: document.getElementById('emp-dir-muni')?.value || '',
+        direccion_zona: document.getElementById('emp-dir-zona')?.value.trim() || '',
+        direccion_exacta: document.getElementById('emp-dir-exacta')?.value.trim() || '',
+        direccion: [document.getElementById('emp-dir-exacta')?.value, document.getElementById('emp-dir-zona')?.value, document.getElementById('emp-dir-muni')?.value, document.getElementById('emp-dir-depto')?.value].filter(Boolean).join(', '),
+        // Director General
+        nombre_director_general: document.getElementById('emp-director-general')?.value.trim() || '',
         nombre_administrador: document.getElementById('admin-nombre').value.trim(),
         admin_identificacion: document.getElementById('admin-identificacion').value.trim(),
         admin_telefono: telAdmin ? `${ladaAdmin} ${telAdmin}` : '',
         admin_correo: document.getElementById('admin-correo').value.trim(),
+        // Gerencias
+        gerencias: obtenerGerencias(),
+        // Config
         permite_supervisor_asignar: document.getElementById('cfg-sup-asignar').checked,
         formato_hora: document.getElementById('cfg-formato-hora').value,
         supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked,
@@ -532,7 +827,16 @@ async function editarEmpresa(id) {
         document.getElementById('emp-nombre').value = empresa.nombre || '';
         document.getElementById('emp-identificacion').value = empresa.identificacion_empresa || '';
         document.getElementById('emp-correo').value = empresa.correo || '';
-        document.getElementById('emp-direccion').value = empresa.direccion || '';
+
+        // Director General
+        const dirGenInput = document.getElementById('emp-director-general');
+        if (dirGenInput) dirGenInput.value = empresa.nombre_director_general || empresa.nombre_administrador || '';
+
+        // Dirección estructurada
+        if (document.getElementById('emp-dir-zona')) {
+            document.getElementById('emp-dir-zona').value = empresa.direccion_zona || '';
+            document.getElementById('emp-dir-exacta').value = empresa.direccion_exacta || '';
+        }
 
         // Logo existente
         const logoPreview = document.getElementById('emp-logo-preview');
@@ -551,11 +855,18 @@ async function editarEmpresa(id) {
         if (paisSel && empresa.pais) {
             paisSel.value = empresa.pais;
             actualizarPais();
+            // Cargar departamentos y seleccionar el guardado
+            setTimeout(() => {
+                actualizarDepartamentos();
+                if (empresa.direccion_departamento) {
+                    document.getElementById('emp-dir-depto').value = empresa.direccion_departamento;
+                    actualizarMunicipios();
+                    if (empresa.direccion_municipio) {
+                        document.getElementById('emp-dir-muni').value = empresa.direccion_municipio;
+                    }
+                }
+            }, 100);
         }
-
-        // Moneda
-        const monedaSel = document.getElementById('emp-moneda');
-        if (monedaSel && empresa.moneda) monedaSel.value = empresa.moneda;
 
         // Zona horaria
         const zonaInput = document.getElementById('emp-zona-horaria');
@@ -572,12 +883,30 @@ async function editarEmpresa(id) {
             }
         }
 
+        // Moneda
+        const monedaSel = document.getElementById('emp-moneda');
+        if (monedaSel && empresa.moneda) monedaSel.value = empresa.moneda;
+
         // Pre-llenar datos del admin
         document.getElementById('admin-nombre').value = empresa.nombre_administrador || '';
         if (document.getElementById('admin-identificacion'))
             document.getElementById('admin-identificacion').value = '';
         if (document.getElementById('admin-correo'))
             document.getElementById('admin-correo').value = '';
+
+        // Cargar gerencias existentes
+        try {
+            const deptos = await fetchAPI(`/api/empresas/${id}/departamentos`);
+            if (Array.isArray(deptos) && deptos.length > 0) {
+                document.getElementById('lista-gerencias').innerHTML = '';
+                document.getElementById('sin-gerencias-msg').style.display = 'none';
+                deptos.forEach(d => agregarGerencia(d.nombre, d.codigo_costos || ''));
+            }
+        } catch(e) { console.error('Error cargando gerencias:', e); }
+
+        // Resetear stepper al paso 1
+        pasoActual = 1;
+        irPasoStepper(1);
 
         // Pre-llenar configuraciones
         if (empresa.configuracion) {
@@ -612,7 +941,12 @@ async function editarEmpresa(id) {
                 zona_horaria: document.getElementById('emp-zona-horaria').value,
                 telefono: tel ? `${lada} ${tel}` : '',
                 correo: document.getElementById('emp-correo').value.trim(),
-                direccion: document.getElementById('emp-direccion').value.trim(),
+                nombre_director_general: document.getElementById('emp-director-general')?.value.trim() || '',
+                direccion_departamento: document.getElementById('emp-dir-depto')?.value || '',
+                direccion_municipio: document.getElementById('emp-dir-muni')?.value || '',
+                direccion_zona: document.getElementById('emp-dir-zona')?.value.trim() || '',
+                direccion_exacta: document.getElementById('emp-dir-exacta')?.value.trim() || '',
+                direccion: [document.getElementById('emp-dir-exacta')?.value, document.getElementById('emp-dir-zona')?.value, document.getElementById('emp-dir-muni')?.value, document.getElementById('emp-dir-depto')?.value].filter(Boolean).join(', '),
                 nombre_administrador: document.getElementById('admin-nombre').value.trim()
             };
 

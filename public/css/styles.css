@@ -1240,6 +1240,51 @@ select {
     50% { transform: scale(1.05); }
 }
 
+/* ─── Stepper Empresa ─── */
+.step-indicator {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: 0.3s;
+}
+.step-indicator span { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; transition: 0.3s; }
+.step-indicator.activo span { color: var(--accent-primary); font-weight: 700; }
+.step-indicator.completado span { color: #10b981; font-weight: 600; }
+.step-circle {
+    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem; border: 2px solid var(--border-color); color: var(--text-muted);
+    background: var(--bg-secondary); transition: all 0.3s;
+}
+.step-indicator.activo .step-circle {
+    border-color: var(--accent-primary); color: white; background: var(--accent-primary);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+.step-indicator.completado .step-circle {
+    border-color: #10b981; color: white; background: #10b981;
+}
+.step-line {
+    flex: 1; height: 2px; background: var(--border-color); margin: 0 6px; margin-bottom: 18px; transition: 0.3s;
+}
+.step-line.activo { background: var(--accent-primary); }
+.stepper-paso { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.btn-sugerencia {
+    padding: 5px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+    background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.25); color: var(--accent-primary);
+    transition: all 0.2s;
+}
+.btn-sugerencia:hover { background: rgba(99, 102, 241, 0.2); transform: scale(1.05); }
+.btn-sugerencia.usada { opacity: 0.4; pointer-events: none; text-decoration: line-through; }
+.gerencia-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px;
+    background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.15);
+    animation: fadeIn 0.2s ease;
+}
+.gerencia-item input { flex: 1; }
+.gerencia-item .btn-borrar {
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: none; font-size: 0.9rem;
+    transition: 0.2s;
+}
+.gerencia-item .btn-borrar:hover { background: rgba(239, 68, 68, 0.25); }
+
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
     /* Solo ocultar nav en admin (usa hamburger) */

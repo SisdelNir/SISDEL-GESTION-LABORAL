@@ -12,10 +12,12 @@ const { generarCodigoAcceso } = require('../utils/codigoAcceso');
 router.post('/', verificarToken, verificarRoot, async (req, res) => {
     try {
         const {
-            nombre, identificacion_empresa, nombre_administrador,
+            nombre, identificacion_empresa, nombre_administrador, nombre_director_general,
             pais, moneda, zona_horaria, telefono, correo, direccion, logo_url,
+            direccion_departamento, direccion_municipio, direccion_zona, direccion_exacta,
             admin_identificacion, admin_telefono, admin_correo,
-            permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo
+            permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo,
+            gerencias // Array de { nombre, codigo_costos }
         } = req.body;
 
         if (!nombre || !nombre_administrador) {
@@ -27,10 +29,21 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
         const id_config = uuidv4();
         const codigo_admin = await generarCodigoAcceso(nombre);
 
+        const dirGen = nombre_director_general || nombre_administrador;
         await db.run(`
-            INSERT INTO empresas (id_empresa, nombre, identificacion_empresa, nombre_administrador, pais, moneda, zona_horaria, telefono, correo, direccion, codigo_admin, logo_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_empresa, nombre, identificacion_empresa || '', nombre_administrador, pais || 'MX', moneda || 'MXN', zona_horaria || 'America/Mexico_City', telefono || '', correo || '', direccion || '', codigo_admin, logo_url || null);
+            INSERT INTO empresas (id_empresa, nombre, identificacion_empresa, nombre_administrador, nombre_director_general, pais, moneda, zona_horaria, telefono, correo, direccion, direccion_departamento, direccion_municipio, direccion_zona, direccion_exacta, codigo_admin, logo_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, id_empresa, nombre, identificacion_empresa || '', dirGen, dirGen, pais || 'MX', moneda || 'MXN', zona_horaria || 'America/Mexico_City', telefono || '', correo || '', direccion || '', direccion_departamento || null, direccion_municipio || null, direccion_zona || null, direccion_exacta || null, codigo_admin, logo_url || null);
+
+        // Crear gerencias/departamentos
+        if (Array.isArray(gerencias) && gerencias.length > 0) {
+            for (const g of gerencias) {
+                if (!g.nombre || !g.nombre.trim()) continue;
+                await db.run(`
+                    INSERT INTO departamentos (id_departamento, id_empresa, nombre, codigo_costos) VALUES (?, ?, ?, ?)
+                `, uuidv4(), id_empresa, g.nombre.trim(), g.codigo_costos || null);
+            }
+        }
 
         await db.run(`
             INSERT INTO usuarios (id_usuario, id_empresa, identificacion, nombre, telefono, correo, rol, codigo_acceso)
@@ -161,7 +174,8 @@ router.put('/:id', verificarToken, async (req, res) => {
             return res.status(403).json({ error: 'No tienes acceso a esta empresa' });
         }
 
-        const { nombre, identificacion_empresa, pais, moneda, zona_horaria, telefono, correo, direccion, logo_url } = req.body;
+        const { nombre, identificacion_empresa, pais, moneda, zona_horaria, telefono, correo, direccion, logo_url,
+                nombre_director_general, direccion_departamento, direccion_municipio, direccion_zona, direccion_exacta } = req.body;
 
         await db.run(`
             UPDATE empresas SET
@@ -173,9 +187,17 @@ router.put('/:id', verificarToken, async (req, res) => {
                 telefono = COALESCE(?, telefono),
                 correo = COALESCE(?, correo),
                 direccion = COALESCE(?, direccion),
-                logo_url = COALESCE(?, logo_url)
+                logo_url = COALESCE(?, logo_url),
+                nombre_director_general = COALESCE(?, nombre_director_general),
+                nombre_administrador = COALESCE(?, nombre_administrador),
+                direccion_departamento = COALESCE(?, direccion_departamento),
+                direccion_municipio = COALESCE(?, direccion_municipio),
+                direccion_zona = COALESCE(?, direccion_zona),
+                direccion_exacta = COALESCE(?, direccion_exacta)
             WHERE id_empresa = ? AND eliminado = 0
-        `, nombre, identificacion_empresa, pais, moneda, zona_horaria, telefono, correo, direccion, logo_url || null, idEmpresa);
+        `, nombre, identificacion_empresa, pais, moneda, zona_horaria, telefono, correo, direccion, logo_url || null,
+           nombre_director_general || null, nombre_director_general || null,
+           direccion_departamento || null, direccion_municipio || null, direccion_zona || null, direccion_exacta || null, idEmpresa);
 
         registrarAuditoria(idEmpresa, req.usuario.id_usuario, 'EDITAR_EMPRESA', `Empresa actualizada`);
         const empresaActualizada = await db.get('SELECT * FROM empresas WHERE id_empresa = ?', idEmpresa);
@@ -232,6 +254,21 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
         res.json({ mensaje: 'Configuración actualizada', configuracion: config });
     } catch (err) {
         res.status(500).json({ error: 'Error al actualizar configuración' });
+    }
+});
+
+/**
+ * GET /api/empresas/:id/departamentos — Obtener gerencias/departamentos de una empresa
+ */
+router.get('/:id/departamentos', verificarToken, async (req, res) => {
+    try {
+        const deptos = await db.all(
+            'SELECT * FROM departamentos WHERE id_empresa = ? AND estado = 1 ORDER BY nombre',
+            req.params.id
+        );
+        res.json(deptos);
+    } catch (err) {
+        res.status(500).json({ error: 'Error al obtener departamentos' });
     }
 });
 

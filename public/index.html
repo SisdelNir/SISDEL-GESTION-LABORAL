@@ -120,218 +120,259 @@
                     </div>
                     <div class="form-card glass">
                         <form id="form-empresa" onsubmit="crearEmpresa(event)">
-                            <div class="form-section">
-                                <h4 class="section-title">
-                                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12z"/></svg>
-                                    Datos de la Empresa
-                                </h4>
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label for="emp-nombre">Nombre de la Empresa *</label>
-                                        <input type="text" id="emp-nombre" required placeholder="Ej: Constructora del Norte">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="emp-identificacion">Identificación / RFC / NIT</label>
-                                        <input type="text" id="emp-identificacion" placeholder="Ej: CDN-1234567">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="emp-pais">🌎 País *</label>
-                                        <select id="emp-pais" required onchange="actualizarPais()">
-                                            <option value="">Seleccionar país...</option>
-                                            <option value="MX" data-lada="+52" data-moneda="MXN" data-zona="America/Mexico_City">🇲🇽 México</option>
-                                            <option value="GT" data-lada="+502" data-moneda="GTQ" data-zona="America/Guatemala">🇬🇹 Guatemala</option>
-                                            <option value="SV" data-lada="+503" data-moneda="USD" data-zona="America/El_Salvador">🇸🇻 El Salvador</option>
-                                            <option value="HN" data-lada="+504" data-moneda="HNL" data-zona="America/Tegucigalpa">🇭🇳 Honduras</option>
-                                            <option value="NI" data-lada="+505" data-moneda="NIO" data-zona="America/Managua">🇳🇮 Nicaragua</option>
-                                            <option value="CR" data-lada="+506" data-moneda="CRC" data-zona="America/Costa_Rica">🇨🇷 Costa Rica</option>
-                                            <option value="PA" data-lada="+507" data-moneda="PAB" data-zona="America/Panama">🇵🇦 Panamá</option>
-                                            <option value="CO" data-lada="+57" data-moneda="COP" data-zona="America/Bogota">🇨🇴 Colombia</option>
-                                            <option value="VE" data-lada="+58" data-moneda="VES" data-zona="America/Caracas">🇻🇪 Venezuela</option>
-                                            <option value="EC" data-lada="+593" data-moneda="USD" data-zona="America/Guayaquil">🇪🇨 Ecuador</option>
-                                            <option value="PE" data-lada="+51" data-moneda="PEN" data-zona="America/Lima">🇵🇪 Perú</option>
-                                            <option value="BO" data-lada="+591" data-moneda="BOB" data-zona="America/La_Paz">🇧🇴 Bolivia</option>
-                                            <option value="CL" data-lada="+56" data-moneda="CLP" data-zona="America/Santiago">🇨🇱 Chile</option>
-                                            <option value="AR" data-lada="+54" data-moneda="ARS" data-zona="America/Argentina/Buenos_Aires">🇦🇷 Argentina</option>
-                                            <option value="UY" data-lada="+598" data-moneda="UYU" data-zona="America/Montevideo">🇺🇾 Uruguay</option>
-                                            <option value="PY" data-lada="+595" data-moneda="PYG" data-zona="America/Asuncion">🇵🇾 Paraguay</option>
-                                            <option value="BR" data-lada="+55" data-moneda="BRL" data-zona="America/Sao_Paulo">🇧🇷 Brasil</option>
-                                            <option value="DO" data-lada="+1" data-moneda="DOP" data-zona="America/Santo_Domingo">🇩🇴 Rep. Dominicana</option>
-                                            <option value="CU" data-lada="+53" data-moneda="CUP" data-zona="America/Havana">🇨🇺 Cuba</option>
-                                            <option value="PR" data-lada="+1" data-moneda="USD" data-zona="America/Puerto_Rico">🇵🇷 Puerto Rico</option>
-                                            <option value="ES" data-lada="+34" data-moneda="EUR" data-zona="Europe/Madrid">🇪🇸 España</option>
-                                            <option value="US" data-lada="+1" data-moneda="USD" data-zona="America/New_York">🇺🇸 Estados Unidos</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="emp-moneda">💰 Moneda</label>
-                                        <select id="emp-moneda">
-                                            <option value="MXN">MXN - Peso Mexicano</option>
-                                            <option value="GTQ">GTQ - Quetzal</option>
-                                            <option value="USD">USD - Dólar USA</option>
-                                            <option value="HNL">HNL - Lempira</option>
-                                            <option value="NIO">NIO - Córdoba</option>
-                                            <option value="CRC">CRC - Colón</option>
-                                            <option value="PAB">PAB - Balboa</option>
-                                            <option value="COP">COP - Peso Colombiano</option>
-                                            <option value="VES">VES - Bolívar</option>
-                                            <option value="PEN">PEN - Sol</option>
-                                            <option value="BOB">BOB - Boliviano</option>
-                                            <option value="CLP">CLP - Peso Chileno</option>
-                                            <option value="ARS">ARS - Peso Argentino</option>
-                                            <option value="UYU">UYU - Peso Uruguayo</option>
-                                            <option value="PYG">PYG - Guaraní</option>
-                                            <option value="BRL">BRL - Real</option>
-                                            <option value="DOP">DOP - Peso Dominicano</option>
-                                            <option value="EUR">EUR - Euro</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="emp-telefono">Teléfono</label>
-                                        <div style="display:flex;gap:4px;">
-                                            <input type="text" id="emp-lada" style="width:70px;text-align:center;font-weight:600;" readonly value="+52">
-                                            <input type="tel" id="emp-telefono" placeholder="Número de teléfono" style="flex:1;">
+                            <!-- Stepper Progress -->
+                            <div id="stepper-bar" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:28px;padding:0 10px;">
+                                <div class="step-indicator activo" data-step="1" onclick="irPasoStepper(1)">
+                                    <div class="step-circle">1</div>
+                                    <span>Identidad</span>
+                                </div>
+                                <div class="step-line"></div>
+                                <div class="step-indicator" data-step="2" onclick="irPasoStepper(2)">
+                                    <div class="step-circle">2</div>
+                                    <span>Ubicación</span>
+                                </div>
+                                <div class="step-line"></div>
+                                <div class="step-indicator" data-step="3" onclick="irPasoStepper(3)">
+                                    <div class="step-circle">3</div>
+                                    <span>Estructura</span>
+                                </div>
+                                <div class="step-line"></div>
+                                <div class="step-indicator" data-step="4" onclick="irPasoStepper(4)">
+                                    <div class="step-circle">4</div>
+                                    <span>Acceso</span>
+                                </div>
+                            </div>
+
+                            <!-- PASO 1: Identidad Legal -->
+                            <div class="stepper-paso" id="paso-1">
+                                <div class="form-section">
+                                    <h4 class="section-title">🏛️ Identidad Legal</h4>
+                                    <div class="form-grid">
+                                        <div class="form-group">
+                                            <label for="emp-nombre">Nombre de la Empresa *</label>
+                                            <input type="text" id="emp-nombre" required placeholder="Ej: Constructora del Norte">
                                         </div>
+                                        <div class="form-group">
+                                            <label for="emp-identificacion">NIT / RFC / ID Fiscal</label>
+                                            <input type="text" id="emp-identificacion" placeholder="Ej: 1234567-8" oninput="validarNIT(this)">
+                                            <small id="nit-feedback" style="color:var(--text-muted);font-size:0.72rem;"></small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="emp-pais">🌎 País *</label>
+                                            <select id="emp-pais" required onchange="actualizarPais()">
+                                                <option value="">Seleccionar país...</option>
+                                                <option value="MX" data-lada="+52" data-moneda="MXN" data-zona="America/Mexico_City">🇲🇽 México</option>
+                                                <option value="GT" data-lada="+502" data-moneda="GTQ" data-zona="America/Guatemala">🇬🇹 Guatemala</option>
+                                                <option value="SV" data-lada="+503" data-moneda="USD" data-zona="America/El_Salvador">🇸🇻 El Salvador</option>
+                                                <option value="HN" data-lada="+504" data-moneda="HNL" data-zona="America/Tegucigalpa">🇭🇳 Honduras</option>
+                                                <option value="NI" data-lada="+505" data-moneda="NIO" data-zona="America/Managua">🇳🇮 Nicaragua</option>
+                                                <option value="CR" data-lada="+506" data-moneda="CRC" data-zona="America/Costa_Rica">🇨🇷 Costa Rica</option>
+                                                <option value="PA" data-lada="+507" data-moneda="PAB" data-zona="America/Panama">🇵🇦 Panamá</option>
+                                                <option value="CO" data-lada="+57" data-moneda="COP" data-zona="America/Bogota">🇨🇴 Colombia</option>
+                                                <option value="VE" data-lada="+58" data-moneda="VES" data-zona="America/Caracas">🇻🇪 Venezuela</option>
+                                                <option value="EC" data-lada="+593" data-moneda="USD" data-zona="America/Guayaquil">🇪🇨 Ecuador</option>
+                                                <option value="PE" data-lada="+51" data-moneda="PEN" data-zona="America/Lima">🇵🇪 Perú</option>
+                                                <option value="BO" data-lada="+591" data-moneda="BOB" data-zona="America/La_Paz">🇧🇴 Bolivia</option>
+                                                <option value="CL" data-lada="+56" data-moneda="CLP" data-zona="America/Santiago">🇨🇱 Chile</option>
+                                                <option value="AR" data-lada="+54" data-moneda="ARS" data-zona="America/Argentina/Buenos_Aires">🇦🇷 Argentina</option>
+                                                <option value="UY" data-lada="+598" data-moneda="UYU" data-zona="America/Montevideo">🇺🇾 Uruguay</option>
+                                                <option value="PY" data-lada="+595" data-moneda="PYG" data-zona="America/Asuncion">🇵🇾 Paraguay</option>
+                                                <option value="BR" data-lada="+55" data-moneda="BRL" data-zona="America/Sao_Paulo">🇧🇷 Brasil</option>
+                                                <option value="DO" data-lada="+1" data-moneda="DOP" data-zona="America/Santo_Domingo">🇩🇴 Rep. Dominicana</option>
+                                                <option value="CU" data-lada="+53" data-moneda="CUP" data-zona="America/Havana">🇨🇺 Cuba</option>
+                                                <option value="PR" data-lada="+1" data-moneda="USD" data-zona="America/Puerto_Rico">🇵🇷 Puerto Rico</option>
+                                                <option value="ES" data-lada="+34" data-moneda="EUR" data-zona="Europe/Madrid">🇪🇸 España</option>
+                                                <option value="US" data-lada="+1" data-moneda="USD" data-zona="America/New_York">🇺🇸 Estados Unidos</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="emp-moneda">💰 Moneda</label>
+                                            <select id="emp-moneda">
+                                                <option value="MXN">MXN - Peso Mexicano</option>
+                                                <option value="GTQ">GTQ - Quetzal</option>
+                                                <option value="USD">USD - Dólar USA</option>
+                                                <option value="HNL">HNL - Lempira</option>
+                                                <option value="NIO">NIO - Córdoba</option>
+                                                <option value="CRC">CRC - Colón</option>
+                                                <option value="PAB">PAB - Balboa</option>
+                                                <option value="COP">COP - Peso Colombiano</option>
+                                                <option value="VES">VES - Bolívar</option>
+                                                <option value="PEN">PEN - Sol</option>
+                                                <option value="BOB">BOB - Boliviano</option>
+                                                <option value="CLP">CLP - Peso Chileno</option>
+                                                <option value="ARS">ARS - Peso Argentino</option>
+                                                <option value="UYU">UYU - Peso Uruguayo</option>
+                                                <option value="PYG">PYG - Guaraní</option>
+                                                <option value="BRL">BRL - Real</option>
+                                                <option value="DOP">DOP - Peso Dominicano</option>
+                                                <option value="EUR">EUR - Euro</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group full-width">
+                                            <label>🖼️ Logotipo</label>
+                                            <div id="emp-logo-area" style="display:flex;align-items:center;gap:16px;padding:12px;border:2px dashed var(--border-color);border-radius:12px;cursor:pointer;transition:0.3s;" onclick="document.getElementById('emp-logo-input').click()" onmouseover="this.style.borderColor='var(--accent-primary)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                                                <img id="emp-logo-preview" src="" alt="" style="width:60px;height:60px;border-radius:10px;object-fit:cover;display:none;border:2px solid var(--accent-primary);">
+                                                <div id="emp-logo-text" style="color:var(--text-muted);font-size:0.85rem;">📤 Click para subir logotipo (JPG, PNG, WebP)</div>
+                                            </div>
+                                            <input type="file" id="emp-logo-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previsualizarLogo(this)">
+                                        </div>
+                                        <input type="hidden" id="emp-zona-horaria" value="America/Mexico_City">
                                     </div>
-                                    <div class="form-group">
-                                        <label for="emp-correo">Correo Electrónico</label>
-                                        <input type="email" id="emp-correo" placeholder="empresa@correo.com">
-                                    </div>
-                                    <div class="form-group full-width">
-                                        <label for="emp-direccion">Dirección</label>
-                                        <input type="text" id="emp-direccion" placeholder="Calle, número, ciudad, estado">
-                                    </div>
-                                    <div class="form-group full-width">
-                                        <label>🖼️ Logotipo de la Empresa</label>
-                                        <div id="emp-logo-area" style="display:flex;align-items:center;gap:16px;padding:12px;border:2px dashed var(--border-color);border-radius:12px;cursor:pointer;transition:0.3s;" onclick="document.getElementById('emp-logo-input').click()" onmouseover="this.style.borderColor='var(--accent-primary)'" onmouseout="this.style.borderColor='var(--border-color)'">
-                                            <img id="emp-logo-preview" src="" alt="" style="width:60px;height:60px;border-radius:10px;object-fit:cover;display:none;border:2px solid var(--accent-primary);">
-                                            <div id="emp-logo-text" style="color:var(--text-muted);font-size:0.85rem;">
-                                                📤 Click para subir logotipo (JPG, PNG, WebP)
+                                </div>
+                                <div class="form-actions" style="justify-content:flex-end;">
+                                    <button type="button" class="btn btn-primary" onclick="siguientePaso()">Siguiente →</button>
+                                </div>
+                            </div>
+
+                            <!-- PASO 2: Ubicación y Contacto -->
+                            <div class="stepper-paso" id="paso-2" style="display:none;">
+                                <div class="form-section">
+                                    <h4 class="section-title">📍 Ubicación y Contacto</h4>
+                                    <div class="form-grid">
+                                        <div class="form-group" id="grupo-dir-depto">
+                                            <label for="emp-dir-depto">Departamento / Estado</label>
+                                            <select id="emp-dir-depto" onchange="actualizarMunicipios()">
+                                                <option value="">Seleccionar...</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group" id="grupo-dir-muni">
+                                            <label for="emp-dir-muni">Municipio / Ciudad</label>
+                                            <select id="emp-dir-muni">
+                                                <option value="">Seleccionar...</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="emp-dir-zona">Zona / Colonia</label>
+                                            <input type="text" id="emp-dir-zona" placeholder="Ej: Zona 10, Col. Del Valle">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="emp-dir-exacta">Dirección Exacta</label>
+                                            <input type="text" id="emp-dir-exacta" placeholder="Calle, número, edificio">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="emp-telefono">Teléfono</label>
+                                            <div style="display:flex;gap:4px;">
+                                                <input type="text" id="emp-lada" style="width:70px;text-align:center;font-weight:600;" readonly value="+52">
+                                                <input type="tel" id="emp-telefono" placeholder="Número de teléfono" style="flex:1;">
                                             </div>
                                         </div>
-                                        <input type="file" id="emp-logo-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previsualizarLogo(this)">
+                                        <div class="form-group">
+                                            <label for="emp-correo">Correo Electrónico</label>
+                                            <input type="email" id="emp-correo" placeholder="empresa@correo.com">
+                                        </div>
+                                        <input type="hidden" id="emp-direccion" value="">
                                     </div>
-                                    <input type="hidden" id="emp-zona-horaria" value="America/Mexico_City">
+                                </div>
+                                <div class="form-actions" style="justify-content:space-between;">
+                                    <button type="button" class="btn btn-ghost" onclick="anteriorPaso()">← Anterior</button>
+                                    <button type="button" class="btn btn-primary" onclick="siguientePaso()">Siguiente →</button>
                                 </div>
                             </div>
 
-                            <div class="form-divider"></div>
-
-                            <div class="form-section">
-                                <h4 class="section-title">
-                                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                                    Datos del Administrador
-                                </h4>
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label for="admin-nombre">Nombre del Administrador *</label>
-                                        <input type="text" id="admin-nombre" required placeholder="Nombre completo">
+                            <!-- PASO 3: Estructura Organizacional -->
+                            <div class="stepper-paso" id="paso-3" style="display:none;">
+                                <div class="form-section">
+                                    <h4 class="section-title">🏗️ Estructura Organizacional</h4>
+                                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Director General → Gerencias → Supervisores → Empleados</p>
+                                    <div class="form-group" style="margin-bottom:20px;">
+                                        <label for="emp-director-general">👔 Director General *</label>
+                                        <input type="text" id="emp-director-general" required placeholder="Nombre completo del Director General">
                                     </div>
-                                    <div class="form-group">
-                                        <label for="admin-identificacion">Identificación</label>
-                                        <input type="text" id="admin-identificacion" placeholder="INE / Cédula">
+                                    <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+                                        <label style="font-weight:700;font-size:0.9rem;">🏢 Gerencias</label>
+                                        <button type="button" class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:6px 14px;border-radius:8px;font-size:0.78rem;" onclick="agregarGerencia()">➕ Agregar</button>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="admin-telefono">Teléfono</label>
-                                        <div style="display:flex;gap:4px;">
-                                            <input type="text" id="admin-lada" style="width:70px;text-align:center;font-weight:600;" readonly value="+52">
-                                            <input type="tel" id="admin-telefono" placeholder="Número de teléfono" style="flex:1;">
-                                        </div>
+                                    <div id="gerencias-sugerencias" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerencia('Gerencia de Contabilidad y Finanzas')">💰 Contabilidad</button>
+                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerencia('Gerencia Operativa')">⚙️ Operativa</button>
+                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerencia('Gerencia de Recursos Humanos')">👥 RRHH</button>
+                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerencia('Gerencia Comercial')">💼 Comercial</button>
+                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerencia('Gerencia de Marketing')">📢 Marketing</button>
+                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerencia('Gerencia de Logística')">🚚 Logística</button>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="admin-correo">Correo</label>
-                                        <input type="email" id="admin-correo" placeholder="admin@correo.com">
-                                    </div>
+                                    <div id="lista-gerencias" style="display:flex;flex-direction:column;gap:8px;"></div>
+                                    <p id="sin-gerencias-msg" style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:16px;border:1px dashed var(--border-color);border-radius:8px;margin-top:8px;">Agrega gerencias usando los botones de arriba</p>
                                 </div>
-                            </div>
-                            <div class="form-divider"></div>
-
-                            <div class="form-section">
-                                <h4 class="section-title">
-                                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.6 3.6 0 0112 15.6z"/></svg>
-                                    Configuración General
-                                </h4>
-                                <div class="form-grid">
-                                    <!-- Formato de hora -->
-                                    <div class="form-group full-width">
-                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(59,130,246,0.08);border-radius:8px;border:1px solid rgba(59,130,246,0.2);">
-                                            <label style="margin:0;font-size:0.85rem;text-transform:none;flex:1;">
-                                                <strong>🕐 Formato de Hora</strong>
-                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Cómo se mostrarán las horas en toda la plataforma</div>
-                                            </label>
-                                            <select id="cfg-formato-hora" style="width:140px;">
-                                                <option value="12h" selected>12 Horas (AM/PM)</option>
-                                                <option value="24h">24 Horas</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <!-- Supervisor puede asignar tareas -->
-                                    <div class="form-group full-width">
-                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(139,92,246,0.08);border-radius:8px;border:1px solid rgba(139,92,246,0.2);">
-                                            <input type="checkbox" id="cfg-sup-asignar" checked style="width:auto;margin:0;transform:scale(1.2);">
-                                            <label for="cfg-sup-asignar" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;">
-                                                <strong>📋 Supervisor puede asignar nuevas tareas</strong>
-                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Si se desactiva, solo el Administrador podrá crear y asignar tareas</div>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Supervisor puede editar/eliminar tareas -->
-                                    <div class="form-group full-width">
-                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(239,68,68,0.08);border-radius:8px;border:1px solid rgba(239,68,68,0.2);">
-                                            <input type="checkbox" id="cfg-sup-modificar" checked style="width:auto;margin:0;transform:scale(1.2);">
-                                            <label for="cfg-sup-modificar" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;">
-                                                <strong>✏️ Supervisor puede modificar tareas</strong>
-                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Si se desactiva, el supervisor entrará en modo lectura y no podrá editar detalles y tampoco eliminar tareas</div>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Supervisor puede ver tareas terminadas -->
-                                    <div class="form-group full-width">
-                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;border:1px solid rgba(16,185,129,0.2);">
-                                            <input type="checkbox" id="cfg-sup-ver-terminadas" checked style="width:auto;margin:0;transform:scale(1.2);">
-                                            <label for="cfg-sup-ver-terminadas" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;">
-                                                <strong>✅ Supervisor ve tareas terminadas y status</strong>
-                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Si se desactiva, el supervisor no verá el listado de tareas finalizadas ni su estado</div>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Empleado puede iniciar tarea -->
-                                    <div class="form-group full-width">
-                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(245,158,11,0.08);border-radius:8px;border:1px solid rgba(245,158,11,0.2);">
-                                            <input type="checkbox" id="cfg-emp-iniciar-tarea" checked style="width:auto;margin:0;transform:scale(1.2);">
-                                            <label for="cfg-emp-iniciar-tarea" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;">
-                                                <strong>▶️ Empleado puede iniciar tarea</strong>
-                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Si está activo, el empleado presiona "Iniciar" para comenzar el cronómetro. Si se desactiva, el cronómetro inicia automáticamente al asignar la tarea</div>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Modalidad de trabajo -->
-                                    <div class="form-group full-width">
-                                        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(59,130,246,0.08);border-radius:8px;border:1px solid rgba(59,130,246,0.2);">
-                                            <label style="margin:0;font-size:0.85rem;text-transform:none;flex:1;">
-                                                <strong>📌 Modalidad de trabajo</strong>
-                                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Cómo trabajan los empleados de esta empresa</div>
-                                            </label>
-                                            <select id="cfg-modalidad-trabajo" style="width:160px;">
-                                                <option value="fijo" selected>📍 Lugar Fijo</option>
-                                                <option value="ruta">🚗 Ruta / Móvil</option>
-                                            </select>
-                                        </div>
-                                    </div>
+                                <div class="form-actions" style="justify-content:space-between;">
+                                    <button type="button" class="btn btn-ghost" onclick="anteriorPaso()">← Anterior</button>
+                                    <button type="button" class="btn btn-primary" onclick="siguientePaso()">Siguiente →</button>
                                 </div>
                             </div>
 
-                            <div class="form-actions">
-                                <button type="button" class="btn btn-ghost" onclick="cambiarVistaRoot('empresas')">Cancelar</button>
-                                <button type="submit" class="btn btn-primary" id="btn-crear-empresa">
-                                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                                    Crear Empresa
-                                </button>
+                            <!-- PASO 4: Acceso y Configuración -->
+                            <div class="stepper-paso" id="paso-4" style="display:none;">
+                                <div class="form-section">
+                                    <h4 class="section-title">🔐 Acceso Maestro (Administrador)</h4>
+                                    <div class="form-grid">
+                                        <div class="form-group">
+                                            <label for="admin-nombre">Nombre del Administrador *</label>
+                                            <input type="text" id="admin-nombre" required placeholder="Nombre completo">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="admin-identificacion">DPI / Cédula</label>
+                                            <input type="text" id="admin-identificacion" placeholder="Número de documento">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="admin-telefono">Teléfono</label>
+                                            <div style="display:flex;gap:4px;">
+                                                <input type="text" id="admin-lada" style="width:70px;text-align:center;font-weight:600;" readonly value="+52">
+                                                <input type="tel" id="admin-telefono" placeholder="Número de teléfono" style="flex:1;">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="admin-correo">Correo</label>
+                                            <input type="email" id="admin-correo" placeholder="admin@correo.com">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-divider"></div>
+                                <div class="form-section">
+                                    <h4 class="section-title">⚙️ Configuración General</h4>
+                                    <div class="form-grid">
+                                        <div class="form-group full-width">
+                                            <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(59,130,246,0.08);border-radius:8px;border:1px solid rgba(59,130,246,0.2);">
+                                                <label style="margin:0;font-size:0.85rem;text-transform:none;flex:1;"><strong>🕐 Formato de Hora</strong><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Cómo se mostrarán las horas</div></label>
+                                                <select id="cfg-formato-hora" style="width:140px;"><option value="12h" selected>12 Horas</option><option value="24h">24 Horas</option></select>
+                                            </div>
+                                        </div>
+                                        <div class="form-group full-width">
+                                            <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(139,92,246,0.08);border-radius:8px;border:1px solid rgba(139,92,246,0.2);">
+                                                <input type="checkbox" id="cfg-sup-asignar" checked style="width:auto;margin:0;transform:scale(1.2);">
+                                                <label for="cfg-sup-asignar" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;"><strong>📋 Supervisor asigna tareas</strong></label>
+                                            </div>
+                                        </div>
+                                        <div class="form-group full-width">
+                                            <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(239,68,68,0.08);border-radius:8px;border:1px solid rgba(239,68,68,0.2);">
+                                                <input type="checkbox" id="cfg-sup-modificar" checked style="width:auto;margin:0;transform:scale(1.2);">
+                                                <label for="cfg-sup-modificar" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;"><strong>✏️ Supervisor modifica tareas</strong></label>
+                                            </div>
+                                        </div>
+                                        <div class="form-group full-width">
+                                            <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;border:1px solid rgba(16,185,129,0.2);">
+                                                <input type="checkbox" id="cfg-sup-ver-terminadas" checked style="width:auto;margin:0;transform:scale(1.2);">
+                                                <label for="cfg-sup-ver-terminadas" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;"><strong>✅ Supervisor ve terminadas</strong></label>
+                                            </div>
+                                        </div>
+                                        <div class="form-group full-width">
+                                            <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(245,158,11,0.08);border-radius:8px;border:1px solid rgba(245,158,11,0.2);">
+                                                <input type="checkbox" id="cfg-emp-iniciar-tarea" checked style="width:auto;margin:0;transform:scale(1.2);">
+                                                <label for="cfg-emp-iniciar-tarea" style="margin:0;font-size:0.85rem;text-transform:none;cursor:pointer;flex:1;"><strong>▶️ Empleado inicia tarea</strong></label>
+                                            </div>
+                                        </div>
+                                        <div class="form-group full-width">
+                                            <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(59,130,246,0.08);border-radius:8px;border:1px solid rgba(59,130,246,0.2);">
+                                                <label style="margin:0;font-size:0.85rem;text-transform:none;flex:1;"><strong>📌 Modalidad de trabajo</strong></label>
+                                                <select id="cfg-modalidad-trabajo" style="width:160px;"><option value="fijo" selected>📍 Lugar Fijo</option><option value="ruta">🚗 Ruta / Móvil</option></select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-actions" style="justify-content:space-between;">
+                                    <button type="button" class="btn btn-ghost" onclick="anteriorPaso()">← Anterior</button>
+                                    <button type="submit" class="btn btn-primary" id="btn-crear-empresa" style="background:linear-gradient(135deg,#10b981,#059669);padding:12px 30px;font-size:0.95rem;">✅ Crear Empresa</button>
+                                </div>
                             </div>
+                        </form>
                         </form>
 
                         <!-- Resultado de creación -->

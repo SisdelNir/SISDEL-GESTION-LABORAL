@@ -457,6 +457,23 @@ async function inicializarDB() {
         await db.run("ALTER TABLE tareas ADD COLUMN codigo_tarea TEXT");
     } catch(e) { /* ya existe */ }
 
+    // Migración: reestructuración empresa (Director General + dirección desglosada)
+    const migracionesEmpresa = [
+        "ALTER TABLE empresas ADD COLUMN nombre_director_general TEXT",
+        "ALTER TABLE empresas ADD COLUMN direccion_departamento TEXT",
+        "ALTER TABLE empresas ADD COLUMN direccion_municipio TEXT",
+        "ALTER TABLE empresas ADD COLUMN direccion_zona TEXT",
+        "ALTER TABLE empresas ADD COLUMN direccion_exacta TEXT",
+        "ALTER TABLE departamentos ADD COLUMN codigo_costos TEXT"
+    ];
+    for (const mig of migracionesEmpresa) {
+        try { await db.run(mig); } catch(e) { /* ya existe */ }
+    }
+    // Migrar nombre_administrador → director_general para empresas existentes
+    try {
+        await db.run("UPDATE empresas SET nombre_director_general = nombre_administrador WHERE nombre_director_general IS NULL AND nombre_administrador IS NOT NULL");
+    } catch(e) {}
+
     await db.exec(`
         CREATE TABLE IF NOT EXISTS auditoria (
             id_auditoria ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
