@@ -131,16 +131,6 @@
                                     <div class="step-circle">2</div>
                                     <span>Ubicación</span>
                                 </div>
-                                <div class="step-line"></div>
-                                <div class="step-indicator" data-step="3" onclick="irPasoStepper(3)">
-                                    <div class="step-circle">3</div>
-                                    <span>Director</span>
-                                </div>
-                                <div class="step-line"></div>
-                                <div class="step-indicator" data-step="4" onclick="irPasoStepper(4)">
-                                    <div class="step-circle">4</div>
-                                    <span>Gerencias</span>
-                                </div>
                             </div>
 
                             <!-- PASO 1: Identidad Legal -->
@@ -208,6 +198,11 @@
                                                 <option value="EUR">EUR - Euro</option>
                                             </select>
                                         </div>
+                                        <div class="form-group full-width" style="border-top:1px solid var(--border-color);padding-top:14px;margin-top:4px;">
+                                            <label for="dg-nombre">👔 Nombre del Director General *</label>
+                                            <input type="text" id="dg-nombre" placeholder="Ej: Juan Carlos Pérez" style="font-weight:600;">
+                                            <small style="color:var(--text-muted);font-size:0.72rem;">Esta persona tendrá acceso total al sistema</small>
+                                        </div>
                                         <div class="form-group full-width">
                                             <label>🖼️ Logotipo</label>
                                             <div id="emp-logo-area" style="display:flex;align-items:center;gap:16px;padding:12px;border:2px dashed var(--border-color);border-radius:12px;cursor:pointer;transition:0.3s;" onclick="document.getElementById('emp-logo-input').click()" onmouseover="this.style.borderColor='var(--accent-primary)'" onmouseout="this.style.borderColor='var(--border-color)'">
@@ -265,73 +260,17 @@
                                 </div>
                                 <div class="form-actions" style="justify-content:space-between;">
                                     <button type="button" class="btn btn-ghost" onclick="anteriorPaso()">← Anterior</button>
-                                    <button type="button" class="btn btn-primary" onclick="siguientePaso()">Siguiente →</button>
-                                </div>
-                            </div>
-
-                            <!-- PASO 3: Director General -->
-                            <div class="stepper-paso" id="paso-3" style="display:none;">
-                                <div class="form-section">
-                                    <h4 class="section-title">👔 Director General</h4>
-                                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Persona responsable de la empresa. Tendrá acceso total al sistema.</p>
-                                    <div class="form-grid">
-                                        <div class="form-group">
-                                            <label for="dg-nombre">Nombre Completo *</label>
-                                            <input type="text" id="dg-nombre" placeholder="Ej: Juan Carlos Pérez">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="dg-identificacion">DPI / Cédula</label>
-                                            <input type="text" id="dg-identificacion" placeholder="Número de documento">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="dg-telefono">Teléfono</label>
-                                            <div style="display:flex;gap:4px;">
-                                                <input type="text" id="dg-lada" style="width:70px;text-align:center;font-weight:600;" readonly value="+52">
-                                                <input type="tel" id="dg-telefono" placeholder="Número de teléfono" style="flex:1;">
-                                            </div>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="dg-correo">Correo Electrónico</label>
-                                            <input type="email" id="dg-correo" placeholder="director@empresa.com">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="dg-profesion">Profesión</label>
-                                            <input type="text" id="dg-profesion" placeholder="Ej: Ing. Industrial">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="form-actions" style="justify-content:space-between;">
-                                    <button type="button" class="btn btn-ghost" onclick="anteriorPaso()">← Anterior</button>
-                                    <button type="button" class="btn btn-primary" onclick="siguientePaso()">Siguiente →</button>
-                                </div>
-                            </div>
-
-                            <!-- PASO 4: Gerencias con Responsables -->
-                            <div class="stepper-paso" id="paso-4" style="display:none;">
-                                <div class="form-section">
-                                    <h4 class="section-title">🏢 Gerencias y Responsables</h4>
-                                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px;">Cada gerencia tendrá su responsable con acceso propio al sistema.</p>
-                                    <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
-                                        <label style="font-weight:700;font-size:0.9rem;">📋 Gerencias</label>
-                                        <button type="button" class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:6px 14px;border-radius:8px;font-size:0.78rem;" onclick="agregarGerenciaCompleta()">➕ Agregar Gerencia</button>
-                                    </div>
-                                    <div id="gerencias-sugerencias" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
-                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaCompleta('Gerencia de Contabilidad y Finanzas')">💰 Contabilidad</button>
-                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaCompleta('Gerencia Operativa')">⚙️ Operativa</button>
-                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaCompleta('Gerencia de Recursos Humanos')">👥 RRHH</button>
-                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaCompleta('Gerencia Comercial')">💼 Comercial</button>
-                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaCompleta('Gerencia de Marketing')">📢 Marketing</button>
-                                        <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaCompleta('Gerencia de Logística')">🚚 Logística</button>
-                                    </div>
-                                    <div id="lista-gerencias-completas" style="display:flex;flex-direction:column;gap:14px;"></div>
-                                    <p id="sin-gerencias-msg" style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:16px;border:1px dashed var(--border-color);border-radius:8px;margin-top:8px;">Agrega gerencias usando los botones de arriba</p>
-                                </div>
-                                <div class="form-actions" style="justify-content:space-between;">
-                                    <button type="button" class="btn btn-ghost" onclick="anteriorPaso()">← Anterior</button>
                                     <button type="submit" class="btn btn-primary" id="btn-crear-empresa" style="background:linear-gradient(135deg,#10b981,#059669);padding:12px 30px;font-size:0.95rem;">✅ Crear Empresa</button>
                                 </div>
                             </div>
 
+                            <!-- Hidden fields for DG (no longer separate steps) -->
+                            <input type="hidden" id="dg-identificacion" value="">
+                            <input type="hidden" id="dg-telefono" value="">
+                            <input type="hidden" id="dg-lada" value="+52">
+                            <input type="hidden" id="dg-correo" value="">
+                            <input type="hidden" id="dg-profesion" value="">
+                            
                         <!-- Resultado de creación -->
                         <div id="resultado-empresa" class="resultado-card" style="display:none;">
                             <div class="resultado-icon">✅</div>
@@ -468,6 +407,7 @@
                     <li onclick="abrirModuloAdmin('auditoria')">Auditoría</li>
                     <li onclick="abrirModuloAdmin('asistencia')">Asistencia</li>
                     <li onclick="abrirModuloAdmin('notificaciones')">Notificaciones</li>
+                    <li onclick="abrirModuloAdmin('configuracion')" id="menu-configuracion" style="border-top:1px solid var(--border-color);margin-top:8px;padding-top:8px;">⚙️ Configuración</li>
                 </ul>
             </div>
         </div>
@@ -699,6 +639,34 @@
                     </div>
                     <div id="audit-accesos-container" class="glass" style="padding:16px;border-radius:var(--radius-lg);display:none;">
                         <div id="audit-accesos-tabla" class="tabla-container"></div>
+                    </div>
+                </div>
+
+                <!-- Configuración (Director General only) -->
+                <div id="panel-configuracion" class="panel">
+                    <div class="vista-header">
+                        <h3>⚙️ Configuración de la Empresa</h3>
+                    </div>
+                    <div class="glass" style="padding:20px;border-radius:var(--radius-lg);margin-bottom:16px;">
+                        <h4 style="margin-bottom:14px;font-size:1rem;">🏢 Gerencias y Responsables</h4>
+                        <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:14px;">Cada gerencia tendrá su responsable con acceso propio al sistema.</p>
+                        <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+                            <label style="font-weight:700;font-size:0.9rem;">📋 Gerencias Activas</label>
+                            <button type="button" class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:6px 14px;border-radius:8px;font-size:0.78rem;" onclick="agregarGerenciaConfig()">➕ Agregar Gerencia</button>
+                        </div>
+                        <div id="config-gerencias-sugerencias" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+                            <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaConfig('Gerencia de Contabilidad y Finanzas')">💰 Contabilidad</button>
+                            <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaConfig('Gerencia Operativa')">⚙️ Operativa</button>
+                            <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaConfig('Gerencia de Recursos Humanos')">👥 RRHH</button>
+                            <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaConfig('Gerencia Comercial')">💼 Comercial</button>
+                            <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaConfig('Gerencia de Marketing')">📢 Marketing</button>
+                            <button type="button" class="btn-sugerencia" onclick="sugerirGerenciaConfig('Gerencia de Logística')">🚚 Logística</button>
+                        </div>
+                        <div id="config-lista-gerencias" style="display:flex;flex-direction:column;gap:14px;"></div>
+                        <p id="config-sin-gerencias" style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:16px;border:1px dashed var(--border-color);border-radius:8px;margin-top:8px;">Cargando gerencias...</p>
+                        <div style="margin-top:16px;text-align:right;">
+                            <button type="button" class="btn btn-primary" style="background:linear-gradient(135deg,#10b981,#059669);padding:10px 24px;" onclick="guardarGerenciasConfig()">💾 Guardar Gerencias</button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -428,7 +428,7 @@ function previsualizarLogo(input) {
 // STEPPER - Navegación
 // ═══════════════════════════════════════════
 let pasoActual = 1;
-const TOTAL_PASOS = 4;
+const TOTAL_PASOS = 2;
 
 function irPasoStepper(n) {
     if (n < 1 || n > TOTAL_PASOS) return;
@@ -461,13 +461,10 @@ function validarPaso(n) {
     if (n === 1) {
         const nombre = document.getElementById('emp-nombre').value.trim();
         const pais = document.getElementById('emp-pais').value;
+        const dirGen = document.getElementById('dg-nombre').value.trim();
         if (!nombre) { mostrarToast('Nombre de empresa es requerido', 'error'); return false; }
         if (!pais) { mostrarToast('Selecciona un país', 'error'); return false; }
-        return true;
-    }
-    if (n === 3) {
-        const dir = document.getElementById('dg-nombre').value.trim();
-        if (!dir) { mostrarToast('Nombre del Director General es requerido', 'error'); return false; }
+        if (!dirGen) { mostrarToast('Nombre del Director General es requerido', 'error'); return false; }
         return true;
     }
     return true;
@@ -1095,6 +1092,7 @@ function cambiarPanelAdmin(panel) {
     if (panel === 'notificaciones') cargarNotificaciones();
     if (panel === 'auditoria') cargarAuditoria();
     if (panel === 'asistencia') cargarAsistenciaAdmin();
+    if (panel === 'configuracion') cargarGerenciasConfig();
 }
 
 // ═══════════════════════════════════════════
@@ -1122,6 +1120,131 @@ function cerrarModulosPanel() {
 function abrirModuloAdmin(panel) {
     cerrarModulosPanel();
     cambiarPanelAdmin(panel);
+}
+
+// ═══════════════════════════════════════════
+// PANEL CONFIGURACIÓN (Gerencias post-login)
+// ═══════════════════════════════════════════
+let configContadorGerencias = 0;
+
+async function cargarGerenciasConfig() {
+    const lista = document.getElementById('config-lista-gerencias');
+    const sinMsg = document.getElementById('config-sin-gerencias');
+    try {
+        const deptos = await fetchAPI('/api/departamentos');
+        lista.innerHTML = '';
+        configContadorGerencias = 0;
+        if (!deptos || deptos.length === 0) {
+            sinMsg.textContent = 'No hay gerencias configuradas. Agrega usando los botones de arriba.';
+            sinMsg.style.display = 'block';
+            return;
+        }
+        sinMsg.style.display = 'none';
+        for (const d of deptos) {
+            agregarGerenciaConfigExistente(d);
+        }
+    } catch(err) {
+        sinMsg.textContent = 'Error cargando gerencias';
+    }
+}
+
+function agregarGerenciaConfigExistente(depto) {
+    configContadorGerencias++;
+    const lista = document.getElementById('config-lista-gerencias');
+    const n = configContadorGerencias;
+    const div = document.createElement('div');
+    div.className = 'gerencia-card-completa';
+    div.id = `config-ger-${n}`;
+    div.dataset.idDepartamento = depto.id_departamento || '';
+    div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;">
+                <span style="font-size:1.1rem;">🏢</span>
+                <input type="text" class="gc-nombre" value="${depto.nombre || ''}" style="flex:1;font-weight:600;font-size:0.95rem;" readonly>
+            </div>
+            ${depto.gerente ? `<span class="empresa-codigo" style="font-size:0.85rem;">${depto.gerente.codigo_acceso}</span>` : ''}
+        </div>
+        ${depto.gerente ? `
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;border-top:1px solid var(--border-color);padding-top:8px;">👤 Responsable: <strong style="color:var(--text-main);">${depto.gerente.nombre}</strong></p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;color:var(--text-muted);">
+            <span>📞 ${depto.gerente.telefono || 'Sin teléfono'}</span>
+            <span>📧 ${depto.gerente.correo || 'Sin correo'}</span>
+        </div>` : '<p style="font-size:0.78rem;color:var(--text-muted);border-top:1px solid var(--border-color);padding-top:8px;">Sin responsable asignado</p>'}
+    `;
+    lista.appendChild(div);
+    document.getElementById('config-sin-gerencias').style.display = 'none';
+}
+
+function agregarGerenciaConfig(nombre = '') {
+    configContadorGerencias++;
+    const lista = document.getElementById('config-lista-gerencias');
+    const n = configContadorGerencias;
+    const div = document.createElement('div');
+    div.className = 'gerencia-card-completa';
+    div.id = `config-ger-${n}`;
+    div.dataset.nueva = 'true';
+    div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;">
+                <span style="font-size:1.1rem;">🏢</span>
+                <input type="text" class="gc-nombre" placeholder="Nombre de la gerencia" value="${nombre}" style="flex:1;font-weight:600;font-size:0.95rem;">
+            </div>
+            <button type="button" style="background:#ef4444;color:white;border:none;border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:0.9rem;" onclick="this.closest('.gerencia-card-completa').remove()">✕</button>
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;border-top:1px solid var(--border-color);padding-top:8px;">👤 Responsable de la Gerencia:</p>
+        <div class="form-grid" style="gap:8px;">
+            <div class="form-group"><label style="font-size:0.75rem;">Nombre *</label><input type="text" class="gc-resp-nombre" placeholder="Nombre del Gerente"></div>
+            <div class="form-group"><label style="font-size:0.75rem;">Teléfono</label><input type="tel" class="gc-resp-telefono" placeholder="Teléfono"></div>
+            <div class="form-group"><label style="font-size:0.75rem;">Correo</label><input type="email" class="gc-resp-correo" placeholder="correo@empresa.com"></div>
+            <div class="form-group"><label style="font-size:0.75rem;">Profesión</label><input type="text" class="gc-resp-profesion" placeholder="Lic. Administración"></div>
+            <div class="form-group full-width"><label style="font-size:0.75rem;">Dirección</label><input type="text" class="gc-resp-direccion" placeholder="Dirección del responsable"></div>
+        </div>
+    `;
+    lista.appendChild(div);
+    document.getElementById('config-sin-gerencias').style.display = 'none';
+    if (!nombre) div.querySelector('.gc-nombre').focus();
+}
+
+function sugerirGerenciaConfig(nombre) {
+    agregarGerenciaConfig(nombre);
+    document.querySelectorAll('#config-gerencias-sugerencias .btn-sugerencia').forEach(btn => {
+        const onclickStr = btn.getAttribute('onclick') || '';
+        if (onclickStr.includes(nombre)) btn.classList.add('usada');
+    });
+}
+
+async function guardarGerenciasConfig() {
+    const nuevas = document.querySelectorAll('.gerencia-card-completa[data-nueva="true"]');
+    if (nuevas.length === 0) {
+        mostrarToast('No hay nuevas gerencias para guardar', 'info');
+        return;
+    }
+    const gerencias = Array.from(nuevas).map(item => ({
+        nombre_gerencia: item.querySelector('.gc-nombre').value.trim(),
+        responsable: {
+            nombre: item.querySelector('.gc-resp-nombre')?.value.trim() || '',
+            telefono: item.querySelector('.gc-resp-telefono')?.value.trim() || '',
+            correo: item.querySelector('.gc-resp-correo')?.value.trim() || '',
+            profesion: item.querySelector('.gc-resp-profesion')?.value.trim() || '',
+            direccion: item.querySelector('.gc-resp-direccion')?.value.trim() || ''
+        }
+    })).filter(g => g.nombre_gerencia);
+
+    if (gerencias.length === 0) {
+        mostrarToast('Ingresa al menos el nombre de una gerencia', 'error');
+        return;
+    }
+    try {
+        const res = await fetchAPI('/api/departamentos/batch', {
+            method: 'POST',
+            body: JSON.stringify({ gerencias })
+        });
+        if (res.error) return mostrarToast(res.error, 'error');
+        mostrarToast(`${res.creados || gerencias.length} gerencia(s) creada(s) ✅`, 'success');
+        cargarGerenciasConfig(); // Refresh
+    } catch(err) {
+        mostrarToast(err.message || 'Error al guardar gerencias', 'error');
+    }
 }
 
 // ═══════════════════════════════════════════
