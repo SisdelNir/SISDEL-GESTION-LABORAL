@@ -10,51 +10,100 @@ const { verificarToken, verificarRol, registrarAuditoria } = require('../middlew
 router.get('/', verificarToken, async (req, res) => {
     try {
         const id_empresa = req.usuario.id_empresa;
+        const esSupervisor = req.usuario.rol === 'SUPERVISOR';
+        const id_sup = req.usuario.id_usuario;
 
-        const totalSupervisores = (await db.get('SELECT COUNT(*) as c FROM usuarios WHERE id_empresa = ? AND rol = ? AND estado = 1', id_empresa, 'SUPERVISOR')).c;
-        const totalEmpleados = (await db.get('SELECT COUNT(*) as c FROM usuarios WHERE id_empresa = ? AND rol = ? AND estado = 1', id_empresa, 'EMPLEADO')).c;
+        let totalSupervisores, totalEmpleados;
+        let tareasTotal, tareasPendientes, tareasEnProceso, tareasFinalizadas, tareasAtrasadas, tareasAtiempo;
+        let actividadReciente, topEmpleados;
 
-        const tareasTotal = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND eliminado = 0', id_empresa)).c;
-        const tareasPendientes = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'pendiente')).c;
-        const tareasEnProceso = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'en_proceso')).c;
-        const tareasFinalizadas = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN (?,?) AND eliminado = 0', id_empresa, 'finalizada', 'finalizada_atrasada')).c;
-        const tareasAtrasadas = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'atrasada')).c;
-        const tareasAtiempo = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'finalizada')).c;
+        if (esSupervisor) {
+            // ══ SUPERVISOR: solo su equipo ══
+            totalSupervisores = 0;
+            totalEmpleados = (await db.get('SELECT COUNT(*) as c FROM usuarios WHERE id_empresa = ? AND rol = ? AND estado = 1 AND id_jefe = ?', id_empresa, 'EMPLEADO', id_sup)).c;
+
+            // Tareas donde este supervisor es el supervisor, creador o empleado
+            const filtroTareas = `id_empresa = ? AND eliminado = 0 AND (id_supervisor = ? OR id_creador = ? OR id_empleado = ?)`;
+            const paramsTareas = [id_empresa, id_sup, id_sup, id_sup];
+
+            tareasTotal = (await db.get(`SELECT COUNT(*) as c FROM tareas WHERE ${filtroTareas}`, ...paramsTareas)).c;
+            tareasPendientes = (await db.get(`SELECT COUNT(*) as c FROM tareas WHERE ${filtroTareas} AND estado = 'pendiente'`, ...paramsTareas)).c;
+            tareasEnProceso = (await db.get(`SELECT COUNT(*) as c FROM tareas WHERE ${filtroTareas} AND estado = 'en_proceso'`, ...paramsTareas)).c;
+            tareasFinalizadas = (await db.get(`SELECT COUNT(*) as c FROM tareas WHERE ${filtroTareas} AND estado IN ('finalizada','finalizada_atrasada')`, ...paramsTareas)).c;
+            tareasAtrasadas = (await db.get(`SELECT COUNT(*) as c FROM tareas WHERE ${filtroTareas} AND estado = 'atrasada'`, ...paramsTareas)).c;
+            tareasAtiempo = (await db.get(`SELECT COUNT(*) as c FROM tareas WHERE ${filtroTareas} AND estado = 'finalizada'`, ...paramsTareas)).c;
+
+            actividadReciente = await db.all(`
+                SELECT h.*, t.titulo as tarea_titulo, u.nombre as usuario_nombre
+                FROM historial_estados_tarea h
+                JOIN tareas t ON h.id_tarea = t.id_tarea
+                LEFT JOIN usuarios u ON h.id_usuario = u.id_usuario
+                WHERE t.id_empresa = ? AND (t.id_supervisor = ? OR t.id_creador = ? OR t.id_empleado = ?)
+                ORDER BY h.fecha DESC LIMIT 10
+            `, id_empresa, id_sup, id_sup, id_sup);
+
+            topEmpleados = await db.all(`
+                SELECT u.nombre, u.id_usuario, 
+                       COUNT(t.id_tarea) as tareas_completadas,
+                       COALESCE(SUM(CASE WHEN t.estado = 'finalizada' THEN 1 ELSE 0 END), 0) as a_tiempo,
+                       COALESCE(SUM(CASE WHEN t.estado = 'finalizada_atrasada' THEN 1 ELSE 0 END), 0) as atrasadas,
+                       COALESCE((SELECT SUM(mp.puntos) FROM movimientos_puntos mp WHERE mp.id_usuario = u.id_usuario), 0) as puntos_total
+                FROM usuarios u
+                LEFT JOIN tareas t ON u.id_usuario = t.id_empleado AND t.estado IN ('finalizada','finalizada_atrasada') AND t.eliminado = 0
+                WHERE u.id_empresa = ? AND u.rol = 'EMPLEADO' AND u.estado = 1 AND u.id_jefe = ?
+                GROUP BY u.id_usuario, u.nombre
+                ORDER BY puntos_total DESC LIMIT 10
+            `, id_empresa, id_sup);
+        } else {
+            // ══ ADMIN: toda la empresa ══
+            totalSupervisores = (await db.get('SELECT COUNT(*) as c FROM usuarios WHERE id_empresa = ? AND rol = ? AND estado = 1', id_empresa, 'SUPERVISOR')).c;
+            totalEmpleados = (await db.get('SELECT COUNT(*) as c FROM usuarios WHERE id_empresa = ? AND rol = ? AND estado = 1', id_empresa, 'EMPLEADO')).c;
+
+            tareasTotal = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND eliminado = 0', id_empresa)).c;
+            tareasPendientes = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'pendiente')).c;
+            tareasEnProceso = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'en_proceso')).c;
+            tareasFinalizadas = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN (?,?) AND eliminado = 0', id_empresa, 'finalizada', 'finalizada_atrasada')).c;
+            tareasAtrasadas = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'atrasada')).c;
+            tareasAtiempo = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'finalizada')).c;
+
+            actividadReciente = await db.all(`
+                SELECT h.*, t.titulo as tarea_titulo, u.nombre as usuario_nombre
+                FROM historial_estados_tarea h
+                JOIN tareas t ON h.id_tarea = t.id_tarea
+                LEFT JOIN usuarios u ON h.id_usuario = u.id_usuario
+                WHERE t.id_empresa = ?
+                ORDER BY h.fecha DESC LIMIT 10
+            `, id_empresa);
+
+            topEmpleados = await db.all(`
+                SELECT u.nombre, u.id_usuario, 
+                       COUNT(t.id_tarea) as tareas_completadas,
+                       COALESCE(SUM(CASE WHEN t.estado = 'finalizada' THEN 1 ELSE 0 END), 0) as a_tiempo,
+                       COALESCE(SUM(CASE WHEN t.estado = 'finalizada_atrasada' THEN 1 ELSE 0 END), 0) as atrasadas,
+                       COALESCE((SELECT SUM(mp.puntos) FROM movimientos_puntos mp WHERE mp.id_usuario = u.id_usuario), 0) as puntos_total
+                FROM usuarios u
+                LEFT JOIN tareas t ON u.id_usuario = t.id_empleado AND t.estado IN ('finalizada','finalizada_atrasada') AND t.eliminado = 0
+                WHERE u.id_empresa = ? AND u.rol = 'EMPLEADO' AND u.estado = 1
+                GROUP BY u.id_usuario, u.nombre
+                ORDER BY puntos_total DESC LIMIT 10
+            `, id_empresa);
+        }
 
         const eficiencia = tareasFinalizadas > 0 ? Math.round((tareasAtiempo / tareasFinalizadas) * 100) : 0;
 
         const hace7dias = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-        const productividad7d = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN (?,?) AND fecha_fin >= ? AND eliminado = 0', id_empresa, 'finalizada', 'finalizada_atrasada', hace7dias)).c;
+        let productividad7d;
+        if (esSupervisor) {
+            productividad7d = (await db.get(`SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN ('finalizada','finalizada_atrasada') AND fecha_fin >= ? AND eliminado = 0 AND (id_supervisor = ? OR id_creador = ? OR id_empleado = ?)`, id_empresa, hace7dias, id_sup, id_sup, id_sup)).c;
+        } else {
+            productividad7d = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN (?,?) AND fecha_fin >= ? AND eliminado = 0', id_empresa, 'finalizada', 'finalizada_atrasada', hace7dias)).c;
+        }
 
         const tiempoPromedio = await db.get('SELECT AVG(st.tiempo_real_segundos) as avg_seg FROM seguimiento_tiempo st JOIN tareas t ON st.id_tarea = t.id_tarea WHERE t.id_empresa = ? AND st.tiempo_real_segundos > 0', id_empresa);
         const avgMinutos = tiempoPromedio && tiempoPromedio.avg_seg ? Math.round(tiempoPromedio.avg_seg / 60) : 0;
 
         const porPrioridad = await db.all(`
             SELECT prioridad, COUNT(*) as total FROM tareas WHERE id_empresa = ? AND eliminado = 0 GROUP BY prioridad
-        `, id_empresa);
-
-        const topEmpleados = await db.all(`
-            SELECT u.nombre, u.id_usuario, 
-                   COUNT(t.id_tarea) as tareas_completadas,
-                   COALESCE(SUM(CASE WHEN t.estado = 'finalizada' THEN 1 ELSE 0 END), 0) as a_tiempo,
-                   COALESCE(SUM(CASE WHEN t.estado = 'finalizada_atrasada' THEN 1 ELSE 0 END), 0) as atrasadas,
-                   COALESCE((SELECT SUM(mp.puntos) FROM movimientos_puntos mp WHERE mp.id_usuario = u.id_usuario), 0) as puntos_total
-            FROM usuarios u
-            LEFT JOIN tareas t ON u.id_usuario = t.id_empleado AND t.estado IN ('finalizada','finalizada_atrasada') AND t.eliminado = 0
-            WHERE u.id_empresa = ? AND u.rol = 'EMPLEADO' AND u.estado = 1
-            GROUP BY u.id_usuario, u.nombre
-            ORDER BY puntos_total DESC
-            LIMIT 10
-        `, id_empresa);
-
-        const actividadReciente = await db.all(`
-            SELECT h.*, t.titulo as tarea_titulo, u.nombre as usuario_nombre
-            FROM historial_estados_tarea h
-            JOIN tareas t ON h.id_tarea = t.id_tarea
-            LEFT JOIN usuarios u ON h.id_usuario = u.id_usuario
-            WHERE t.id_empresa = ?
-            ORDER BY h.fecha DESC
-            LIMIT 10
         `, id_empresa);
 
         const porSupervisor = await db.all(`
