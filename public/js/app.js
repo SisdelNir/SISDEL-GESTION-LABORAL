@@ -2764,7 +2764,7 @@ let CRONOMETRO_INTERVAL = null;
 async function cargarEstadisticasTareas() {
     try {
         const stats = await fetchAPI('/api/tareas/estadisticas');
-        if (USUARIO.rol === 'ADMIN') {
+        if (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE') {
             const elP = document.getElementById('stat-pendientes'); if(elP) elP.textContent = stats.pendientes;
             const elEp = document.getElementById('stat-en-proceso'); if(elEp) elEp.textContent = stats.en_proceso;
             const elF = document.getElementById('stat-finalizadas'); if(elF) elF.textContent = stats.finalizadas;

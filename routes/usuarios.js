@@ -272,7 +272,7 @@ router.put('/:id/rol', verificarToken, verificarRol('ADMIN', 'GERENTE'), async (
 /**
  * POST /api/usuarios/asignar-supervisor
  */
-router.post('/asignar-supervisor', verificarToken, verificarRol('ADMIN'), async (req, res) => {
+router.post('/asignar-supervisor', verificarToken, verificarRol('ADMIN', 'GERENTE'), async (req, res) => {
     try {
         const { id_supervisor, id_empleado } = req.body;
         if (!id_supervisor || !id_empleado) return res.status(400).json({ error: 'Se requiere id_supervisor e id_empleado' });
