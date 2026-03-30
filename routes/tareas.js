@@ -153,8 +153,8 @@ router.get('/', verificarToken, async (req, res) => {
             query += ' AND t.id_empleado = ?';
             params.push(req.usuario.id_usuario);
         } else if (req.usuario.rol === 'SUPERVISOR') {
-            query += ' AND (t.id_supervisor = ? OR t.id_creador = ? OR t.id_empleado = ?)';
-            params.push(req.usuario.id_usuario, req.usuario.id_usuario, req.usuario.id_usuario);
+            query += ' AND (t.id_empleado = ? OR EXISTS (SELECT 1 FROM usuarios emp2 WHERE emp2.id_usuario = t.id_empleado AND emp2.id_jefe = ?))';
+            params.push(req.usuario.id_usuario, req.usuario.id_usuario);
         }
 
         query += ` ORDER BY CASE t.prioridad WHEN 'urgente' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 WHEN 'baja' THEN 4 END, t.fecha_creacion DESC`;
@@ -173,14 +173,27 @@ router.get('/', verificarToken, async (req, res) => {
 router.get('/estadisticas', verificarToken, async (req, res) => {
     try {
         const id_empresa = req.usuario.id_empresa;
+        const esSupervisor = req.usuario.rol === 'SUPERVISOR';
+        const id_sup = req.usuario.id_usuario;
 
-        const total = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND eliminado = 0', id_empresa);
-        const pendientes = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'pendiente');
-        const en_proceso = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'en_proceso');
-        const finalizadas = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN (?,?) AND eliminado = 0', id_empresa, 'finalizada', 'finalizada_atrasada');
-        const atrasadas = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'atrasada');
-        const finAtiempo = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado = ? AND eliminado = 0', id_empresa, 'finalizada');
-        const urgentes = await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND prioridad = ? AND estado NOT IN (?,?) AND eliminado = 0', id_empresa, 'urgente', 'finalizada', 'finalizada_atrasada');
+        let baseQuery, baseParams;
+
+        if (esSupervisor) {
+            // Solo tareas de empleados que reportan al supervisor + tareas propias
+            baseQuery = `FROM tareas t LEFT JOIN usuarios emp ON t.id_empleado = emp.id_usuario WHERE t.id_empresa = ? AND t.eliminado = 0 AND (t.id_empleado = ? OR emp.id_jefe = ?)`;
+            baseParams = [id_empresa, id_sup, id_sup];
+        } else {
+            baseQuery = `FROM tareas t WHERE t.id_empresa = ? AND t.eliminado = 0`;
+            baseParams = [id_empresa];
+        }
+
+        const total = await db.get(`SELECT COUNT(*) as c ${baseQuery}`, ...baseParams);
+        const pendientes = await db.get(`SELECT COUNT(*) as c ${baseQuery} AND t.estado = 'pendiente'`, ...baseParams);
+        const en_proceso = await db.get(`SELECT COUNT(*) as c ${baseQuery} AND t.estado = 'en_proceso'`, ...baseParams);
+        const finalizadas = await db.get(`SELECT COUNT(*) as c ${baseQuery} AND t.estado IN ('finalizada','finalizada_atrasada')`, ...baseParams);
+        const atrasadas = await db.get(`SELECT COUNT(*) as c ${baseQuery} AND t.estado = 'atrasada'`, ...baseParams);
+        const finAtiempo = await db.get(`SELECT COUNT(*) as c ${baseQuery} AND t.estado = 'finalizada'`, ...baseParams);
+        const urgentes = await db.get(`SELECT COUNT(*) as c ${baseQuery} AND t.prioridad = 'urgente' AND t.estado NOT IN ('finalizada','finalizada_atrasada')`, ...baseParams);
 
         const totalFin = finalizadas.c;
         const eficiencia = totalFin > 0 ? Math.round((finAtiempo.c / totalFin) * 100) : 0;

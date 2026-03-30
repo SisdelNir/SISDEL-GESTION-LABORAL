@@ -22,12 +22,12 @@ router.get('/', verificarToken, async (req, res) => {
             totalSupervisores = 0;
             totalEmpleados = (await db.get('SELECT COUNT(*) as c FROM usuarios WHERE id_empresa = ? AND rol = ? AND estado = 1 AND id_jefe = ?', id_empresa, 'EMPLEADO', id_sup)).c;
 
-            // Tareas donde este supervisor es el supervisor, o el empleado tiene a este supervisor como jefe
+            // Tareas ESTRICTAMENTE de empleados que reportan a este supervisor + tareas propias
             const filtroTareas = `
                 t.id_empresa = ? AND t.eliminado = 0 
-                AND (t.id_supervisor = ? OR t.id_empleado = ? OR emp.id_jefe = ?)
+                AND (t.id_empleado = ? OR emp.id_jefe = ?)
             `;
-            const paramsTareas = [id_empresa, id_sup, id_sup, id_sup];
+            const paramsTareas = [id_empresa, id_sup, id_sup];
 
             const countQuery = (condicionEstado) => `
                 SELECT COUNT(*) as c FROM tareas t
@@ -48,9 +48,9 @@ router.get('/', verificarToken, async (req, res) => {
                 JOIN tareas t ON h.id_tarea = t.id_tarea
                 LEFT JOIN usuarios u ON h.id_usuario = u.id_usuario
                 LEFT JOIN usuarios emp ON t.id_empleado = emp.id_usuario
-                WHERE t.id_empresa = ? AND (t.id_supervisor = ? OR t.id_empleado = ? OR emp.id_jefe = ?)
+                WHERE t.id_empresa = ? AND (t.id_empleado = ? OR emp.id_jefe = ?)
                 ORDER BY h.fecha DESC LIMIT 10
-            `, id_empresa, id_sup, id_sup, id_sup);
+            `, id_empresa, id_sup, id_sup);
 
             topEmpleados = await db.all(`
                 SELECT u.nombre, u.id_usuario, 
@@ -109,8 +109,8 @@ router.get('/', verificarToken, async (req, res) => {
                 LEFT JOIN usuarios emp ON t.id_empleado = emp.id_usuario
                 WHERE t.id_empresa = ? AND t.estado IN ('finalizada','finalizada_atrasada') 
                 AND t.fecha_fin >= ? AND t.eliminado = 0 
-                AND (t.id_supervisor = ? OR t.id_empleado = ? OR emp.id_jefe = ?)
-            `, id_empresa, hace7dias, id_sup, id_sup, id_sup)).c;
+                AND (t.id_empleado = ? OR emp.id_jefe = ?)
+            `, id_empresa, hace7dias, id_sup, id_sup)).c;
         } else {
             productividad7d = (await db.get('SELECT COUNT(*) as c FROM tareas WHERE id_empresa = ? AND estado IN (?,?) AND fecha_fin >= ? AND eliminado = 0', id_empresa, 'finalizada', 'finalizada_atrasada', hace7dias)).c;
         }
