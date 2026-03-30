@@ -469,6 +469,9 @@ async function inicializarDB() {
     for (const mig of migracionesEmpresa) {
         try { await db.run(mig); } catch(e) { /* ya existe */ }
     }
+    // Migración: profesion y direccion para usuarios (Gerentes)
+    try { await db.run("ALTER TABLE usuarios ADD COLUMN profesion TEXT DEFAULT ''"); } catch(e) {}
+    try { await db.run("ALTER TABLE usuarios ADD COLUMN direccion TEXT DEFAULT ''"); } catch(e) {}
     // Migrar nombre_administrador → director_general para empresas existentes
     try {
         await db.run("UPDATE empresas SET nombre_director_general = nombre_administrador WHERE nombre_director_general IS NULL AND nombre_administrador IS NOT NULL");

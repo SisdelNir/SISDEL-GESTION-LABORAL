@@ -297,6 +297,8 @@ function abrirPanelPorRol() {
         mostrarPantalla('admin');
         document.getElementById('admin-user-name').textContent = USUARIO.nombre;
         document.getElementById('admin-empresa-nombre').textContent = USUARIO.rol === 'GERENTE' ? `${USUARIO.nombre_empresa} • Gerente` : (USUARIO.nombre_empresa || 'Empresa');
+        const rolBadge = document.getElementById('admin-role-badge');
+        if (rolBadge) rolBadge.textContent = USUARIO.rol === 'GERENTE' ? 'GERENTE' : 'DIRECTOR GENERAL';
         cambiarPanelAdmin('tareas');
     } else if (USUARIO.rol === 'SUPERVISOR') {
         mostrarPantalla('supervisor');
@@ -464,8 +466,8 @@ function validarPaso(n) {
         return true;
     }
     if (n === 3) {
-        const dir = document.getElementById('emp-director-general').value.trim();
-        if (!dir) { mostrarToast('Director General es requerido', 'error'); return false; }
+        const dir = document.getElementById('dg-nombre').value.trim();
+        if (!dir) { mostrarToast('Nombre del Director General es requerido', 'error'); return false; }
         return true;
     }
     return true;
@@ -629,61 +631,85 @@ function actualizarMunicipios() {
 // ═══════════════════════════════════════════
 let contadorGerencias = 0;
 
-function agregarGerencia(nombre = '', codigoCostos = '') {
+function agregarGerenciaCompleta(nombre = '') {
     contadorGerencias++;
-    const lista = document.getElementById('lista-gerencias');
+    const lista = document.getElementById('lista-gerencias-completas');
     const div = document.createElement('div');
-    div.className = 'gerencia-item';
-    div.id = `gerencia-${contadorGerencias}`;
+    div.className = 'gerencia-card-completa';
+    div.id = `gerencia-c-${contadorGerencias}`;
+    const n = contadorGerencias;
     div.innerHTML = `
-        <span style="font-size:1.1rem;">🏢</span>
-        <input type="text" class="ger-nombre" placeholder="Nombre de la gerencia" value="${nombre}" style="flex:2;">
-        <input type="text" class="ger-codigo" placeholder="Cód. costos (opc)" value="${codigoCostos}" style="flex:1;max-width:120px;">
-        <button type="button" class="btn-borrar" onclick="eliminarGerencia(${contadorGerencias})">✕</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;">
+                <span style="font-size:1.1rem;">🏢</span>
+                <input type="text" class="gc-nombre" placeholder="Nombre de la gerencia" value="${nombre}" style="flex:1;font-weight:600;font-size:0.95rem;">
+            </div>
+            <button type="button" style="background:#ef4444;color:white;border:none;border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:0.9rem;" onclick="eliminarGerenciaCompleta(${n})">✕</button>
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;border-top:1px solid var(--border-color);padding-top:8px;">👤 Responsable de la Gerencia:</p>
+        <div class="form-grid" style="gap:8px;">
+            <div class="form-group">
+                <label style="font-size:0.75rem;">Nombre *</label>
+                <input type="text" class="gc-resp-nombre" placeholder="Nombre del Gerente">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.75rem;">Teléfono</label>
+                <input type="tel" class="gc-resp-telefono" placeholder="Teléfono">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.75rem;">Correo</label>
+                <input type="email" class="gc-resp-correo" placeholder="correo@empresa.com">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.75rem;">Profesión</label>
+                <input type="text" class="gc-resp-profesion" placeholder="Ej: Lic. Administración">
+            </div>
+            <div class="form-group full-width">
+                <label style="font-size:0.75rem;">Dirección</label>
+                <input type="text" class="gc-resp-direccion" placeholder="Dirección del responsable">
+            </div>
+        </div>
     `;
     lista.appendChild(div);
     document.getElementById('sin-gerencias-msg').style.display = 'none';
-    // Focus en el nombre si está vacío
-    if (!nombre) div.querySelector('.ger-nombre').focus();
+    if (!nombre) div.querySelector('.gc-nombre').focus();
 }
 
-function sugerirGerencia(nombre) {
-    agregarGerencia(nombre);
-    // Marcar botón como usado
-    document.querySelectorAll('.btn-sugerencia').forEach(btn => {
-        if (btn.textContent.includes(nombre.split(' ').pop()) || btn.onclick.toString().includes(nombre)) {
-            btn.classList.add('usada');
-        }
-    });
-    // Buscar y desactivar el correcto
-    document.querySelectorAll('.btn-sugerencia').forEach(btn => {
+function sugerirGerenciaCompleta(nombre) {
+    agregarGerenciaCompleta(nombre);
+    document.querySelectorAll('#gerencias-sugerencias .btn-sugerencia').forEach(btn => {
         const onclickStr = btn.getAttribute('onclick') || '';
         if (onclickStr.includes(nombre)) btn.classList.add('usada');
     });
 }
 
-function eliminarGerencia(id) {
-    const el = document.getElementById(`gerencia-${id}`);
+function eliminarGerenciaCompleta(id) {
+    const el = document.getElementById(`gerencia-c-${id}`);
     if (el) {
-        const nombre = el.querySelector('.ger-nombre').value;
+        const nombre = el.querySelector('.gc-nombre').value;
         el.remove();
-        // Reactivar sugerencia si aplica
-        document.querySelectorAll('.btn-sugerencia').forEach(btn => {
+        document.querySelectorAll('#gerencias-sugerencias .btn-sugerencia').forEach(btn => {
             const onclickStr = btn.getAttribute('onclick') || '';
             if (onclickStr.includes(nombre)) btn.classList.remove('usada');
         });
     }
-    if (!document.getElementById('lista-gerencias').children.length) {
+    if (!document.getElementById('lista-gerencias-completas').children.length) {
         document.getElementById('sin-gerencias-msg').style.display = 'block';
     }
 }
 
-function obtenerGerencias() {
-    const items = document.querySelectorAll('.gerencia-item');
+function obtenerGerenciasCompletas() {
+    const items = document.querySelectorAll('.gerencia-card-completa');
     return Array.from(items).map(item => ({
-        nombre: item.querySelector('.ger-nombre').value.trim(),
-        codigo_costos: item.querySelector('.ger-codigo').value.trim() || null
-    })).filter(g => g.nombre);
+        nombre_gerencia: item.querySelector('.gc-nombre').value.trim(),
+        responsable: {
+            nombre: item.querySelector('.gc-resp-nombre').value.trim(),
+            telefono: item.querySelector('.gc-resp-telefono').value.trim(),
+            correo: item.querySelector('.gc-resp-correo').value.trim(),
+            profesion: item.querySelector('.gc-resp-profesion').value.trim(),
+            direccion: item.querySelector('.gc-resp-direccion').value.trim()
+        }
+    })).filter(g => g.nombre_gerencia);
 }
 
 // ═══════════════════════════════════════════
@@ -712,8 +738,8 @@ async function crearEmpresa(e) {
 
     const lada = document.getElementById('emp-lada').value;
     const telEmpresa = document.getElementById('emp-telefono').value.trim();
-    const ladaAdmin = document.getElementById('admin-lada').value;
-    const telAdmin = document.getElementById('admin-telefono').value.trim();
+    const dgLada = document.getElementById('dg-lada')?.value || lada;
+    const dgTel = document.getElementById('dg-telefono')?.value.trim() || '';
 
     const datos = {
         nombre: document.getElementById('emp-nombre').value.trim(),
@@ -729,26 +755,24 @@ async function crearEmpresa(e) {
         direccion_zona: document.getElementById('emp-dir-zona')?.value.trim() || '',
         direccion_exacta: document.getElementById('emp-dir-exacta')?.value.trim() || '',
         direccion: [document.getElementById('emp-dir-exacta')?.value, document.getElementById('emp-dir-zona')?.value, document.getElementById('emp-dir-muni')?.value, document.getElementById('emp-dir-depto')?.value].filter(Boolean).join(', '),
-        // Director General
-        nombre_director_general: document.getElementById('emp-director-general')?.value.trim() || '',
-        nombre_administrador: document.getElementById('admin-nombre').value.trim(),
-        admin_identificacion: document.getElementById('admin-identificacion').value.trim(),
-        admin_telefono: telAdmin ? `${ladaAdmin} ${telAdmin}` : '',
-        admin_correo: document.getElementById('admin-correo').value.trim(),
-        // Gerencias
-        gerencias: obtenerGerencias(),
-        // Config
-        permite_supervisor_asignar: document.getElementById('cfg-sup-asignar').checked,
-        formato_hora: document.getElementById('cfg-formato-hora').value,
-        supervisor_ve_terminadas: document.getElementById('cfg-sup-ver-terminadas').checked,
-        empleado_puede_iniciar: document.getElementById('cfg-emp-iniciar-tarea').checked,
-        supervisor_puede_modificar: document.getElementById('cfg-sup-modificar').checked,
-        modalidad_trabajo: document.getElementById('cfg-modalidad-trabajo').value
+        // Director General (persona completa)
+        director_general: {
+            nombre: document.getElementById('dg-nombre').value.trim(),
+            identificacion: document.getElementById('dg-identificacion')?.value.trim() || '',
+            telefono: dgTel ? `${dgLada} ${dgTel}` : '',
+            correo: document.getElementById('dg-correo')?.value.trim() || '',
+            profesion: document.getElementById('dg-profesion')?.value.trim() || ''
+        },
+        // Compat fields
+        nombre_administrador: document.getElementById('dg-nombre').value.trim(),
+        nombre_director_general: document.getElementById('dg-nombre').value.trim(),
+        // Gerencias con responsables
+        gerencias: obtenerGerenciasCompletas()
     };
 
     // Logo: convertir a base64 optimizado
     const logoInput = document.getElementById('emp-logo-input');
-    if (logoInput.files[0]) {
+    if (logoInput && logoInput.files[0]) {
         try {
             datos.logo_url = await optimizarImagenBase64(logoInput.files[0]);
         } catch(e) { console.error('Error optimizando logo:', e); }
@@ -760,12 +784,28 @@ async function crearEmpresa(e) {
             body: JSON.stringify(datos)
         });
 
-        // Mostrar resultado
+        // Mostrar resultado con TODOS los códigos
         document.getElementById('form-empresa').style.display = 'none';
         document.getElementById('resultado-empresa').style.display = 'block';
         document.getElementById('res-empresa-nombre').textContent = res.empresa.nombre;
-        document.getElementById('res-admin-nombre').textContent = res.administrador.nombre;
-        document.getElementById('res-codigo-admin').textContent = res.administrador.codigo_acceso;
+        document.getElementById('res-admin-nombre').textContent = res.director_general.nombre;
+        document.getElementById('res-codigo-admin').textContent = res.director_general.codigo_acceso;
+
+        // Mostrar códigos de gerentes si existen
+        const gerentesDiv = document.getElementById('res-gerentes-codigos');
+        if (gerentesDiv && res.gerentes && res.gerentes.length > 0) {
+            gerentesDiv.innerHTML = '<h4 style="margin:16px 0 10px;color:var(--text-main);">🏢 Códigos de Gerentes:</h4>' +
+                res.gerentes.map(g => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg-card);border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);">
+                        <div>
+                            <strong style="font-size:0.9rem;">${g.gerencia}</strong>
+                            <p style="font-size:0.78rem;color:var(--text-muted);margin:2px 0 0;">${g.nombre}</p>
+                        </div>
+                        <span class="empresa-codigo" style="font-size:1rem;letter-spacing:2px;">${g.codigo_acceso}</span>
+                    </div>
+                `).join('');
+            gerentesDiv.style.display = 'block';
+        }
 
         mostrarToast('¡Empresa creada exitosamente!', 'success');
     } catch(err) {
@@ -784,7 +824,8 @@ function actualizarPais() {
 
     // Actualizar ladas en ambos teléfonos
     document.getElementById('emp-lada').value = lada;
-    document.getElementById('admin-lada').value = lada;
+    const dgLada = document.getElementById('dg-lada');
+    if (dgLada) dgLada.value = lada;
 
     // Actualizar moneda
     const selMoneda = document.getElementById('emp-moneda');

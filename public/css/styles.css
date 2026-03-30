@@ -1285,6 +1285,28 @@ select {
 }
 .gerencia-item .btn-borrar:hover { background: rgba(239, 68, 68, 0.25); }
 
+/* Gerencia Card Completa (con responsable) */
+.gerencia-card-completa {
+    padding: 14px 16px; border-radius: 12px;
+    background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.18);
+    animation: fadeIn 0.3s ease;
+}
+.gerencia-card-completa input {
+    background: var(--bg-input); border: 1px solid var(--border-color);
+    border-radius: 6px; padding: 7px 10px; color: var(--text-main);
+    font-size: 0.82rem; width: 100%;
+}
+.gerencia-card-completa input:focus {
+    border-color: var(--primary); outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+.gerencia-card-completa .form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.gerencia-card-completa .form-group { margin-bottom: 0; }
+.gerencia-card-completa .form-group.full-width { grid-column: 1 / -1; }
+.gerencia-card-completa label { font-size: 0.72rem; margin-bottom: 2px; display: block; color: var(--text-muted); }
+
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
     /* Solo ocultar nav en admin (usa hamburger) */

@@ -16,40 +16,72 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
             pais, moneda, zona_horaria, telefono, correo, direccion, logo_url,
             direccion_departamento, direccion_municipio, direccion_zona, direccion_exacta,
             admin_identificacion, admin_telefono, admin_correo,
+            director_general, // { nombre, identificacion, telefono, correo, profesion }
             permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo,
-            gerencias // Array de { nombre, codigo_costos }
+            gerencias // Array de { nombre_gerencia, responsable: { nombre, telefono, correo, profesion, direccion } }
         } = req.body;
 
-        if (!nombre || !nombre_administrador) {
-            return res.status(400).json({ error: 'Nombre de empresa y nombre del administrador son requeridos' });
+        // Director General data (new format or legacy)
+        const dgNombre = director_general?.nombre || nombre_administrador || nombre_director_general;
+        const dgIdentificacion = director_general?.identificacion || admin_identificacion || '';
+        const dgTelefono = director_general?.telefono || admin_telefono || telefono || '';
+        const dgCorreo = director_general?.correo || admin_correo || correo || '';
+        const dgProfesion = director_general?.profesion || '';
+
+        if (!nombre || !dgNombre) {
+            return res.status(400).json({ error: 'Nombre de empresa y Director General son requeridos' });
         }
 
         const id_empresa = uuidv4();
-        const id_usuario = uuidv4();
+        const id_usuario_dg = uuidv4();
         const id_config = uuidv4();
-        const codigo_admin = await generarCodigoAcceso(nombre);
+        const codigo_dg = await generarCodigoAcceso(nombre);
 
-        const dirGen = nombre_director_general || nombre_administrador;
         await db.run(`
             INSERT INTO empresas (id_empresa, nombre, identificacion_empresa, nombre_administrador, nombre_director_general, pais, moneda, zona_horaria, telefono, correo, direccion, direccion_departamento, direccion_municipio, direccion_zona, direccion_exacta, codigo_admin, logo_url)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_empresa, nombre, identificacion_empresa || '', dirGen, dirGen, pais || 'MX', moneda || 'MXN', zona_horaria || 'America/Mexico_City', telefono || '', correo || '', direccion || '', direccion_departamento || null, direccion_municipio || null, direccion_zona || null, direccion_exacta || null, codigo_admin, logo_url || null);
+        `, id_empresa, nombre, identificacion_empresa || '', dgNombre, dgNombre, pais || 'MX', moneda || 'MXN', zona_horaria || 'America/Mexico_City', telefono || '', correo || '', direccion || '', direccion_departamento || null, direccion_municipio || null, direccion_zona || null, direccion_exacta || null, codigo_dg, logo_url || null);
 
-        // Crear gerencias/departamentos
+        // Crear Director General como usuario ADMIN
+        await db.run(`
+            INSERT INTO usuarios (id_usuario, id_empresa, identificacion, nombre, telefono, correo, rol, codigo_acceso, profesion)
+            VALUES (?, ?, ?, ?, ?, ?, 'ADMIN', ?, ?)
+        `, id_usuario_dg, id_empresa, dgIdentificacion, dgNombre, dgTelefono, dgCorreo, codigo_dg, dgProfesion);
+
+        // Crear gerencias + usuarios GERENTE
+        const gerentesCreados = [];
         if (Array.isArray(gerencias) && gerencias.length > 0) {
             for (const g of gerencias) {
-                if (!g.nombre || !g.nombre.trim()) continue;
+                const nombreGerencia = g.nombre_gerencia || g.nombre;
+                if (!nombreGerencia || !nombreGerencia.trim()) continue;
+                
+                const id_departamento = uuidv4();
                 await db.run(`
                     INSERT INTO departamentos (id_departamento, id_empresa, nombre, codigo_costos) VALUES (?, ?, ?, ?)
-                `, uuidv4(), id_empresa, g.nombre.trim(), g.codigo_costos || null);
+                `, id_departamento, id_empresa, nombreGerencia.trim(), g.codigo_costos || null);
+
+                // Crear usuario GERENTE si hay responsable
+                const resp = g.responsable;
+                if (resp && resp.nombre && resp.nombre.trim()) {
+                    const id_gerente = uuidv4();
+                    const codigo_gerente = await generarCodigoAcceso(nombre);
+                    await db.run(`
+                        INSERT INTO usuarios (id_usuario, id_empresa, id_departamento, nombre, telefono, correo, profesion, direccion, rol, codigo_acceso)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'GERENTE', ?)
+                    `, id_gerente, id_empresa, id_departamento, resp.nombre.trim(), resp.telefono || '', resp.correo || '', resp.profesion || '', resp.direccion || '', codigo_gerente);
+                    
+                    gerentesCreados.push({
+                        gerencia: nombreGerencia.trim(),
+                        nombre: resp.nombre.trim(),
+                        codigo_acceso: codigo_gerente,
+                        id_usuario: id_gerente,
+                        id_departamento
+                    });
+                }
             }
         }
 
-        await db.run(`
-            INSERT INTO usuarios (id_usuario, id_empresa, identificacion, nombre, telefono, correo, rol, codigo_acceso)
-            VALUES (?, ?, ?, ?, ?, ?, 'ADMIN', ?)
-        `, id_usuario, id_empresa, admin_identificacion || identificacion_empresa || '', nombre_administrador, admin_telefono || telefono || '', admin_correo || correo || '', codigo_admin);
-
+        // Config empresa (defaults)
         await db.run(`
             INSERT INTO configuraciones_empresa (id_config, id_empresa, permite_supervisor_asignar, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `, id_config, id_empresa,
@@ -83,17 +115,18 @@ router.post('/', verificarToken, verificarRoot, async (req, res) => {
             } catch(e) { /* ya existe */ }
         }
 
-        registrarAuditoria(id_empresa, 'ROOT', 'CREAR_EMPRESA', `Empresa "${nombre}" creada con admin "${nombre_administrador}"`);
+        registrarAuditoria(id_empresa, 'ROOT', 'CREAR_EMPRESA', `Empresa "${nombre}" creada con Director General "${dgNombre}" y ${gerentesCreados.length} gerencias`);
 
         res.status(201).json({
             mensaje: 'Empresa creada exitosamente',
             empresa: {
-                id_empresa, nombre, identificacion_empresa, nombre_administrador,
-                codigo_admin, estado: 1, fecha_creacion: new Date().toISOString()
+                id_empresa, nombre, identificacion_empresa,
+                codigo_admin: codigo_dg, estado: 1, fecha_creacion: new Date().toISOString()
             },
-            administrador: {
-                id_usuario, nombre: nombre_administrador, rol: 'ADMIN', codigo_acceso: codigo_admin
-            }
+            director_general: {
+                id_usuario: id_usuario_dg, nombre: dgNombre, rol: 'DIRECTOR GENERAL', codigo_acceso: codigo_dg
+            },
+            gerentes: gerentesCreados
         });
     } catch (err) {
         console.error('Error creando empresa:', err);
