@@ -731,21 +731,27 @@ function validarNIT(input) {
 
 
 async function crearEmpresa(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
 
-    const lada = document.getElementById('emp-lada').value;
-    const telEmpresa = document.getElementById('emp-telefono').value.trim();
+    // Validar datos mínimos
+    const nombreEmpresa = document.getElementById('emp-nombre').value.trim();
+    const dgNombreVal = document.getElementById('dg-nombre').value.trim();
+    if (!nombreEmpresa) { mostrarToast('Nombre de empresa es requerido', 'error'); return; }
+    if (!dgNombreVal) { mostrarToast('Nombre del Director General es requerido', 'error'); return; }
+
+    const lada = document.getElementById('emp-lada')?.value || '+502';
+    const telEmpresa = document.getElementById('emp-telefono')?.value.trim() || '';
     const dgLada = document.getElementById('dg-lada')?.value || lada;
     const dgTel = document.getElementById('dg-telefono')?.value.trim() || '';
 
     const datos = {
-        nombre: document.getElementById('emp-nombre').value.trim(),
-        identificacion_empresa: document.getElementById('emp-identificacion').value.trim(),
-        pais: document.getElementById('emp-pais').value,
-        moneda: document.getElementById('emp-moneda').value,
-        zona_horaria: document.getElementById('emp-zona-horaria').value,
+        nombre: nombreEmpresa,
+        identificacion_empresa: document.getElementById('emp-identificacion')?.value.trim() || '',
+        pais: document.getElementById('emp-pais')?.value || 'GT',
+        moneda: document.getElementById('emp-moneda')?.value || 'GTQ',
+        zona_horaria: document.getElementById('emp-zona-horaria')?.value || 'America/Guatemala',
         telefono: telEmpresa ? `${lada} ${telEmpresa}` : '',
-        correo: document.getElementById('emp-correo').value.trim(),
+        correo: document.getElementById('emp-correo')?.value.trim() || '',
         // Dirección estructurada
         direccion_departamento: document.getElementById('emp-dir-depto')?.value || '',
         direccion_municipio: document.getElementById('emp-dir-muni')?.value || '',
@@ -754,17 +760,17 @@ async function crearEmpresa(e) {
         direccion: [document.getElementById('emp-dir-exacta')?.value, document.getElementById('emp-dir-zona')?.value, document.getElementById('emp-dir-muni')?.value, document.getElementById('emp-dir-depto')?.value].filter(Boolean).join(', '),
         // Director General (persona completa)
         director_general: {
-            nombre: document.getElementById('dg-nombre').value.trim(),
+            nombre: dgNombreVal,
             identificacion: document.getElementById('dg-identificacion')?.value.trim() || '',
             telefono: dgTel ? `${dgLada} ${dgTel}` : '',
             correo: document.getElementById('dg-correo')?.value.trim() || '',
             profesion: document.getElementById('dg-profesion')?.value.trim() || ''
         },
         // Compat fields
-        nombre_administrador: document.getElementById('dg-nombre').value.trim(),
-        nombre_director_general: document.getElementById('dg-nombre').value.trim(),
-        // Gerencias con responsables
-        gerencias: obtenerGerenciasCompletas()
+        nombre_administrador: dgNombreVal,
+        nombre_director_general: dgNombreVal,
+        // No gerencias en creación (se configuran después por el Director General)
+        gerencias: []
     };
 
     // Logo: convertir a base64 optimizado
