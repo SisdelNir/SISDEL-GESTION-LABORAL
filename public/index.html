@@ -757,13 +757,18 @@
                     <div class="vista-header"><h3>🛡️ Módulo Supervisor</h3></div>
 
                     <!-- Botones de sección -->
-                    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
                         <button class="btn btn-sm" id="sup-mod-btn-empleados" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="cambiarSeccionModSup('empleados')">
                             👥 Empleados
                         </button>
                         <button class="btn btn-sm" id="sup-mod-btn-tareas" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="cambiarSeccionModSup('tareas')">
                             📋 Tareas
                         </button>
+                        <div id="sup-btns-crear-tareas" style="margin-left:auto;display:flex;gap:8px;">
+                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="abrirNuevaTareaSupervisor()">
+                                ➕ Nueva Tarea
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Sección Empleados -->

@@ -738,6 +738,34 @@ function cambiarSeccionModSup(seccion) {
     if (seccion === 'tareas') filtrarTareasEquipoSup(''); // Cargar todas
 }
 
+async function abrirNuevaTareaSupervisor() {
+    // Reusar el modal de admin con datos filtrados
+    document.getElementById('form-tarea').reset();
+    try {
+        const usuarios = await fetchAPI('/api/usuarios?rol=EMPLEADO');
+        const selEmp = document.getElementById('tarea-empleado');
+        const selSup = document.getElementById('tarea-supervisor');
+        selEmp.innerHTML = '<option value="">-- Seleccionar Empleado --</option>';
+        usuarios.forEach(u => {
+            selEmp.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
+        });
+        // Pre-seleccionar supervisor y ocultar campo
+        selSup.innerHTML = `<option value="${USUARIO.id_usuario}">${USUARIO.nombre}</option>`;
+        selSup.value = USUARIO.id_usuario;
+        selSup.closest('.form-group').style.display = 'none';
+    } catch(e) { console.error(e); }
+    // Cargar tipos
+    try {
+        const tipos = await fetchAPI('/api/tareas/tipos/lista');
+        const selTipo = document.getElementById('tarea-tipo');
+        selTipo.innerHTML = '<option value="">-- Seleccionar tipo --</option>';
+        tipos.forEach(t => {
+            selTipo.innerHTML += `<option value="${t.id_tipo}">${t.nombre}</option>`;
+        });
+    } catch(e) {}
+    document.getElementById('modal-tarea').style.display = 'flex';
+}
+
 async function cargarEmpleadosModSup() {
     try {
         const usuarios = await fetchAPI('/api/usuarios?rol=EMPLEADO');
@@ -2475,7 +2503,15 @@ async function crearTarea(e) {
     try {
         await fetchAPI('/api/tareas', { method: 'POST', body: JSON.stringify(datos) });
         cerrarModalTarea();
-        cargarTareas();
+        // Restaurar campo supervisor si estaba oculto
+        const supGroup = document.getElementById('tarea-supervisor')?.closest('.form-group');
+        if (supGroup) supGroup.style.display = '';
+        // Recargar panel según rol
+        if (USUARIO.rol === 'SUPERVISOR') {
+            filtrarTareasEquipoSup('');
+        } else {
+            cargarTareas();
+        }
         mostrarToast('Tarea creada exitosamente', 'success');
     } catch(err) {
         mostrarToast(err.message || 'Error al crear tarea', 'error');
