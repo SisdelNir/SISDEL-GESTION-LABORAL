@@ -3112,17 +3112,25 @@ function abrirImagenCompleta(src) {
 
 async function mostrarFormularioTarea() {
     document.getElementById('form-tarea').reset();
-    // Cargar empleados
+    
+    // Asegurar que el campo supervisor sea visible para Admin/Gerente
+    const supGroup = document.getElementById('tarea-supervisor')?.closest('.form-group');
+    if (supGroup) supGroup.style.display = '';
+
+    // Cargar empleados y supervisores
     try {
         const usuarios = await fetchAPI('/api/usuarios');
         const selEmp = document.getElementById('tarea-empleado');
         const selSup = document.getElementById('tarea-supervisor');
-        selEmp.innerHTML = '<option value="">-- Seleccionar --</option>';
-        selSup.innerHTML = '<option value="">-- Seleccionar --</option>';
-        // Si es GERENTE, agregarse como opción de supervisor
+        
+        selEmp.innerHTML = '<option value="">-- Seleccionar Empleado --</option>';
+        selSup.innerHTML = '<option value="">-- Seleccionar Supervisor --</option>';
+        
+        // 1. Si es GERENTE, agregarse como opción principal de supervisor
         if (USUARIO.rol === 'GERENTE') {
-            selSup.innerHTML += `<option value="${USUARIO.id_usuario}">${USUARIO.nombre} (Gerente)</option>`;
+            selSup.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
         }
+
         usuarios.forEach(u => {
             if (u.rol === 'EMPLEADO') {
                 const idSup = u.id_jefe || (u.supervisor && u.supervisor.id_supervisor) || '';
@@ -3130,24 +3138,31 @@ async function mostrarFormularioTarea() {
             }
             if (u.rol === 'SUPERVISOR') {
                 selSup.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
-                // También agregar supervisores como asignables
-                selEmp.innerHTML += `<option value="${u.id_usuario}" data-supervisor="">[SUP] ${u.nombre}</option>`;
+                // Los supervisores también pueden ser asignados como empleados de una tarea
+                selEmp.innerHTML += `<option value="${u.id_usuario}" data-supervisor="${u.id_usuario}">[SUP] ${u.nombre}</option>`;
             }
         });
 
-        // Event listener to auto-select supervisor when employee changes
+        // Event listener para auto-seleccionar supervisor al cambiar empleado
         selEmp.onchange = function() {
             const opt = this.options[this.selectedIndex];
-            if (!opt) return;
+            if (!opt || !opt.value) return;
+            
             const idSup = opt.getAttribute('data-supervisor');
-            console.log('Auto-seleccionando supervisor:', idSup);
+            console.log(`📡 Auto-asignando supervisor para ${opt.text}:`, idSup);
+            
             if (idSup && idSup !== 'null' && idSup !== 'undefined') {
-                selSup.value = idSup;
-            } else {
-                selSup.value = '';
+                // Verificar que el supervisor exista en el select antes de asignarlo
+                const exists = Array.from(selSup.options).some(o => o.value === idSup);
+                if (exists) {
+                    selSup.value = idSup;
+                }
+            } else if (USUARIO.rol === 'GERENTE') {
+                // Si no tiene jefe asignado y el creador es Gerente, mantenerse él como jefe
+                selSup.value = USUARIO.id_usuario;
             }
         };
-    } catch(e) {}
+    } catch(e) { console.error('Error cargando selects de tarea:', e); }
     // Cargar tipos
     try {
         const tipos = await fetchAPI('/api/tareas/tipos/lista');
