@@ -372,6 +372,16 @@ function cerrarSesion() {
     mostrarToast('Sesión cerrada', 'info');
 }
 
+// Función global para normalizar fechas de la DB a objeto Date local de forma segura (previene crash en iOS Safari)
+function parseFechaDBSeguro(str) {
+    if (!str) return null;
+    let s = str.trim();
+    if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
+    if (!s.includes('Z') && !s.includes('+')) s += 'Z';
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
+}
+
 // ═══════════════════════════════════════════
 // PANEL ROOT - EMPRESAS
 // ═══════════════════════════════════════════
@@ -1596,9 +1606,10 @@ function iniciarCronosSupervisor(tareas) {
     tareas.filter(t => t.estado === 'en_proceso' && t.fecha_inicio).forEach(t => {
         const el = document.getElementById(`sup-crono-${t.id_tarea}`);
         if (el) {
-            const inicio = new Date(t.fecha_inicio);
+            const inicio = parseFechaDBSeguro(t.fecha_inicio);
+            if (!inicio) return;
             const intervalo = setInterval(() => {
-                const segs = Math.round((Date.now() - inicio.getTime()) / 1000);
+                const segs = Math.max(0, Math.round((Date.now() - inicio.getTime()) / 1000));
                 const h = String(Math.floor(segs/3600)).padStart(2,'0');
                 const m = String(Math.floor((segs%3600)/60)).padStart(2,'0');
                 const s = String(segs%60).padStart(2,'0');
@@ -1949,16 +1960,8 @@ async function cargarTareasEmpleado() {
         const hoyLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         const hoyStr = hoyLocal; // "YYYY-MM-DD" local del usuario
 
-        // Función interna para normalizar fechas de la DB (SQLite/Postgres) a objeto Date local
-        const parseFechaDB = (str) => {
-            if (!str) return null;
-            let s = str.trim();
-            // Si el formato es "YYYY-MM-DD HH:MM:SS" (SQLite), convertir a ISO
-            if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
-            // Si no tiene zona horaria, asumir que viene en UTC desde el servidor
-            if (!s.includes('Z') && !s.includes('+')) s += 'Z';
-            return new Date(s);
-        };
+        // Función interna (mantenida por retrocompatibilidad visual en la lógica)
+        const parseFechaDB = parseFechaDBSeguro;
 
         tareas = tareas.filter(t => {
             // 1. Siempre mostrar tareas activas (en proceso o ya atrasadas)
@@ -2087,12 +2090,16 @@ async function cargarTareasEmpleado() {
             const esFinalizada = t.estado === 'finalizada' || t.estado === 'finalizada_atrasada';
 
             if (enProcesoActivo && t.fecha_inicio) {
-                iniciarCrono(t.id_tarea, new Date(t.fecha_inicio));
+                const di = parseFechaDBSeguro(t.fecha_inicio);
+                if (di) iniciarCrono(t.id_tarea, di);
             } else if (esFinalizada && t.fecha_inicio && t.fecha_fin) {
-                // Mostrar tiempo final congelado
-                const segs = Math.round((new Date(t.fecha_fin) - new Date(t.fecha_inicio)) / 1000);
-                const el = document.getElementById(`crono-${t.id_tarea}`);
-                if (el) el.textContent = formatearCrono(segs);
+                const di = parseFechaDBSeguro(t.fecha_inicio);
+                const df = parseFechaDBSeguro(t.fecha_fin);
+                if (di && df) {
+                    const segs = Math.max(0, Math.round((df - di) / 1000));
+                    const el = document.getElementById(`crono-${t.id_tarea}`);
+                    if (el) el.textContent = formatearCrono(segs);
+                }
             }
         });
     } catch(err) {

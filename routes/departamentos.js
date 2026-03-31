@@ -54,10 +54,23 @@ router.post('/batch', verificarToken, verificarRol('ADMIN'), async (req, res) =>
             const nombreGerencia = g.nombre_gerencia;
             if (!nombreGerencia || !nombreGerencia.trim()) continue;
 
+            const nombreLimpio = nombreGerencia.trim();
+
+            // Evitar duplicidades: comprobar si ya existe una gerencia con el mismo nombre
+            const existe = await db.get(
+                'SELECT id_departamento FROM departamentos WHERE id_empresa = ? AND LOWER(nombre) = LOWER(?)',
+                req.usuario.id_empresa, 
+                nombreLimpio
+            );
+            
+            if (existe) {
+                return res.status(400).json({ error: `La gerencia "${nombreLimpio}" ya existe en el sistema` });
+            }
+
             const id_departamento = uuidv4();
             await db.run(
                 'INSERT INTO departamentos (id_departamento, id_empresa, nombre, codigo_costos) VALUES (?, ?, ?, ?)',
-                id_departamento, req.usuario.id_empresa, nombreGerencia.trim(), g.codigo_costos || null
+                id_departamento, req.usuario.id_empresa, nombreLimpio, g.codigo_costos || null
             );
 
             // Crear usuario GERENTE si hay responsable
