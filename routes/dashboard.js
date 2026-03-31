@@ -123,16 +123,52 @@ router.get('/', verificarToken, async (req, res) => {
         `, id_empresa);
 
         const porSupervisor = await db.all(`
-            SELECT u.nombre, u.id_usuario,
+            SELECT u.nombre, u.id_usuario, d.nombre as nombre_departamento,
                    COUNT(t.id_tarea) as total_tareas,
                    COALESCE(SUM(CASE WHEN t.estado IN ('finalizada','finalizada_atrasada') THEN 1 ELSE 0 END), 0) as completadas,
                    COALESCE(SUM(CASE WHEN t.estado = 'finalizada' THEN 1 ELSE 0 END), 0) as a_tiempo
             FROM usuarios u
+            LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
             LEFT JOIN tareas t ON u.id_usuario = t.id_supervisor AND t.eliminado = 0
             WHERE u.id_empresa = ? AND u.rol = 'SUPERVISOR' AND u.estado = 1
-            GROUP BY u.id_usuario, u.nombre
+            GROUP BY u.id_usuario, u.nombre, d.nombre
             ORDER BY completadas DESC
         `, id_empresa);
+
+        // --- EXCLUSIVO ALTA GERENCIA (ADMIN) ---
+        let porGerencia = [];
+        let iaInsights = [];
+
+        if (!esSupervisor) {
+            // Rendimiento por Departamento
+            porGerencia = await db.all(`
+                SELECT d.id_departamento, d.nombre,
+                       COUNT(t.id_tarea) as total,
+                       COALESCE(SUM(CASE WHEN t.estado IN ('finalizada','finalizada_atrasada') THEN 1 ELSE 0 END), 0) as completadas,
+                       COALESCE(SUM(CASE WHEN t.estado = 'finalizada' THEN 1 ELSE 0 END), 0) as a_tiempo,
+                       COALESCE(SUM(CASE WHEN t.estado = 'atrasada' THEN 1 ELSE 0 END), 0) as atrasadas
+                FROM departamentos d
+                LEFT JOIN usuarios u ON u.id_departamento = d.id_departamento AND u.eliminado = 0
+                LEFT JOIN tareas t ON t.id_empleado = u.id_usuario AND t.eliminado = 0
+                WHERE d.id_empresa = ? AND d.estado = 1
+                GROUP BY d.id_departamento, d.nombre
+            `, id_empresa);
+
+            // Generar "Insights IA" (Algoritmo de análisis de tendencias)
+            porGerencia.forEach(g => {
+                const depEficiencia = g.completadas > 0 ? Math.round((g.a_tiempo / g.completadas) * 100) : 0;
+                if (depEficiencia > 85) {
+                    iaInsights.push({ tipo: 'success', texto: `Excelente: <strong>${g.nombre}</strong> mantiene una eficiencia operativa del ${depEficiencia}%, superando el promedio.` });
+                }
+                if (g.atrasadas > (g.total * 0.2)) {
+                    iaInsights.push({ tipo: 'warning', texto: `Riesgo detectado: <strong>${g.nombre}</strong> tiene un volumen alto de tareas atrasadas. Sugerimos revisar carga de trabajo.` });
+                }
+            });
+
+            if (iaInsights.length === 0) {
+                iaInsights.push({ tipo: 'info', texto: "Operación Estable: No se detectan anomalías críticas en el rendimiento global hoy." });
+            }
+        }
 
         res.json({
             usuarios: { supervisores: totalSupervisores, empleados: totalEmpleados },
@@ -141,7 +177,7 @@ router.get('/', verificarToken, async (req, res) => {
                 finalizadas: tareasFinalizadas, atrasadas: tareasAtrasadas, a_tiempo: tareasAtiempo
             },
             kpis: { eficiencia, productividad_7d: productividad7d, tiempo_promedio_min: avgMinutos },
-            porPrioridad, topEmpleados, actividadReciente, porSupervisor
+            porPrioridad, topEmpleados, actividadReciente, porSupervisor, porGerencia, iaInsights
         });
     } catch (err) {
         console.error('Error en dashboard:', err);
