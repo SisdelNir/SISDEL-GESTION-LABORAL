@@ -2363,6 +2363,11 @@ async function abrirVisionGlobal360() {
     }
 }
 
+function cerrarModal(id) {
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+}
+
 function dibujarVista360(data) {
     const container = document.getElementById('vision-360-container');
     if (!data || !data.length) {

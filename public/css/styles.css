@@ -1076,7 +1076,7 @@ select {
     right: 0;
     bottom: 0;
     z-index: 1000;
-    display: flex;
+    display: none; /* Oculto por defecto, se abre con flex en JS */
     align-items: center;
     justify-content: center;
     padding: 20px;
