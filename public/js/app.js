@@ -1764,23 +1764,12 @@ function mostrarAlertaTarea(tarea, tipo) {
         </div>
         
         <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center; align-items: center; width: 100%;">
-            ${puedeIniciar ? `
-                <button id="btn-iniciar-alerta-${tarea.id_tarea}" style="
-                    background: #10b981; border: none; width: 100%;
-                    color: white; padding: 18px; border-radius: 12px; font-size: 1.3rem;
-                    font-weight: 900; cursor: pointer; transition: all 0.2s;
-                    box-shadow: 0 4px 15px rgba(16,185,129,0.4);
-                " onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                    ▶ INICIAR TAREA AHORA
-                </button>
-            ` : ''}
-            
             <button id="btn-cerrar-alerta-${tarea.id_tarea}" style="
                 background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
                 color: white; padding: 12px 24px; border-radius: 10px; font-size: 1rem;
                 font-weight: 600; cursor: pointer; opacity: 0.8;
             ">
-                Solo cerrar aviso
+                Entendido
             </button>
         </div>
     `;
@@ -3637,7 +3626,6 @@ async function subirImagenRapida(idTarea) {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
-    fileInput.capture = 'environment'; // Abrir cámara trasera directamente en móviles
     fileInput.multiple = true;
     
     fileInput.onchange = async (e) => {
