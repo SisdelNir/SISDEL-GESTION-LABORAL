@@ -492,6 +492,72 @@
                     </div>
                 </div>
 
+                <!-- ══════════════════════════════════════════ -->
+                <!-- PANEL GRÁFICAS DE GERENCIA (solo Gerente) -->
+                <!-- ══════════════════════════════════════════ -->
+                <div id="panel-graficas-gerencia" class="panel">
+                    <div class="vista-header">
+                        <h3>📊 Gráficas de Gerencia</h3>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;" onclick="cargarGraficasGerencia()">🔄 Actualizar</button>
+                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;" onclick="abrirModuloAdmin('tareas')">📋 Ver Reporte-Tareas</button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards -->
+                    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+                        <div class="stat-card glass" style="cursor:pointer;" onclick="abrirModuloAdmin('tareas')">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🟡</div>
+                            <div class="stat-info"><span class="stat-value" id="ger-kpi-pendientes">0</span><span class="stat-label">Pendientes</span></div>
+                        </div>
+                        <div class="stat-card glass" style="cursor:pointer;" onclick="abrirModuloAdmin('tareas')">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">🔵</div>
+                            <div class="stat-info"><span class="stat-value" id="ger-kpi-proceso">0</span><span class="stat-label">En Proceso</span></div>
+                        </div>
+                        <div class="stat-card glass" style="cursor:pointer;" onclick="abrirModuloAdmin('tareas')">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">🟢</div>
+                            <div class="stat-info"><span class="stat-value" id="ger-kpi-finalizadas">0</span><span class="stat-label">Finalizadas</span></div>
+                        </div>
+                        <div class="stat-card glass" style="cursor:pointer;" onclick="abrirModuloAdmin('tareas')">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">🔴</div>
+                            <div class="stat-info"><span class="stat-value" id="ger-kpi-atrasadas">0</span><span class="stat-label">Atrasadas</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Fila superior: Dona + Eficiencia -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                        <div class="glass" style="padding:20px;border-radius:16px;">
+                            <h4 style="margin-bottom:16px;font-size:0.93rem;color:var(--text-secondary);">📊 Distribución de Tareas</h4>
+                            <div style="display:flex;align-items:center;gap:24px;">
+                                <canvas id="ger-chart-dona" width="140" height="140"></canvas>
+                                <div id="ger-chart-leyenda" style="display:flex;flex-direction:column;gap:8px;font-size:0.8rem;"></div>
+                            </div>
+                        </div>
+                        <div class="glass" style="padding:20px;border-radius:16px;">
+                            <h4 style="margin-bottom:16px;font-size:0.93rem;color:var(--text-secondary);">⚡ Eficiencia de la Gerencia</h4>
+                            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding-top:12px;">
+                                <div id="ger-eficiencia-pct" style="font-size:3.5rem;font-weight:800;background:linear-gradient(135deg,#10b981,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">0%</div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);">Tareas completadas a tiempo</div>
+                                <div style="width:100%;height:12px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden;margin-top:8px;">
+                                    <div id="ger-barra-eficiencia-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#10b981,#3b82f6);border-radius:99px;transition:width 1s ease;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Barras: tareas por empleado -->
+                    <div class="glass" style="padding:20px;border-radius:16px;margin-bottom:16px;">
+                        <h4 style="margin-bottom:16px;font-size:0.93rem;color:var(--text-secondary);">👤 Tareas por Empleado</h4>
+                        <div id="ger-chart-empleados" style="display:flex;flex-direction:column;gap:10px;"></div>
+                    </div>
+
+                    <!-- Actividad reciente -->
+                    <div class="glass" style="padding:20px;border-radius:16px;">
+                        <h4 style="margin-bottom:16px;font-size:0.93rem;color:var(--text-secondary);">⚡ Actividad Reciente</h4>
+                        <div id="ger-actividad-reciente" style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;"></div>
+                    </div>
+                </div>
+
                 <!-- Supervisores -->
                 <div id="panel-supervisores" class="panel">
                     <div class="vista-header">
@@ -1024,6 +1090,51 @@
                                 ⏱ Tiempo límite asignado: <span id="tarea-preview-val">0h</span>
                             </div>
                         </div>
+
+                        <!-- ── SEGUIMIENTO DE CLIENTE ── -->
+                        <div class="form-group full-width">
+                            <div style="padding:10px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;">
+                                <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleClienteForm()">
+                                    <input type="checkbox" id="tarea-tiene-cliente" style="width:auto;margin:0;accent-color:#10b981;" onclick="event.stopPropagation();toggleClienteForm()">
+                                    <label for="tarea-tiene-cliente" style="margin:0;font-size:0.82rem;font-weight:600;color:#10b981;text-transform:none;cursor:pointer;">
+                                        👤 Activar Seguimiento de Cliente
+                                    </label>
+                                </div>
+                                <!-- Panel de datos del cliente (oculto por defecto) -->
+                                <div id="panel-cliente-tarea" style="display:none;margin-top:14px;border-top:1px solid rgba(16,185,129,0.2);padding-top:14px;">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                                        <div class="form-group" style="margin:0;">
+                                            <label style="font-size:0.75rem;color:var(--text-muted);">Nombre del Cliente *</label>
+                                            <div style="position:relative;">
+                                                <input type="text" id="cliente-nombre" placeholder="Buscar o ingresar cliente..." autocomplete="off"
+                                                    oninput="buscarClientesSugerencias(this.value)" style="width:100%;">
+                                                <div id="cliente-sugerencias" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;z-index:100;max-height:150px;overflow-y:auto;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <label style="font-size:0.75rem;color:var(--text-muted);">Código (auto)</label>
+                                            <input type="text" id="cliente-codigo" placeholder="Se genera automático" readonly style="background:rgba(255,255,255,0.04);cursor:default;">
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <label style="font-size:0.75rem;color:var(--text-muted);">Teléfono</label>
+                                            <input type="tel" id="cliente-telefono" placeholder="+502 1234-5678">
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <label style="font-size:0.75rem;color:var(--text-muted);">Correo</label>
+                                            <input type="email" id="cliente-correo" placeholder="cliente@correo.com">
+                                        </div>
+                                        <div class="form-group full-width" style="margin:0;grid-column:1/-1;">
+                                            <label style="font-size:0.75rem;color:var(--text-muted);">Observaciones del Cliente</label>
+                                            <textarea id="cliente-obs" rows="2" placeholder="Notas sobre el cliente o la visita..." style="resize:vertical;width:100%;"></textarea>
+                                        </div>
+                                        <div class="form-group full-width" style="margin:0;grid-column:1/-1;">
+                                            <label style="font-size:0.75rem;color:var(--text-muted);">📅 Fecha de Seguimiento (genera nueva tarea automáticamente)</label>
+                                            <input type="date" id="cliente-fecha-seguimiento">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1055,13 +1166,41 @@
                 <div id="detalle-cronometro" style="display:none;margin-bottom:20px;" class="glass" style="padding:16px;border-radius:12px;">
                 </div>
 
-                <!-- Tabs: Comentarios | Evidencias | Historial -->
+                <!-- Tabs: Comentarios | Evidencias | Historial | Observaciones | Cliente -->
                 <div style="margin-bottom:12px;">
-                    <div style="display:flex;gap:4px;border-bottom:1px solid var(--border-color);padding-bottom:0;">
+                    <div style="display:flex;gap:4px;border-bottom:1px solid var(--border-color);padding-bottom:0;flex-wrap:wrap;">
                         <button class="nav-btn activo" onclick="cambiarTabDetalle('comentarios',this)">💬 Comentarios</button>
                         <button class="nav-btn" onclick="cambiarTabDetalle('evidencias',this)">📸 Evidencias</button>
                         <button class="nav-btn" onclick="cambiarTabDetalle('historial',this)">📜 Historial</button>
+                        <button class="nav-btn" id="tab-btn-observaciones" onclick="cambiarTabDetalle('observaciones',this)">📝 Observaciones</button>
+                        <button class="nav-btn" id="tab-btn-cliente" onclick="cambiarTabDetalle('cliente',this)" style="display:none;">👤 Cliente</button>
                     </div>
+                </div>
+
+                <!-- Tab Observaciones del empleado -->
+                <div id="tab-observaciones" class="tab-detalle" style="display:none;">
+                    <div class="glass" style="padding:14px;border-radius:12px;margin-bottom:12px;">
+                        <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">Escribe tus observaciones o notas sobre esta tarea. Solo tú puedes editarlas; tu supervisor puede responder abajo.</p>
+                        <textarea id="detalle-obs-texto" rows="4"
+                            placeholder="Observaciones de la tarea, problemas encontrados, notas importantes..."
+                            style="width:100%;resize:vertical;border:1px solid rgba(99,102,241,0.3);border-radius:8px;background:rgba(99,102,241,0.05);"
+                            oninput="autoguardarObservaciones()"></textarea>
+                        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                            <button class="btn btn-primary btn-sm" onclick="guardarObservaciones()">💾 Guardar Observaciones</button>
+                        </div>
+                    </div>
+                    <!-- Respuestas del supervisor (via comentarios marcados) -->
+                    <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Respuestas del Supervisor:</div>
+                    <div id="lista-obs-respuestas" style="max-height:150px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;"></div>
+                    <div id="obs-respuesta-input" style="display:none;gap:8px;" class="flex">
+                        <input type="text" id="input-obs-respuesta" placeholder="Responder al empleado..." style="flex:1;">
+                        <button class="btn btn-primary btn-sm" onclick="enviarRespuestaObs()">Responder</button>
+                    </div>
+                </div>
+
+                <!-- Tab Cliente -->
+                <div id="tab-cliente" class="tab-detalle" style="display:none;">
+                    <div id="detalle-cliente-contenido"></div>
                 </div>
 
                 <div id="tab-comentarios" class="tab-detalle activa">
@@ -1416,6 +1555,7 @@
     <div id="toast-container"></div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="js/app.js?v=2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="js/app.js?v=2.1"></script>
 </body>
 </html>

@@ -118,8 +118,8 @@ document.body.addEventListener('touchstart', desbloquearAudioTareas, { once: tru
  * @returns {Promise<{base64: string, originalKB: number, optimizedKB: number}>}
  */
 function optimizarImagen(file, opts = {}) {
-    const maxSize = opts.maxSize || 1024;
-    const quality = opts.quality || 0.70;
+    const maxSize = opts.maxSize || 800;   // 800px como en la propuesta
+    const quality  = opts.quality  || 0.60; // 60% JPEG como en la propuesta
     
     return new Promise((resolve, reject) => {
         const originalKB = Math.round(file.size / 1024);
@@ -129,27 +129,28 @@ function optimizarImagen(file, opts = {}) {
         img.onload = () => {
             URL.revokeObjectURL(url);
             
-            // Calcular nueva dimensión manteniendo proporción (como ratio en Pillow)
+            // Calcular nueva dimensión manteniendo proporción
             let w = img.width;
             let h = img.height;
             const ratio = Math.min(maxSize / w, maxSize / h, 1); // nunca agrandar
             w = Math.round(w * ratio);
             h = Math.round(h * ratio);
             
-            // Dibujar en canvas (equivalente a Image.resize con LANCZOS)
+            // Canvas: equivalente a Image.resize con LANCZOS
             const canvas = document.createElement('canvas');
             canvas.width = w;
             canvas.height = h;
             const ctx = canvas.getContext('2d');
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high'; // mejor calidad de interpolación
+            ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0, w, h);
             
-            // Convertir a JPEG con compresión (como img.save("JPEG", quality=70))
+            // Convertir a JPEG comprimido
             const base64 = canvas.toDataURL('image/jpeg', quality);
-            const optimizedKB = Math.round((base64.length * 3 / 4) / 1024); // tamaño aprox del binario
+            const optimizedKB = Math.round((base64.length * 3 / 4) / 1024);
+            const ahorro = Math.round((1 - optimizedKB / originalKB) * 100);
             
-            console.log(`📸 Imagen optimizada: ${originalKB}KB → ${optimizedKB}KB (${w}x${h}, JPEG ${Math.round(quality*100)}%)`);
+            console.log(`📸 ${originalKB}KB → ${optimizedKB}KB (${w}x${h}, JPEG ${Math.round(quality*100)}%, -${ahorro}%)`);
             resolve({ base64, originalKB, optimizedKB });
         };
         
@@ -333,7 +334,8 @@ function abrirPanelPorRol() {
         }
 
         actualizarVisibilidadCreacion();
-        cambiarPanelAdmin('tareas');
+        // Gerente → panel de gráficas; Admin → panel de tareas
+        cambiarPanelAdmin(USUARIO.rol === 'GERENTE' ? 'graficas-gerencia' : 'tareas');
     } else if (USUARIO.rol === 'SUPERVISOR') {
         mostrarPantalla('supervisor');
         const depStr = USUARIO.nombre_departamento ? ` — ${USUARIO.nombre_departamento}` : '';
@@ -785,7 +787,164 @@ function validarNIT(input) {
     }
 }
 
+// ══════════════════════════════════════════════════════════════
+// TABS DE OBSERVACIONES Y CLIENTE (modal detalle de tarea)
+// ══════════════════════════════════════════════════════════════
 
+function cambiarTabDetalle(tab, btn) {
+    const tabs = ['comentarios','evidencias','historial','observaciones','cliente'];
+    tabs.forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (el) el.style.display = 'none';
+    });
+    const target = document.getElementById(`tab-${tab}`);
+    if (target) target.style.display = 'block';
+    document.querySelectorAll('#modal-detalle-tarea .nav-btn').forEach(b => b.classList.remove('activo'));
+    if (btn) btn.classList.add('activo');
+}
+
+let _detalleActualId = null;
+let _detalleActualTarea = null;
+
+async function inicializarTabsExtra(tarea) {
+    _detalleActualId = tarea.id_tarea;
+    _detalleActualTarea = tarea;
+
+    const obsEl = document.getElementById('detalle-obs-texto');
+    if (obsEl) {
+        obsEl.value = tarea.observaciones_tarea || '';
+        const esEmpleadoAsignado = USUARIO.id_usuario === tarea.id_empleado;
+        obsEl.readOnly = !esEmpleadoAsignado;
+        obsEl.style.opacity = esEmpleadoAsignado ? '1' : '0.7';
+        obsEl.placeholder = esEmpleadoAsignado ? 'Escribe tus observaciones...' : `Observaciones del empleado: ${tarea.nombre_empleado || ''}`;
+    }
+
+    const inputResp = document.getElementById('obs-respuesta-input');
+    if (inputResp) {
+        inputResp.style.display = (USUARIO.rol === 'SUPERVISOR' || USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE') ? 'flex' : 'none';
+    }
+
+    await cargarRespuestasObservaciones(tarea.id_tarea, tarea);
+
+    const tabBtnCliente = document.getElementById('tab-btn-cliente');
+    if (tabBtnCliente) {
+        if (tarea.tiene_cliente && parseInt(tarea.tiene_cliente) === 1) {
+            tabBtnCliente.style.display = 'inline-flex';
+            renderClienteTab(tarea);
+        } else {
+            tabBtnCliente.style.display = 'none';
+        }
+    }
+}
+
+function renderClienteTab(tarea) {
+    const cont = document.getElementById('detalle-cliente-contenido');
+    if (!cont) return;
+    const concluido = tarea.cliente_concluido && parseInt(tarea.cliente_concluido) === 1;
+    cont.innerHTML = `
+        <div class="glass" style="padding:16px;border-radius:12px;margin-bottom:12px;border:1px solid rgba(16,185,129,0.2);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+                <div>
+                    <div style="font-size:1.1rem;font-weight:700;">${tarea.nombre_cliente || '—'}</div>
+                    <div style="font-size:0.72rem;color:#10b981;font-weight:600;letter-spacing:1px;">Código: ${tarea.codigo_cliente || '—'}</div>
+                </div>
+                <span style="padding:4px 10px;border-radius:99px;font-size:0.72rem;font-weight:700;background:${concluido?'rgba(16,185,129,0.15)':'rgba(245,158,11,0.15)'};color:${concluido?'#10b981':'#f59e0b'};">
+                    ${concluido ? '✅ ATENDIDO' : '⏳ PENDIENTE'}
+                </span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;font-size:0.82rem;">
+                ${tarea.telefono_cliente ? `<div><span style="color:var(--text-muted);">📞 Teléfono:</span><br><strong>${tarea.telefono_cliente}</strong></div>` : ''}
+                ${tarea.correo_cliente ? `<div><span style="color:var(--text-muted);">✉️ Correo:</span><br><strong>${tarea.correo_cliente}</strong></div>` : ''}
+                ${tarea.fecha_seguimiento ? `<div style="grid-column:1/-1;"><span style="color:var(--text-muted);">📅 Seguimiento programado:</span><br><strong style="color:#f59e0b;">${tarea.fecha_seguimiento}</strong></div>` : ''}
+            </div>
+            ${tarea.obs_cliente ? `<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px;font-size:0.82rem;margin-bottom:12px;"><div style="color:var(--text-muted);font-size:0.72rem;margin-bottom:4px;">Observaciones:</div>${tarea.obs_cliente}</div>` : ''}
+            <div style="border-top:1px solid var(--border-color);padding-top:12px;margin-top:4px;">
+                <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px;align-items:end;">
+                    <div>
+                        <label style="font-size:0.72rem;color:var(--text-muted);">📅 Nueva Fecha de Seguimiento</label>
+                        <input type="date" id="cliente-nueva-fecha" style="width:100%;" value="${tarea.fecha_seguimiento||''}">
+                    </div>
+                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;" onclick="actualizarSeguimientoCliente()">📅 Programar</button>
+                </div>
+                <textarea id="cliente-nueva-obs" rows="2" placeholder="Actualizar observaciones..." style="width:100%;resize:vertical;margin-bottom:8px;">${tarea.obs_cliente||''}</textarea>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button class="btn btn-sm" style="background:rgba(255,255,255,0.07);" onclick="actualizarSeguimientoCliente()">💾 Guardar</button>
+                    ${!concluido ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;" onclick="marcarClienteConcluido()">✅ Evento Concluido</button>` : '<span style="font-size:0.8rem;color:#10b981;">✅ Evento ya concluido</span>'}
+                </div>
+            </div>
+        </div>`;
+}
+
+async function marcarClienteConcluido() {
+    if (!_detalleActualId) return;
+    if (!confirm('¿Marcar el evento con este cliente como concluido?')) return;
+    try {
+        await fetchAPI(`/api/tareas/${_detalleActualId}/cliente-concluido`, { method: 'PUT' });
+        mostrarToast('✅ Evento con cliente marcado como concluido', 'success');
+        if (_detalleActualTarea) { _detalleActualTarea.cliente_concluido = 1; renderClienteTab(_detalleActualTarea); }
+    } catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+async function actualizarSeguimientoCliente() {
+    if (!_detalleActualId) return;
+    const obs = document.getElementById('cliente-nueva-obs')?.value || '';
+    const fecha = document.getElementById('cliente-nueva-fecha')?.value || '';
+    try {
+        const resp = await fetchAPI(`/api/tareas/${_detalleActualId}/seguimiento-cliente`, {
+            method: 'PUT', body: JSON.stringify({ obs_cliente: obs, fecha_seguimiento: fecha || null })
+        });
+        if (_detalleActualTarea) { _detalleActualTarea.obs_cliente = obs; _detalleActualTarea.fecha_seguimiento = fecha; renderClienteTab(_detalleActualTarea); }
+        mostrarToast(resp.nueva_tarea_id ? '📅 Seguimiento guardado y nueva tarea creada automáticamente ✅' : 'Seguimiento actualizado', 'success');
+    } catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+let _obsGuardarTimer = null;
+function autoguardarObservaciones() {
+    clearTimeout(_obsGuardarTimer);
+    _obsGuardarTimer = setTimeout(() => guardarObservaciones(true), 2000);
+}
+
+async function guardarObservaciones(silente = false) {
+    if (!_detalleActualId) return;
+    const texto = document.getElementById('detalle-obs-texto')?.value || '';
+    try {
+        await fetchAPI(`/api/tareas/${_detalleActualId}/observaciones`, { method: 'PUT', body: JSON.stringify({ observaciones_tarea: texto }) });
+        if (!silente) mostrarToast('📝 Observaciones guardadas', 'success');
+    } catch(e) { if (!silente) mostrarToast(e.message, 'error'); }
+}
+
+async function cargarRespuestasObservaciones(idTarea) {
+    const cont = document.getElementById('lista-obs-respuestas');
+    if (!cont) return;
+    try {
+        const tarea = await fetchAPI(`/api/tareas/${idTarea}`);
+        const comentarios = (tarea.comentarios || []).filter(c =>
+            c.rol_usuario === 'SUPERVISOR' || c.rol_usuario === 'ADMIN' || c.rol_usuario === 'GERENTE'
+        );
+        if (!comentarios.length) { cont.innerHTML = '<div style="font-size:0.78rem;color:var(--text-muted);">Sin respuestas aún.</div>'; return; }
+        cont.innerHTML = comentarios.map(c => `
+            <div style="background:rgba(99,102,241,0.08);border-radius:8px;padding:8px 12px;border-left:3px solid #6366f1;">
+                <div style="font-size:0.72rem;color:#6366f1;font-weight:600;margin-bottom:2px;">
+                    ${c.nombre_usuario} · ${c.rol_usuario}
+                    <span style="color:var(--text-muted);margin-left:6px;">${new Date(c.fecha).toLocaleString('es-MX',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'})}</span>
+                </div>
+                <div style="font-size:0.82rem;">${c.contenido}</div>
+            </div>`).join('');
+    } catch(e) { cont.innerHTML = ''; }
+}
+
+async function enviarRespuestaObs() {
+    const input = document.getElementById('input-obs-respuesta');
+    if (!input || !input.value.trim() || !_detalleActualId) return;
+    try {
+        await fetchAPI(`/api/tareas/${_detalleActualId}/comentarios`, {
+            method: 'POST', body: JSON.stringify({ contenido: `[Respuesta] ${input.value.trim()}` })
+        });
+        input.value = '';
+        await cargarRespuestasObservaciones(_detalleActualId);
+        mostrarToast('Respuesta enviada', 'success');
+    } catch(e) { mostrarToast(e.message, 'error'); }
+}
 async function crearEmpresa(e) {
     if (e && e.preventDefault) e.preventDefault();
 
@@ -1154,10 +1313,11 @@ function cambiarPanelAdmin(panel) {
     if (panel === 'notificaciones') cargarNotificaciones();
     if (panel === 'auditoria') cargarAuditoria();
     if (panel === 'asistencia') cargarAsistenciaAdmin();
+    if (panel === 'graficas-gerencia') cargarGraficasGerencia();
     if (panel === 'configuracion') {
         if (USUARIO.rol !== 'ADMIN') {
             mostrarToast('Acceso restringido al Director General', 'error');
-            cambiarPanelAdmin('tareas');
+            cambiarPanelAdmin('graficas-gerencia');
             return;
         }
         cargarGerenciasConfig();
@@ -3434,6 +3594,44 @@ async function toggleDetalleTarea(idTarea) {
 
 
 
+        // ── Sección: Observaciones del empleado ──
+        const obsHTML = `
+            <div class="detalle-seccion" style="margin-top:12px;">
+                <div class="detalle-seccion-titulo">📝 Observaciones del Empleado</div>
+                ${t.observaciones_tarea
+                    ? `<p style="font-size:0.82rem;color:var(--text-secondary);margin:0;line-height:1.6;background:rgba(99,102,241,0.06);padding:10px;border-radius:8px;border-left:3px solid #6366f1;">${t.observaciones_tarea}</p>`
+                    : `<p style="font-size:0.78rem;color:var(--text-muted);margin:0;font-style:italic;">Sin observaciones</p>`
+                }
+            </div>`;
+
+        // ── Sección: Cliente (si aplica) ──
+        let clienteHTML = '';
+        if (t.tiene_cliente && parseInt(t.tiene_cliente) === 1) {
+            const concluido = t.cliente_concluido && parseInt(t.cliente_concluido) === 1;
+            clienteHTML = `
+            <div class="detalle-seccion" style="margin-top:12px;">
+                <div class="detalle-seccion-titulo">👤 Cliente</div>
+                <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div>
+                            <div style="font-weight:700;">${t.nombre_cliente||'—'}</div>
+                            <div style="font-size:0.7rem;color:#10b981;font-weight:600;">Código: ${t.codigo_cliente||'—'}</div>
+                        </div>
+                        <span style="padding:3px 8px;border-radius:99px;font-size:0.7rem;font-weight:700;background:${concluido?'rgba(16,185,129,0.15)':'rgba(245,158,11,0.15)'};color:${concluido?'#10b981':'#f59e0b'};">
+                            ${concluido?'✅ ATENDIDO':'⏳ PENDIENTE'}
+                        </span>
+                    </div>
+                    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.8rem;margin-bottom:8px;">
+                        ${t.telefono_cliente?`<span>📞 ${t.telefono_cliente}</span>`:''}
+                        ${t.correo_cliente?`<span>✉️ ${t.correo_cliente}</span>`:''}
+                        ${t.fecha_seguimiento?`<span style="color:#f59e0b;">📅 Seguimiento: ${t.fecha_seguimiento}</span>`:''}
+                    </div>
+                    ${t.obs_cliente?`<p style="font-size:0.78rem;color:var(--text-secondary);margin:0 0 8px;border-top:1px solid rgba(255,255,255,0.07);padding-top:8px;">${t.obs_cliente}</p>`:''}
+                    ${!concluido?`<button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:0.75rem;" onclick="_detalleActualId='${t.id_tarea}';_detalleActualTarea=${JSON.stringify({...t,observaciones_tarea:undefined,historial:undefined,evidencias:undefined,comentarios:undefined}).replace(/</g,'&lt;')};marcarClienteConcluido()">✅ Marcar Evento Concluido</button>`:''}
+                </div>
+            </div>`;
+        }
+
         panel.innerHTML = `
         <div class="tarea-detalle-content">
             <!-- Fila de timestamps -->
@@ -3463,13 +3661,17 @@ async function toggleDetalleTarea(idTarea) {
             <!-- Descripción completa -->
             ${t.descripcion ? `<div class="detalle-seccion"><div class="detalle-seccion-titulo">📝 Descripción</div><p style="font-size:0.85rem;color:var(--text-secondary);margin:0;line-height:1.6;">${t.descripcion}</p></div>` : ''}
 
+            <!-- Cliente (si aplica) -->
+            ${clienteHTML}
+
+            <!-- Observaciones del empleado -->
+            ${obsHTML}
+
             <!-- Evidencias + Comentarios en 2 col -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
                 ${evidenciasHTML}
                 ${comentariosHTML || '<div></div>'}
             </div>
-
-
         </div>`;
     } catch(err) {
         panel.innerHTML = '<div style="padding:12px;color:var(--accent-red);font-size:0.85rem;">Error al cargar detalles</div>';
@@ -3592,6 +3794,73 @@ async function crearTarea(e) {
     e.preventDefault();
     const tiempoEstFinal = calcularTiempoEstimadoDisplay() || undefined;
 
+// ── SEGUIMIENTO DE CLIENTE: lógica del formulario ──
+function toggleClienteForm() {
+    const chk = document.getElementById('tarea-tiene-cliente');
+    const panel = document.getElementById('panel-cliente-tarea');
+    if (!chk || !panel) return;
+    panel.style.display = chk.checked ? 'block' : 'none';
+    if (chk.checked) {
+        // Generar código si el nombre ya tiene algo
+        const nombre = document.getElementById('cliente-nombre').value.trim();
+        if (nombre && !document.getElementById('cliente-codigo').value) {
+            document.getElementById('cliente-codigo').value = generarCodigoCliente(nombre);
+        }
+    }
+}
+
+function generarCodigoCliente(nombre) {
+    const letras = nombre.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'X');
+    const nums = String(Math.floor(Math.random() * 90) + 10);
+    return letras + nums;
+}
+
+// Generar código al escribir el nombre del cliente
+document.addEventListener('DOMContentLoaded', () => {
+    const inputNombre = document.getElementById('cliente-nombre');
+    if (inputNombre) {
+        inputNombre.addEventListener('blur', () => {
+            const nombre = inputNombre.value.trim();
+            const codigoEl = document.getElementById('cliente-codigo');
+            if (nombre && !codigoEl.value) {
+                codigoEl.value = generarCodigoCliente(nombre);
+            }
+        });
+    }
+});
+
+let _buscarClienteTimer = null;
+async function buscarClientesSugerencias(q) {
+    const box = document.getElementById('cliente-sugerencias');
+    if (!box) return;
+    clearTimeout(_buscarClienteTimer);
+    if (q.length < 2) { box.style.display = 'none'; return; }
+    _buscarClienteTimer = setTimeout(async () => {
+        try {
+            const resultados = await fetchAPI(`/api/tareas/clientes/buscar?q=${encodeURIComponent(q)}`);
+            if (!resultados.length) { box.style.display = 'none'; return; }
+            box.innerHTML = resultados.map(c => `
+                <div onclick="seleccionarClienteExistente(${JSON.stringify(c).replace(/"/g,'&quot;')})"
+                     style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border-color);font-size:0.82rem;"
+                     onmouseover="this.style.background='rgba(16,185,129,0.1)'" onmouseout="this.style.background=''">
+                    <strong>${c.nombre_cliente}</strong>
+                    <span style="color:var(--accent-primary);font-size:0.72rem;margin-left:6px;">${c.codigo_cliente}</span>
+                    ${c.telefono_cliente ? `<span style="color:var(--text-muted);margin-left:6px;">📞${c.telefono_cliente}</span>` : ''}
+                </div>`).join('');
+            box.style.display = 'block';
+        } catch(e) {}
+    }, 300);
+}
+
+function seleccionarClienteExistente(c) {
+    document.getElementById('cliente-nombre').value = c.nombre_cliente || '';
+    document.getElementById('cliente-codigo').value = c.codigo_cliente || '';
+    document.getElementById('cliente-telefono').value = c.telefono_cliente || '';
+    document.getElementById('cliente-correo').value = c.correo_cliente || '';
+    document.getElementById('cliente-sugerencias').style.display = 'none';
+}
+
+    const tieneCliente = document.getElementById('tarea-tiene-cliente')?.checked;
     const datos = {
         titulo: document.getElementById('tarea-titulo').value.trim(),
         descripcion: document.getElementById('tarea-descripcion').value.trim(),
@@ -3600,11 +3869,26 @@ async function crearTarea(e) {
         id_tipo: document.getElementById('tarea-tipo').value || undefined,
         prioridad: document.getElementById('tarea-prioridad').value,
         tiempo_estimado_minutos: tiempoEstFinal,
-        requiere_evidencia: document.getElementById('tarea-req-evidencia') ? document.getElementById('tarea-req-evidencia').checked : false
+        requiere_evidencia: document.getElementById('tarea-req-evidencia') ? document.getElementById('tarea-req-evidencia').checked : false,
+        // Campos de cliente
+        tiene_cliente: tieneCliente ? 1 : 0,
+        codigo_cliente: tieneCliente ? (document.getElementById('cliente-codigo').value.trim() || generarCodigoCliente(document.getElementById('cliente-nombre').value.trim())) : undefined,
+        nombre_cliente: tieneCliente ? document.getElementById('cliente-nombre').value.trim() : undefined,
+        telefono_cliente: tieneCliente ? document.getElementById('cliente-telefono').value.trim() : undefined,
+        correo_cliente: tieneCliente ? document.getElementById('cliente-correo').value.trim() : undefined,
+        obs_cliente: tieneCliente ? document.getElementById('cliente-obs').value.trim() : undefined,
+        fecha_seguimiento: tieneCliente ? (document.getElementById('cliente-fecha-seguimiento').value || undefined) : undefined
     };
+    if (tieneCliente && !datos.nombre_cliente) {
+        mostrarToast('Ingresa el nombre del cliente', 'error');
+        return;
+    }
     try {
-        await fetchAPI('/api/tareas', { method: 'POST', body: JSON.stringify(datos) });
+        const resp = await fetchAPI('/api/tareas', { method: 'POST', body: JSON.stringify(datos) });
         cerrarModalTarea();
+        // Resetear campos de cliente
+        document.getElementById('tarea-tiene-cliente').checked = false;
+        document.getElementById('panel-cliente-tarea').style.display = 'none';
         // Restaurar campo supervisor si estaba oculto
         const supGroup = document.getElementById('tarea-supervisor')?.closest('.form-group');
         if (supGroup) supGroup.style.display = '';
@@ -3614,7 +3898,10 @@ async function crearTarea(e) {
         } else {
             cargarTareas();
         }
-        mostrarToast('Tarea creada exitosamente', 'success');
+        const msg = datos.fecha_seguimiento
+            ? 'Tarea creada ✅ — Se generó una tarea de seguimiento para el cliente'
+            : 'Tarea creada exitosamente ✅';
+        mostrarToast(msg, 'success');
     } catch(err) {
         mostrarToast(err.message || 'Error al crear tarea', 'error');
     }
@@ -3793,7 +4080,10 @@ async function subirImagenRapida(idTarea) {
         Swal.close();
         if (subidas > 0) {
             const ahorro = totalOriginalKB > 0 ? Math.round((1 - totalOptimizedKB / totalOriginalKB) * 100) : 0;
-            mostrarToast(`📸 ${subidas} foto(s) subida(s) ✅ ${ahorro > 0 ? `(${ahorro}% más ligeras)` : ''}${errores > 0 ? ` · ${errores} fallidas` : ''}`, 'success');
+            const msgAhorro = ahorro > 0 
+                ? `(${totalOriginalKB}KB → ${totalOptimizedKB}KB, -${ahorro}%)` 
+                : '';
+            mostrarToast(`📸 ${subidas} foto(s) subida(s) ✅ ${msgAhorro}${errores > 0 ? ` · ${errores} fallidas` : ''}`, 'success');
         } else {
             mostrarToast('Error al subir imágenes. Intenta de nuevo.', 'error');
         }

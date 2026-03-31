@@ -14,7 +14,13 @@ const { generarCodigoTarea } = require('../utils/codigoTarea');
  */
 router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), async (req, res) => {
     try {
-        const { titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia } = req.body;
+        const {
+            titulo, descripcion, id_empleado, id_supervisor, id_tipo, prioridad,
+            tiempo_estimado_minutos, requiere_evidencia,
+            // Campos cliente
+            tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente,
+            correo_cliente, obs_cliente, fecha_seguimiento
+        } = req.body;
         if (!titulo) return res.status(400).json({ error: 'El título es requerido' });
 
         const id_empresa = req.usuario.id_empresa;
@@ -23,42 +29,48 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'),
         
         let supervisorFinal = id_supervisor || (req.usuario.rol === 'SUPERVISOR' ? req.usuario.id_usuario : null);
 
-        // Auto-asignación de supervisor: si hay empleado, buscar su supervisor asignado en la BD
         if (id_empleado) {
             const rel = await db.get('SELECT id_supervisor FROM supervisores_empleados WHERE id_empleado = ?', id_empleado);
-            if (rel && rel.id_supervisor) {
-                supervisorFinal = rel.id_supervisor;
-            }
+            if (rel && rel.id_supervisor) supervisorFinal = rel.id_supervisor;
         }
 
-        // Verificar config de empresa: ¿el empleado puede presionar botón iniciar?
         const config = await db.get('SELECT empleado_puede_iniciar FROM configuraciones_empresa WHERE id_empresa = ?', id_empresa);
         const empPuedeIniciar = config ? config.empleado_puede_iniciar : 1;
 
-        // Si empleado puede iniciar → tarea queda pendiente para que él la inicie
-        // Si NO puede iniciar → tarea arranca automáticamente en en_proceso
         let estadoInicial, fechaInic;
         if (id_empleado) {
             if (empPuedeIniciar) {
-                estadoInicial = 'pendiente';
-                fechaInic = null;
+                estadoInicial = 'pendiente'; fechaInic = null;
             } else {
-                estadoInicial = 'en_proceso';
-                fechaInic = new Date().toISOString();
+                estadoInicial = 'en_proceso'; fechaInic = new Date().toISOString();
             }
         } else {
-            estadoInicial = 'pendiente';
-            fechaInic = null;
+            estadoInicial = 'pendiente'; fechaInic = null;
         }
 
         const reqEvidenciaNum = requiere_evidencia ? 1 : 0;
+        const tieneClienteNum = tiene_cliente ? 1 : 0;
+
+        // Generar código de cliente si no viene
+        let codigoClienteFinal = codigo_cliente || null;
+        if (tieneClienteNum && nombre_cliente && !codigoClienteFinal) {
+            const letras = nombre_cliente.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'X');
+            codigoClienteFinal = letras + String(Math.floor(Math.random() * 90) + 10);
+        }
 
         const codigo_tarea = await generarCodigoTarea(id_empresa);
 
         await db.run(`
-            INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor, id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, id_tarea, id_empresa, codigo_tarea, titulo, descripcion || '', id_empleado || null, supervisorFinal, id_creador, id_tipo || null, prioridad || 'media', tiempo_estimado_minutos || null, reqEvidenciaNum, estadoInicial, fechaInic);
+            INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor,
+                id_creador, id_tipo, prioridad, tiempo_estimado_minutos, requiere_evidencia, estado, fecha_inicio,
+                tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente, obs_cliente, fecha_seguimiento)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, id_tarea, id_empresa, codigo_tarea, titulo, descripcion || '', id_empleado || null,
+           supervisorFinal, id_creador, id_tipo || null, prioridad || 'media',
+           tiempo_estimado_minutos || null, reqEvidenciaNum, estadoInicial, fechaInic,
+           tieneClienteNum, codigoClienteFinal, nombre_cliente || null,
+           telefono_cliente || null, correo_cliente || null, obs_cliente || null,
+           fecha_seguimiento || null);
 
         await db.run(`
             INSERT INTO historial_estados_tarea (id_tarea, estado_nuevo, id_usuario, comentario)
@@ -69,6 +81,29 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'),
             await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea, hora_inicio) VALUES (?, ?, ?)`, uuidv4(), id_tarea, fechaInic);
         } else {
             await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), id_tarea);
+        }
+
+        // Si tiene fecha de seguimiento → crear tarea de seguimiento automáticamente
+        if (tieneClienteNum && fecha_seguimiento && nombre_cliente) {
+            const idSeguimiento = uuidv4();
+            const codSeg = await generarCodigoTarea(id_empresa);
+            await db.run(`
+                INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor,
+                    id_creador, prioridad, estado, fecha_creacion,
+                    tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, 1, ?, ?, ?, ?)
+            `, idSeguimiento, id_empresa, codSeg,
+               `Seguimiento cliente: ${nombre_cliente}`,
+               `Seguimiento programado para el ${fecha_seguimiento} con ${nombre_cliente}`,
+               id_empleado || null, supervisorFinal, id_creador,
+               prioridad || 'media', new Date().toISOString(),
+               codigoClienteFinal, nombre_cliente, telefono_cliente || null, correo_cliente || null);
+            await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), idSeguimiento);
+            if (id_empleado) {
+                await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'nueva_tarea')`,
+                    uuidv4(), id_empleado, '📅 Seguimiento de cliente programado',
+                    `Se generó una nueva tarea: "Seguimiento cliente: ${nombre_cliente}" para el ${fecha_seguimiento}`);
+            }
         }
 
         // Notificar al empleado
@@ -613,7 +648,35 @@ router.post('/:id/evidencias/base64', verificarToken, async (req, res) => {
 
         const id_evidencia = uuidv4();
         const tipoFinal = tipo || 'imagen';
-        
+
+        // ═══════════════════════════════════════════════════════
+        // COMPRESIÓN SERVER-SIDE con sharp (segunda capa de seguridad)
+        // Si el cliente ya comprimió, el resultado será igual de bueno.
+        // Si por alguna razón llegó una imagen grande, aquí se recorta.
+        // ═══════════════════════════════════════════════════════
+        let contenidoFinal = contenido;
+        if (tipoFinal === 'imagen' && contenido.startsWith('data:image')) {
+            try {
+                const sharp = require('sharp');
+                // Extraer el buffer del base64
+                const base64Data = contenido.replace(/^data:image\/\w+;base64,/, '');
+                const buffer = Buffer.from(base64Data, 'base64');
+                const originalKB = Math.round(buffer.length / 1024);
+
+                const compressed = await sharp(buffer)
+                    .resize({ width: 800, height: 800, fit: 'inside', withoutEnlargement: true })
+                    .jpeg({ quality: 60 })
+                    .toBuffer();
+
+                const compressedKB = Math.round(compressed.length / 1024);
+                contenidoFinal = 'data:image/jpeg;base64,' + compressed.toString('base64');
+                console.log(`🖼️ Sharp: ${originalKB}KB → ${compressedKB}KB (-${Math.round((1 - compressedKB/originalKB)*100)}%)`);
+            } catch (sharpErr) {
+                // Sharp no disponible o error: usar contenido original del cliente
+                console.log('⚠️ Sharp no disponible, usando compresión cliente:', sharpErr.message);
+            }
+        }
+
         // En PostgreSQL, asegurar schema correcto ANTES de insertar
         const { isPostgres } = require('../database/init');
         if (isPostgres && db.pool) {
@@ -622,26 +685,21 @@ router.post('/:id/evidencias/base64', verificarToken, async (req, res) => {
                 await client.query('SET search_path TO gestion_laboral, public');
                 await client.query(
                     'INSERT INTO evidencias_tarea (id_evidencia, id_tarea, tipo, contenido) VALUES ($1, $2, $3, $4)',
-                    [id_evidencia, req.params.id, tipoFinal, contenido]
+                    [id_evidencia, req.params.id, tipoFinal, contenidoFinal]
                 );
-                // Verificar que se guardó
                 const check = await client.query(
                     'SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_evidencia = $1',
                     [id_evidencia]
                 );
                 const cuenta = check.rows[0] ? parseInt(check.rows[0].total) : 0;
-                console.log(`✅ Evidencia base64 guardada (PG directo): ${id_evidencia} | tarea: ${req.params.id} | size: ${contenido.length} chars | verificado: ${cuenta > 0}`);
-                if (cuenta === 0) {
-                    console.error(`❌ ALERTA: INSERT reportó éxito pero verificación dice 0 registros!`);
-                }
+                console.log(`✅ Evidencia guardada (PG): ${id_evidencia} | tarea: ${req.params.id} | size: ${contenidoFinal.length} chars | ok: ${cuenta > 0}`);
             } finally {
                 client.release();
             }
         } else {
-            // SQLite (modo local)
             await db.run(`INSERT INTO evidencias_tarea (id_evidencia, id_tarea, tipo, contenido) VALUES (?, ?, ?, ?)`,
-                id_evidencia, req.params.id, tipoFinal, contenido);
-            console.log(`✅ Evidencia base64 guardada (SQLite): ${id_evidencia} para tarea ${req.params.id} (${contenido.length} chars)`);
+                id_evidencia, req.params.id, tipoFinal, contenidoFinal);
+            console.log(`✅ Evidencia guardada (SQLite): ${id_evidencia} (${contenidoFinal.length} chars)`);
         }
 
         const io = req.app.get('io');
@@ -681,6 +739,125 @@ function formatearTiempo(segundos) {
     if (m > 0) return `${m}m ${s}s`;
     return `${s}s`;
 }
+
+// ═══════════════════════════════════════════
+// CLIENTES Y OBSERVACIONES
+// ═══════════════════════════════════════════
+
+/**
+ * GET /api/tareas/clientes/buscar?q=texto
+ * Busca clientes existentes en la empresa para evitar duplicados
+ */
+router.get('/clientes/buscar', verificarToken, async (req, res) => {
+    try {
+        const q = (req.query.q || '').trim();
+        if (!q) return res.json([]);
+        const clientes = await db.all(
+            `SELECT DISTINCT codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente
+             FROM tareas
+             WHERE id_empresa = ? AND tiene_cliente = 1 AND nombre_cliente IS NOT NULL
+               AND LOWER(nombre_cliente) LIKE LOWER(?)
+             ORDER BY nombre_cliente LIMIT 10`,
+            req.usuario.id_empresa, `%${q}%`
+        );
+        res.json(clientes);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * PUT /api/tareas/:id/cliente-concluido
+ * Marca el evento con el cliente como concluido (no finaliza la tarea)
+ */
+router.put('/:id/cliente-concluido', verificarToken, async (req, res) => {
+    try {
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
+        if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+        await db.run('UPDATE tareas SET cliente_concluido = 1 WHERE id_tarea = ?', req.params.id);
+        await db.run(
+            `INSERT INTO historial_estados_tarea (id_tarea, estado_anterior, estado_nuevo, id_usuario, comentario)
+             VALUES (?, ?, ?, ?, 'Evento con cliente concluido')`,
+            req.params.id, tarea.estado, tarea.estado, req.usuario.id_usuario
+        );
+        registrarAuditoria(tarea.id_empresa, req.usuario.id_usuario, 'CLIENTE_CONCLUIDO', `Cliente ${tarea.nombre_cliente} atendido en tarea "${tarea.titulo}"`);
+        res.json({ mensaje: 'Evento con cliente marcado como concluido' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * PUT /api/tareas/:id/observaciones
+ * El empleado guarda sus observaciones sobre la tarea
+ */
+router.put('/:id/observaciones', verificarToken, async (req, res) => {
+    try {
+        const { observaciones_tarea } = req.body;
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
+        if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+        // Solo el empleado asignado puede editar observaciones
+        if (tarea.id_empleado !== req.usuario.id_usuario && req.usuario.rol !== 'ADMIN') {
+            return res.status(403).json({ error: 'Solo el empleado asignado puede editar las observaciones' });
+        }
+        await db.run('UPDATE tareas SET observaciones_tarea = ? WHERE id_tarea = ?', observaciones_tarea || '', req.params.id);
+        res.json({ mensaje: 'Observaciones guardadas' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * PUT /api/tareas/:id/seguimiento-cliente
+ * Actualiza datos del cliente (obs, fecha seguimiento) y si se pone fecha,
+ * crea automáticamente una nueva tarea programada para ese día.
+ */
+router.put('/:id/seguimiento-cliente', verificarToken, async (req, res) => {
+    try {
+        const { obs_cliente, fecha_seguimiento } = req.body;
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
+        if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+
+        await db.run(
+            'UPDATE tareas SET obs_cliente = ?, fecha_seguimiento = ? WHERE id_tarea = ?',
+            obs_cliente || tarea.obs_cliente, fecha_seguimiento || null, req.params.id
+        );
+
+        let nuevaTareaId = null;
+        // Si hay fecha de seguimiento → crear nueva tarea programada automáticamente
+        if (fecha_seguimiento && tarea.nombre_cliente) {
+            const { v4: uuidv4Local } = require('uuid');
+            nuevaTareaId = uuidv4Local();
+            const codigo_tarea = await generarCodigoTarea(req.usuario.id_empresa);
+            const tituloSeguimiento = `Seguimiento cliente: ${tarea.nombre_cliente}`;
+            await db.run(
+                `INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor, id_creador, prioridad, estado, fecha_creacion,
+                    tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, 1, ?, ?, ?, ?)`,
+                nuevaTareaId, req.usuario.id_empresa, codigo_tarea, tituloSeguimiento,
+                `Seguimiento programado para cliente ${tarea.nombre_cliente} a partir de la tarea "${tarea.titulo}"`,
+                tarea.id_empleado, tarea.id_supervisor, req.usuario.id_usuario,
+                tarea.prioridad || 'media', new Date().toISOString(),
+                tarea.codigo_cliente, tarea.nombre_cliente, tarea.telefono_cliente, tarea.correo_cliente
+            );
+            await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4Local(), nuevaTareaId);
+            // Notificar al empleado
+            if (tarea.id_empleado) {
+                await db.run(
+                    `INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'nueva_tarea')`,
+                    uuidv4Local(), tarea.id_empleado,
+                    '📋 Seguimiento de cliente programado',
+                    `Se generó una nueva tarea: "${tituloSeguimiento}" para el ${fecha_seguimiento}`
+                );
+            }
+        }
+
+        res.json({ mensaje: 'Seguimiento actualizado', nueva_tarea_id: nuevaTareaId });
+    } catch (err) {
+        console.error('Error seguimiento cliente:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // (Moved: historial and limpiar routes are now before /:id)
 

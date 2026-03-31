@@ -457,6 +457,22 @@ async function inicializarDB() {
         await db.run("ALTER TABLE tareas ADD COLUMN codigo_tarea TEXT");
     } catch(e) { /* ya existe */ }
 
+    // Migración: Seguimiento de Clientes + Observaciones de Empleado
+    const migracionesClientes = [
+        "ALTER TABLE tareas ADD COLUMN tiene_cliente INTEGER DEFAULT 0",
+        "ALTER TABLE tareas ADD COLUMN codigo_cliente TEXT",
+        "ALTER TABLE tareas ADD COLUMN nombre_cliente TEXT",
+        "ALTER TABLE tareas ADD COLUMN telefono_cliente TEXT",
+        "ALTER TABLE tareas ADD COLUMN correo_cliente TEXT",
+        "ALTER TABLE tareas ADD COLUMN obs_cliente TEXT",
+        "ALTER TABLE tareas ADD COLUMN fecha_seguimiento TEXT",
+        "ALTER TABLE tareas ADD COLUMN cliente_concluido INTEGER DEFAULT 0",
+        "ALTER TABLE tareas ADD COLUMN observaciones_tarea TEXT"
+    ];
+    for (const mig of migracionesClientes) {
+        try { await db.run(mig); } catch(e) { /* ya existe */ }
+    }
+
     // Migración: reestructuración empresa (Director General + dirección desglosada)
     const migracionesEmpresa = [
         "ALTER TABLE empresas ADD COLUMN nombre_director_general TEXT",
