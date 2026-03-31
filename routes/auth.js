@@ -50,15 +50,20 @@ router.post('/login', async (req, res) => {
 
         const usuario = await db.get(`
             SELECT u.*, e.nombre as nombre_empresa, e.logo_url as logo_empresa,
+                   e.estado as estado_empresa, e.eliminado as empresa_eliminada,
                    d.nombre as nombre_departamento
             FROM usuarios u
             JOIN empresas e ON u.id_empresa = e.id_empresa
             LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
-            WHERE u.codigo_acceso = ? AND u.eliminado = 0 AND u.estado = 1
+            WHERE u.codigo_acceso = ?
         `, codigo_acceso);
 
-        if (!usuario) {
+        if (!usuario || usuario.eliminado === 1) {
             return res.status(401).json({ error: 'Código de acceso inválido' });
+        }
+
+        if (usuario.estado === 0) {
+            return res.status(403).json({ error: 'Tu cuenta está desactivada. Contacta a SOPORTE SISDEL.' });
         }
 
         // Verificar bloqueo
@@ -75,12 +80,12 @@ router.post('/login', async (req, res) => {
                 usuario.id_usuario);
         }
 
-        // Verificar empresa activa
-        const empresa = await db.get('SELECT * FROM empresas WHERE id_empresa = ? AND eliminado = 0',
-            usuario.id_empresa);
+        if (usuario.empresa_eliminada === 1) {
+            return res.status(403).json({ error: 'La empresa ya no existe en el sistema.' });
+        }
 
-        if (!empresa) {
-            return res.status(403).json({ error: 'La empresa está desactivada' });
+        if (usuario.estado_empresa === 0) {
+            return res.status(403).json({ error: 'La empresa está suspendida. Contacta a administración.' });
         }
 
         const token = jwt.sign(

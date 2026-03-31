@@ -312,13 +312,15 @@ function abrirPanelPorRol() {
         const depStr = USUARIO.nombre_departamento ? ` — ${USUARIO.nombre_departamento}` : '';
         document.getElementById('admin-user-name').textContent = USUARIO.nombre + depStr;
         
-        const labelEmp = USUARIO.rol === 'GERENTE' && USUARIO.nombre_departamento 
-            ? `${USUARIO.nombre_empresa} • ${USUARIO.nombre_departamento}` 
-            : (USUARIO.rol === 'GERENTE' ? `${USUARIO.nombre_empresa} • Gerente` : (USUARIO.nombre_empresa || 'Empresa'));
+        const labelEmp = (USUARIO.rol === 'GERENTE' && !esUsuarioRRHH() && USUARIO.nombre_departamento)
+            ? `${USUARIO.nombre_empresa} • ${USUARIO.nombre_departamento}`
+            : (USUARIO.nombre_empresa || 'Empresa');
             
         document.getElementById('admin-empresa-nombre').textContent = labelEmp;
         const rolBadge = document.getElementById('admin-role-badge');
-        if (rolBadge) rolBadge.textContent = USUARIO.rol === 'GERENTE' ? 'GERENTE' : 'DIRECTOR GENERAL';
+        if (rolBadge) {
+            rolBadge.textContent = (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'ROOT') ? 'DIRECTOR GENERAL' : 'GERENTE';
+        }
         
         actualizarVisibilidadCreacion();
         cambiarPanelAdmin('tareas');
@@ -2850,20 +2852,32 @@ function esUsuarioRRHH() {
 // Ocultar botones de creación si no es RRHH o ADMIN
 function actualizarVisibilidadCreacion() {
     if (!USUARIO) return;
-    const accesible = esUsuarioRRHH();
+    const esRRHH = esUsuarioRRHH();
+    const esAdmin = (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'ROOT');
     
-    // Botones "Nuevo Supervisor" y "Nuevo Empleado"
+    // Botones "Nuevo Supervisor" y "Nuevo Empleado" - Visibles para RRHH y Admin
     document.querySelectorAll('.btn-sm').forEach(btn => {
         if (btn.textContent.includes('Nuevo Supervisor') || btn.textContent.includes('Nuevo Empleado')) {
-            btn.style.display = accesible ? 'inline-flex' : 'none';
+            btn.style.display = esRRHH ? 'inline-flex' : 'none';
         }
     });
 
-    // Sidebar de configuración (Solo Director General)
+    // Botón "Visión Global 360°" - Solo para el Director General (no para RRHH)
+    const btn360 = document.querySelector('button[onclick="abrirVisionGlobal360()"]');
+    if (btn360) {
+        btn360.style.display = esAdmin ? 'inline-flex' : 'none';
+    }
+    
+    // Si no es admin, cerrar/ocultar el modal 360 por si acaso quedó abierto
+    if (!esAdmin) {
+        const modal360 = document.getElementById('modal-vision-360');
+        if (modal360) modal360.style.display = 'none';
+    }
+
+    // Sidebar de configuración - Solo Director General
     const menuCfg = document.getElementById('menu-configuracion');
     if (menuCfg) {
-        // Solo el Director General (ADMIN) puede ver o acceder a configuración
-        menuCfg.style.display = (USUARIO.rol === 'ADMIN') ? 'block' : 'none';
+        menuCfg.style.display = esAdmin ? 'block' : 'none';
     }
 }
 
