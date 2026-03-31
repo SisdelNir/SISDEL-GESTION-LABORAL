@@ -750,56 +750,64 @@
                 <div id="panel-sup-modulo" class="panel">
                     <div class="vista-header"><h3>🛡️ Modo Supervisor</h3></div>
 
-                    <!-- Botones de sección -->
-                    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
-                        <button class="btn btn-sm" id="sup-mod-btn-empleados" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="cambiarSeccionModSup('empleados')">
-                            👥 Empleados
-                        </button>
-                        <button class="btn btn-sm" id="sup-mod-btn-tareas" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="cambiarSeccionModSup('tareas')">
-                            📋 Tareas
-                        </button>
-                        <div id="sup-btns-crear-tareas" style="margin-left:auto;display:flex;gap:8px;">
-                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="abrirModalPlantillas()">
-                                🔄 Repetitivas
-                            </button>
-                            <button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="abrirNuevaTareaSupervisor()">
-                                ➕ Tarea para Hoy
-                            </button>
-                        </div>
-                    </div>
+                    <!-- Layout: columna izquierda de botones + contenido a la derecha -->
+                    <div style="display:flex;gap:20px;align-items:flex-start;">
 
-                    <!-- Sección Empleados -->
-                    <div id="sup-mod-sec-empleados" style="display:none;">
-                        <div class="vista-header">
-                            <h3>👥 Mis Empleados</h3>
-                            <button class="btn btn-primary btn-sm" onclick="mostrarFormularioUsuario('EMPLEADO')">
-                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                                Nuevo Empleado
+                        <!-- Columna izquierda de botones -->
+                        <div style="display:flex;flex-direction:column;gap:10px;min-width:190px;flex-shrink:0;">
+                            <button class="btn btn-sm" id="sup-mod-btn-empleados" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;padding:12px 20px;border-radius:10px;width:100%;text-align:left;" onclick="cambiarSeccionModSup('empleados')">
+                                👥 Empleados
                             </button>
+                            <button class="btn btn-sm" id="sup-mod-btn-tareas" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-weight:600;padding:12px 20px;border-radius:10px;width:100%;text-align:left;" onclick="cambiarSeccionModSup('tareas')">
+                                📋 Tareas de Empleados
+                            </button>
+                            <div id="sup-btns-crear-tareas" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+                                <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:600;padding:12px 20px;border-radius:10px;width:100%;text-align:left;" onclick="abrirModalPlantillas()">
+                                    🔄 Repetitivas
+                                </button>
+                                <button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600;padding:12px 20px;border-radius:10px;width:100%;text-align:left;" onclick="abrirNuevaTareaSupervisor()">
+                                    ➕ Tarea para Hoy
+                                </button>
+                            </div>
                         </div>
-                        <div id="sup-mod-lista-empleados" class="grid-cards"></div>
-                    </div>
 
-                    <!-- Sección Tareas del Equipo -->
-                    <div id="sup-mod-sec-tareas" style="display:none;">
-                        <div class="vista-header"><h3>📋 Tareas del Equipo</h3></div>
-                        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-                            <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('pendiente')">
-                                🟡 Pendientes
-                            </button>
-                            <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('en_proceso')">
-                                🔵 En Proceso
-                            </button>
-                            <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('finalizada')">
-                                🟢 Terminadas
-                            </button>
-                            <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#6b7280,#374151);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('')">
-                                📋 Todas
-                            </button>
+                        <!-- Contenido a la derecha -->
+                        <div style="flex:1;min-width:0;">
+                            <!-- Sección Empleados -->
+                            <div id="sup-mod-sec-empleados" style="display:none;">
+                                <div class="vista-header">
+                                    <h3>👥 Mis Empleados</h3>
+                                    <button class="btn btn-primary btn-sm" onclick="mostrarFormularioUsuario('EMPLEADO')">
+                                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                        Nuevo Empleado
+                                    </button>
+                                </div>
+                                <div id="sup-mod-lista-empleados" class="grid-cards"></div>
+                            </div>
+
+                            <!-- Sección Tareas de Empleados -->
+                            <div id="sup-mod-sec-tareas" style="display:none;">
+                                <div class="vista-header"><h3>📋 Tareas de Empleados</h3></div>
+                                <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                                    <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('pendiente')">
+                                        🟡 Pendientes
+                                    </button>
+                                    <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('en_proceso')">
+                                        🔵 En Proceso
+                                    </button>
+                                    <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('finalizada')">
+                                        🟢 Terminadas
+                                    </button>
+                                    <button class="btn btn-sm sup-filtro-btn" style="background:linear-gradient(135deg,#6b7280,#374151);color:white;font-weight:600;padding:8px 18px;border-radius:8px;" onclick="filtrarTareasEquipoSup('')">
+                                        📋 Todas
+                                    </button>
+                                </div>
+                                <div id="sup-mod-lista-tareas" class="grid-cards">
+                                    <div class="empty-state"><p>Selecciona un filtro para ver las tareas</p></div>
+                                </div>
+                            </div>
                         </div>
-                        <div id="sup-mod-lista-tareas" class="grid-cards">
-                            <div class="empty-state"><p>Selecciona un filtro para ver las tareas</p></div>
-                        </div>
+
                     </div>
                 </div>
             </div>
