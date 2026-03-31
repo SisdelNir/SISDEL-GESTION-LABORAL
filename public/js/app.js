@@ -2966,6 +2966,19 @@ function actualizarVisibilidadCreacion() {
     if (menuCfg) {
         menuCfg.style.display = esAdmin ? 'block' : 'none';
     }
+
+    // Botón "Resumen de Tareas" en sidebar - Solo para Gerente
+    const menuResumenGerencia = document.getElementById('menu-resumen-gerencia');
+    if (menuResumenGerencia) {
+        const esGerente = USUARIO.rol === 'GERENTE';
+        if (esGerente) {
+            const nombreGerencia = USUARIO.nombre_departamento || 'Mi Gerencia';
+            menuResumenGerencia.textContent = `📋 Resumen de Tareas de Empleados de Gerencia: ${nombreGerencia}`;
+            menuResumenGerencia.style.display = 'block';
+        } else {
+            menuResumenGerencia.style.display = 'none';
+        }
+    }
 }
 
 // Cargar jefes disponibles (Supervisores, Gerentes y Director) según el departamento destino
