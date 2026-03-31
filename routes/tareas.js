@@ -359,17 +359,42 @@ router.get('/:id', verificarToken, async (req, res) => {
             WHERE h.id_tarea = ? ORDER BY h.fecha DESC
         `, req.params.id);
 
-        const evidencias = await db.all('SELECT id_evidencia, id_tarea, tipo, fecha_registro FROM evidencias_tarea WHERE id_tarea = ? ORDER BY fecha_registro DESC', req.params.id);
-        console.log(`📊 Tarea ${req.params.id}: ${evidencias.length} evidencias encontradas`);
-        if (evidencias.length > 0) {
-            console.log(`   → IDs: ${evidencias.map(e => e.id_evidencia).join(', ')}`);
+        // ══════════════════════════════════════════════════════
+        // CRÍTICO: Usar cliente dedicado con search_path explícito
+        // El pool puede tener conexiones sin el schema correcto,
+        // lo que causa que evidencias y comentarios no se encuentren.
+        // ══════════════════════════════════════════════════════
+        let evidencias = [], comentarios = [];
+        const { isPostgres } = require('../database/init');
+        if (isPostgres && db.pool) {
+            const client = await db.pool.connect();
+            try {
+                await client.query('SET search_path TO gestion_laboral, public');
+                const evRes = await client.query(
+                    'SELECT id_evidencia, id_tarea, tipo, fecha_registro FROM evidencias_tarea WHERE id_tarea = $1 ORDER BY fecha_registro DESC',
+                    [req.params.id]
+                );
+                evidencias = evRes.rows;
+                const comRes = await client.query(
+                    `SELECT c.*, u.nombre as nombre_usuario, u.rol as rol_usuario
+                     FROM comentarios_tarea c JOIN usuarios u ON c.id_usuario = u.id_usuario
+                     WHERE c.id_tarea = $1 ORDER BY c.fecha ASC`,
+                    [req.params.id]
+                );
+                comentarios = comRes.rows;
+                console.log(`📊 [PG direct] Tarea ${req.params.id}: ${evidencias.length} evidencias, ${comentarios.length} comentarios`);
+            } finally {
+                client.release();
+            }
+        } else {
+            evidencias = await db.all('SELECT id_evidencia, id_tarea, tipo, fecha_registro FROM evidencias_tarea WHERE id_tarea = ? ORDER BY fecha_registro DESC', req.params.id);
+            comentarios = await db.all(`
+                SELECT c.*, u.nombre as nombre_usuario, u.rol as rol_usuario
+                FROM comentarios_tarea c JOIN usuarios u ON c.id_usuario = u.id_usuario
+                WHERE c.id_tarea = ? ORDER BY c.fecha ASC
+            `, req.params.id);
+            console.log(`📊 [SQLite] Tarea ${req.params.id}: ${evidencias.length} evidencias, ${comentarios.length} comentarios`);
         }
-
-        const comentarios = await db.all(`
-            SELECT c.*, u.nombre as nombre_usuario, u.rol as rol_usuario
-            FROM comentarios_tarea c JOIN usuarios u ON c.id_usuario = u.id_usuario
-            WHERE c.id_tarea = ? ORDER BY c.fecha ASC
-        `, req.params.id);
 
         res.json({ ...tarea, historial, evidencias, comentarios });
     } catch (err) {
@@ -717,7 +742,23 @@ router.post('/:id/evidencias/base64', verificarToken, async (req, res) => {
  */
 router.get('/:id/evidencias/:idEv', verificarToken, async (req, res) => {
     try {
-        const evidencia = await db.get('SELECT * FROM evidencias_tarea WHERE id_evidencia = ? AND id_tarea = ?', req.params.idEv, req.params.id);
+        let evidencia = null;
+        const { isPostgres } = require('../database/init');
+        if (isPostgres && db.pool) {
+            const client = await db.pool.connect();
+            try {
+                await client.query('SET search_path TO gestion_laboral, public');
+                const result = await client.query(
+                    'SELECT * FROM evidencias_tarea WHERE id_evidencia = $1 AND id_tarea = $2',
+                    [req.params.idEv, req.params.id]
+                );
+                evidencia = result.rows[0] || null;
+            } finally {
+                client.release();
+            }
+        } else {
+            evidencia = await db.get('SELECT * FROM evidencias_tarea WHERE id_evidencia = ? AND id_tarea = ?', req.params.idEv, req.params.id);
+        }
         if (!evidencia) return res.status(404).json({ error: 'Evidencia no encontrada' });
         res.json(evidencia);
     } catch (err) {
