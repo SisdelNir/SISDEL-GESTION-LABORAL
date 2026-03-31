@@ -2910,12 +2910,13 @@ async function cargarSupervisoresPorDepto(idDepto) {
             });
         } catch(e) {}
 
+        let dActual = null;
         // 2. Cargar el Gerente de esta área
         try {
             const deptos = await fetchAPI('/api/departamentos');
-            const dActual = deptos.find(d => d.id_departamento === idDepto);
+            dActual = deptos.find(d => d.id_departamento === idDepto);
             if (dActual && dActual.gerente) {
-                html += `<option value="${dActual.gerente.id_usuario}">${dActual.gerente.nombre} (Gerente de Área)</option>`;
+                html += `<option value="${dActual.gerente.id_usuario}">${dActual.gerente.nombre} (Gerente directo - ${dActual.nombre})</option>`;
                 idGerenteFocus = dActual.gerente.id_usuario;
             }
         } catch(e) {}
@@ -2925,7 +2926,8 @@ async function cargarSupervisoresPorDepto(idDepto) {
             try {
                 const supervisores = await fetchAPI(`/api/usuarios?rol=SUPERVISOR&departamento=${idDepto}`);
                 supervisores.forEach(s => {
-                    html += `<option value="${s.id_usuario}">${s.nombre} (Supervisor de Área)</option>`;
+                    const deptoName = dActual ? dActual.nombre : 'Área';
+                    html += `<option value="${s.id_usuario}">${s.nombre} (Supervisor - ${deptoName})</option>`;
                 });
                 
                 // Si estamos creando un Empleado y hay supervisores, preferimos auto-seleccionar al primer supervisor
