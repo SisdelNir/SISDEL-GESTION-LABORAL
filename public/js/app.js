@@ -2693,7 +2693,6 @@ async function cargarSupervisores() {
                             <td><span class="badge ${u.estado ? 'badge-success' : 'badge-danger'}">${u.estado ? 'Activo' : 'Inactivo'}</span></td>
                             <td>
                                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                    <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignarEmpleados('${u.id_usuario}', '${u.nombre}')">👥 Asignar</button>
                                     ${USUARIO.rol === 'ADMIN' ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'GERENTE', '${u.nombre.replace(/'/g, "\\'")}')" title="Promover a Gerente">👔 Gerente</button>` : ''}
                                     <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:0.72rem;padding:5px 10px;" onclick="cambiarRolUsuario('${u.id_usuario}', 'EMPLEADO', '${u.nombre.replace(/'/g, "\\'")}')" title="Degradar a Empleado">⬇️ Empleado</button>
                                     <button class="btn btn-sm" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-size:0.72rem;padding:5px 10px;" onclick="abrirEditarUsuario('${u.id_usuario}')" title="Editar">✏️</button>
