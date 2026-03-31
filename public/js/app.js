@@ -3254,6 +3254,7 @@ async function cargarTareas() {
                     <!-- Fecha + botón expand -->
                     <div class="tarea-row-fecha">
                         <span style="font-size:0.7rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_creacion)}</span>
+                        <span style="font-size:0.68rem;color:#a78bfa;">🕐 ${formatearHoraEmpresa(t.fecha_creacion)}</span>
                         ${t.fecha_fin ? `<span style="font-size:0.68rem;color:#10b981;">✅ ${formatearFecha(t.fecha_fin)}</span>` : ''}
                         <button class="btn-expand-tarea" onclick="event.stopPropagation();toggleDetalleTarea('${t.id_tarea}')" title="Ver detalles">
                             <span id="icon-expand-${t.id_tarea}">▼</span>
