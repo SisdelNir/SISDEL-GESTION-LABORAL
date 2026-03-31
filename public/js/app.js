@@ -309,7 +309,7 @@ function abrirPanelPorRol() {
 
     if (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE') {
         mostrarPantalla('admin');
-        const depStr = USUARIO.nombre_departamento ? ` — ${USUARIO.nombre_departamento}` : '';
+        const depStr = (USUARIO.nombre_departamento && !esUsuarioRRHH()) ? ` — ${USUARIO.nombre_departamento}` : '';
         document.getElementById('admin-user-name').textContent = USUARIO.nombre + depStr;
         
         const labelEmp = (USUARIO.rol === 'GERENTE' && !esUsuarioRRHH() && USUARIO.nombre_departamento)
