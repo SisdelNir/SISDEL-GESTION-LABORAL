@@ -376,8 +376,13 @@ function cerrarSesion() {
 function parseFechaDBSeguro(str) {
     if (!str) return null;
     let s = str.trim();
-    if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
-    if (!s.includes('Z') && !s.includes('+')) s += 'Z';
+    // Si la base de datos devuelve solo la fecha (ej. tareas de calendario "YYYY-MM-DD")
+    if (s.length === 10 && s.includes('-')) {
+        s += 'T00:00:00Z'; // Safari requiere la T y el tiempo explícito
+    } else {
+        if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
+        if (!s.includes('Z') && !s.includes('+') && s.includes('T')) s += 'Z';
+    }
     const d = new Date(s);
     return isNaN(d) ? null : d;
 }
