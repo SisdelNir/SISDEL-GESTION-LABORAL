@@ -105,8 +105,17 @@ router.get('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'), 
         if (rol) { query += ' AND u.rol = ?'; params.push(rol); }
         if (departamento) { query += ' AND u.id_departamento = ?'; params.push(departamento); }
 
+        let esRRHH = false;
         if (req.usuario.rol === 'GERENTE') {
-            // Gerente solo ve usuarios de SU departamento/gerencia
+            const depto = await db.get('SELECT nombre FROM departamentos WHERE id_departamento = ?', req.usuario.id_departamento);
+            const nombreDepto = (depto?.nombre || '').toUpperCase();
+            if (nombreDepto.includes('RRHH') || nombreDepto.includes('RECURSOS HUMANOS')) {
+                esRRHH = true;
+            }
+        }
+
+        if (req.usuario.rol === 'GERENTE' && !esRRHH) {
+            // Gerente normal solo ve usuarios de SU departamento/gerencia
             query += ' AND u.id_departamento = ?';
             params.push(req.usuario.id_departamento);
         } else if (req.usuario.rol === 'SUPERVISOR') {
