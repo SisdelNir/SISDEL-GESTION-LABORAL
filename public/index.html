@@ -732,10 +732,10 @@
                     <div id="sup-ubicacion-info"></div>
                     <div class="vista-header"><h3>📋 Mis Tareas</h3></div>
                     <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
-                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-amber);">🟡</div><div class="stat-number" id="sup-stat-pendientes">0</div><div class="stat-label">Pendientes</div></div>
-                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-primary);">🔵</div><div class="stat-number" id="sup-stat-proceso">0</div><div class="stat-label">En Proceso</div></div>
-                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-success);">🟢</div><div class="stat-number" id="sup-stat-finalizadas">0</div><div class="stat-label">Finalizadas</div></div>
-                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-danger);">🔴</div><div class="stat-number" id="sup-stat-atrasadas">0</div><div class="stat-label">Atrasadas</div></div>
+                        <div class="stat-card glass" onclick="filtrarMisTareasSup('pendiente')" style="cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''"><div class="stat-icon" style="background:var(--accent-amber);">🟡</div><div class="stat-number" id="sup-stat-pendientes">0</div><div class="stat-label">Pendientes</div></div>
+                        <div class="stat-card glass" onclick="filtrarMisTareasSup('en_proceso')" style="cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''"><div class="stat-icon" style="background:var(--accent-primary);">🔵</div><div class="stat-number" id="sup-stat-proceso">0</div><div class="stat-label">En Proceso</div></div>
+                        <div class="stat-card glass" onclick="filtrarMisTareasSup('finalizada')" style="cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''"><div class="stat-icon" style="background:var(--accent-success);">🟢</div><div class="stat-number" id="sup-stat-finalizadas">0</div><div class="stat-label">Finalizadas</div></div>
+                        <div class="stat-card glass" onclick="filtrarMisTareasSup('atrasada')" style="cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''"><div class="stat-icon" style="background:var(--accent-danger);">🔴</div><div class="stat-number" id="sup-stat-atrasadas">0</div><div class="stat-label">Atrasadas</div></div>
                     </div>
                     <div id="sup-lista-tareas" class="grid-cards"></div>
                 </div>
@@ -848,10 +848,10 @@
                     <div id="emp-ubicacion-info"></div>
                     <div class="vista-header"><h3>📋 Mis Tareas</h3></div>
                     <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
-                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-amber);">🟡</div><div class="stat-number" id="emp-stat-pendientes">0</div><div class="stat-label">Pendientes</div></div>
-                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-primary);">🔵</div><div class="stat-number" id="emp-stat-proceso">0</div><div class="stat-label">En Proceso</div></div>
-                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-success);">🟢</div><div class="stat-number" id="emp-stat-finalizadas">0</div><div class="stat-label">Finalizadas</div></div>
-                        <div class="stat-card glass"><div class="stat-icon" style="background:var(--accent-danger);">🔴</div><div class="stat-number" id="emp-stat-atrasadas">0</div><div class="stat-label">Atrasadas</div></div>
+                        <div class="stat-card glass" onclick="filtrarTareasEmpleado('pendiente')" style="cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''"><div class="stat-icon" style="background:var(--accent-amber);">🟡</div><div class="stat-number" id="emp-stat-pendientes">0</div><div class="stat-label">Pendientes</div></div>
+                        <div class="stat-card glass" onclick="filtrarTareasEmpleado('en_proceso')" style="cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''"><div class="stat-icon" style="background:var(--accent-primary);">🔵</div><div class="stat-number" id="emp-stat-proceso">0</div><div class="stat-label">En Proceso</div></div>
+                        <div class="stat-card glass" onclick="filtrarTareasEmpleado('finalizada')" style="cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''"><div class="stat-icon" style="background:var(--accent-success);">🟢</div><div class="stat-number" id="emp-stat-finalizadas">0</div><div class="stat-label">Finalizadas</div></div>
+                        <div class="stat-card glass" onclick="filtrarTareasEmpleado('atrasada')" style="cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''"><div class="stat-icon" style="background:var(--accent-danger);">🔴</div><div class="stat-number" id="emp-stat-atrasadas">0</div><div class="stat-label">Atrasadas</div></div>
                     </div>
                     <div id="emp-lista-tareas" class="grid-cards"></div>
                 </div>

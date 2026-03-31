@@ -1410,14 +1410,37 @@ async function filtrarTareasEquipoSup(estado) {
         const container = document.getElementById('sup-mod-lista-tareas');
 
         // Excluir tareas propias del supervisor — solo del equipo
-        tareas = tareas.filter(t => t.id_empleado !== USUARIO.id_usuario);
+        let tareasEquipo = tareas.filter(t => t.id_empleado !== USUARIO.id_usuario);
 
-        if (!tareas.length) {
-            container.innerHTML = `<div class="empty-state"><p>No hay tareas ${estado ? 'con estado "' + estado.replace('_',' ') + '"' : ''} en tu equipo</p></div>`;
+        if (estado) {
+            if (estado === 'finalizada') {
+                tareasEquipo = tareasEquipo.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada');
+            } else {
+                tareasEquipo = tareasEquipo.filter(t => t.estado === estado);
+            }
+        }
+
+        // 1. FILTRADO PARA HOY (Política del sistema)
+        const hoySinHora = new Date(); hoySinHora.setHours(0,0,0,0);
+        tareasEquipo = tareasEquipo.filter(t => {
+            if (t.estado === 'en_proceso' || t.estado === 'atrasada') return true;
+            if (['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado)) return true;
+
+            const fObj = parseFechaDBSeguro(t.fecha_programada || t.fecha_creacion);
+            if (!fObj) return true;
+            if (fObj > hoySinHora) {
+                const esHoy = fObj.getFullYear() === hoySinHora.getFullYear() && fObj.getMonth() === hoySinHora.getMonth() && fObj.getDate() === hoySinHora.getDate();
+                if (!esHoy) return false;
+            }
+            return true;
+        });
+
+        if (!tareasEquipo.length) {
+            container.innerHTML = `<div class="empty-state"><p>No hay tareas ${estado ? 'pendientes para hoy con estado "' + estado.replace('_',' ') + '"' : 'pendientes para hoy'} en tu equipo</p></div>`;
             return;
         }
 
-        container.innerHTML = tareas.map(t => {
+        container.innerHTML = tareasEquipo.map(t => {
             const estadoColor = t.estado === 'pendiente' ? '#f59e0b' : t.estado === 'en_proceso' ? '#3b82f6' : t.estado === 'atrasada' ? '#ef4444' : '#10b981';
             const prioColor = t.prioridad === 'urgente' ? '#ef4444' : t.prioridad === 'alta' ? '#f97316' : t.prioridad === 'media' ? '#f59e0b' : '#10b981';
             
@@ -1996,8 +2019,22 @@ async function cargarTareasEmpleado() {
 
         // (El filtrado de HOY y cálculo de KPIs ya se realizó arriba sincronizadamente)
         
+        // Determinar qué tareas mostrar según el filtro activo
+        let tareasVista = [];
+        if (window.EMP_FILTRO_TAREAS) {
+            if (window.EMP_FILTRO_TAREAS === 'finalizada') {
+                // Historial: permitimos ver todas las terminadas (no solo hoy)
+                tareasVista = tareasRaw.filter(t => (t.estado === 'finalizada' || t.estado === 'finalizada_atrasada') && t.id_empleado === USUARIO.id_usuario);
+            } else {
+                tareasVista = tareas.filter(t => t.estado === window.EMP_FILTRO_TAREAS);
+            }
+        } else {
+            // Sin filtro = solo activas hoy (sin terminadas/canceladas)
+            tareasVista = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
+        }
+
         // Disparar alertas para tareas urgentes de hoy que estén pendientes
-        tareas.forEach(t => {
+        tareasVista.forEach(t => {
             if (t.prioridad === 'urgente' && t.estado === 'pendiente' && !tareasYaAlertadas.has(t.id_tarea)) {
                 tareasYaAlertadas.add(t.id_tarea);
                 alertaSonoraYVibracion('urgente');
@@ -2005,10 +2042,20 @@ async function cargarTareasEmpleado() {
             }
         });
 
-        if (!tareas.length) {
-            container.innerHTML = '<div class="empty-state"><p>No tienes tareas pendientes para el día de hoy</p></div>';
+        if (!tareasVista.length) {
+            container.innerHTML = '<div class="empty-state"><p>' + (window.EMP_FILTRO_TAREAS ? 'No hay tareas con este filtro para hoy' : 'No tienes tareas pendientes para el día de hoy') + '</p></div>';
             return;
         }
+
+        container.innerHTML = tareasVista.map(t => {
+            const esEnProceso = t.estado === 'en_proceso';
+            const esAtrasada = t.estado === 'atrasada';
+            const colorEstado = esAtrasada ? 'var(--accent-danger)' : (esEnProceso ? 'var(--accent-primary)' : 'var(--accent-amber)');
+            
+            return renderTareaCardEmpleado(t, empPuedeIniciar);
+        }).join('');
+
+        iniciarCronometrosEmpleado(tareasVista);
 
         // Si empleado NO puede iniciar → auto-iniciar tareas pendientes
         if (!empPuedeIniciar) {
