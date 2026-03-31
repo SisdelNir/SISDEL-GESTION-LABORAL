@@ -2648,9 +2648,12 @@ async function abrirModalAsignarEmpleados(idSupervisor, nombreSupervisor) {
             html = '<div style="text-align:center;padding:10px;color:var(--text-muted)">No hay empleados registrados en la empresa.</div>';
         } else {
             // Filtrar: Solo mostrar si NO tienen supervisor O si el supervisor es el actual (para poder desmarcar)
-            const empleadosDisponibles = empleados.filter(emp => {
-                return !emp.supervisor || emp.supervisor.id_supervisor === idSupervisor;
-            });
+            // RRHH y ADMIN pueden ver todos para reasignar libremente
+            const empleadosDisponibles = (USUARIO.rol === 'ADMIN' || esUsuarioRRHH()) 
+                ? empleados
+                : empleados.filter(emp => {
+                    return !emp.supervisor || emp.supervisor.id_supervisor === idSupervisor;
+                });
 
             if (empleadosDisponibles.length === 0) {
                 html = '<div style="text-align:center;padding:10px;color:var(--text-muted)">Todos los empleados ya tienen un supervisor asignado.</div>';

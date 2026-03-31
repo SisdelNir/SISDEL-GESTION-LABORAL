@@ -344,7 +344,16 @@ router.post('/supervisores/:id/empleados', verificarToken, async (req, res) => {
         const idSupervisor = req.params.id;
         const { empleados } = req.body; // Array de IDs de empleados
         
-        if (req.usuario.rol !== 'ROOT' && req.usuario.rol !== 'ADMIN') {
+        let esRRHH = false;
+        if (req.usuario.rol === 'GERENTE') {
+            const depto = await db.get('SELECT nombre FROM departamentos WHERE id_departamento = ?', req.usuario.id_departamento);
+            const nombreDepto = (depto?.nombre || '').toUpperCase();
+            if (nombreDepto.includes('RRHH') || nombreDepto.includes('RECURSOS HUMANOS')) {
+                esRRHH = true;
+            }
+        }
+
+        if (req.usuario.rol !== 'ROOT' && req.usuario.rol !== 'ADMIN' && !esRRHH) {
             return res.status(403).json({ error: 'No tienes permisos para asignar empleados' });
         }
 
