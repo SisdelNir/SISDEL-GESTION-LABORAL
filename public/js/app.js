@@ -2747,27 +2747,25 @@ async function mostrarFormularioUsuario(rol) {
             labelJefe.textContent = 'Jefe Inmediato (Supervisor)';
             selectJefe.removeAttribute('required');
             selectJefe.innerHTML = '<option value="">-- Sin Supervisor (Directo) --</option>';
-            // Si es GERENTE, agregarse como opción
+
+            // 1. Si el creador es el jefe, agregarlo de primero y seleccionarlo
             if (USUARIO.rol === 'GERENTE') {
                 selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
-            }
-            // Si es SUPERVISOR, agregarse y auto-seleccionarse
-            if (USUARIO.rol === 'SUPERVISOR') {
-                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Yo)</option>`;
+                selectJefe.value = USUARIO.id_usuario;
+            } else if (USUARIO.rol === 'SUPERVISOR') {
+                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Supervisor)</option>`;
+                selectJefe.value = USUARIO.id_usuario;
             }
 
             try {
+                // 2. Cargar el resto de los supervisores
                 const supervisores = await fetchAPI('/api/usuarios?rol=SUPERVISOR');
                 supervisores.forEach(s => {
-                    // No duplicar si ya se agregó arriba
-                    if (USUARIO.rol === 'SUPERVISOR' && s.id_usuario === USUARIO.id_usuario) return;
-                    selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`;
+                    if (s.id_usuario === USUARIO.id_usuario) return; // No duplicar al creador
+                    selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre} (Supervisor)</option>`;
                 });
             } catch(e) { console.log('No se pudo cargar supervisores:', e); }
 
-            if (USUARIO.rol === 'SUPERVISOR') {
-                selectJefe.value = USUARIO.id_usuario;
-            }
         } else if (rol === 'SUPERVISOR') {
             grupoJefe.style.display = 'block';
             labelJefe.textContent = 'Jefe Inmediato (Gerente)';
