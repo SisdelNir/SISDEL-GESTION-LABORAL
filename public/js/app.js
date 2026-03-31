@@ -3882,9 +3882,10 @@ function seleccionarClienteExistente(c) {
         obs_cliente: tieneCliente ? document.getElementById('cliente-obs').value.trim() : undefined,
         fecha_seguimiento: tieneCliente ? (document.getElementById('cliente-fecha-seguimiento').value || undefined) : undefined
     };
+    // Si se activó cliente pero no se ingresó nombre → desactivar silenciosamente
     if (tieneCliente && !datos.nombre_cliente) {
-        mostrarToast('Ingresa el nombre del cliente', 'error');
-        return;
+        datos.tiene_cliente = 0;
+        datos.codigo_cliente = undefined;
     }
     try {
         const resp = await fetchAPI('/api/tareas', { method: 'POST', body: JSON.stringify(datos) });
