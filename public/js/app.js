@@ -1978,8 +1978,8 @@ async function cargarTareasEmpleado() {
             // Obtener el YYYY-MM-DD local de esa fecha
             const fechaLocal = new Date(fechaObj.getTime() - (fechaObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
             
-            // Solo mostrar si es para hoy o es una tarea de calendario que ya pasó y quedó pendiente
-            return fechaLocal === hoyStr || (t.fecha_programada && fechaLocal < hoyStr);
+            // Solo mostrar si es para hoy o es una tarea que quedó pendiente de días anteriores
+            return fechaLocal <= hoyStr;
         });
 
         // Disparar alertas para tareas urgentes de hoy que estén pendientes
