@@ -186,6 +186,10 @@ router.get('/estadisticas', verificarToken, async (req, res) => {
             // Solo tareas de empleados que reportan al supervisor + tareas propias
             baseQuery = `FROM tareas t LEFT JOIN usuarios emp ON t.id_empleado = emp.id_usuario WHERE t.id_empresa = ? AND t.eliminado = 0 AND (t.id_empleado = ? OR emp.id_jefe = ?)`;
             baseParams = [id_empresa, id_sup, id_sup];
+        } else if (req.usuario.rol === 'GERENTE') {
+            // Gerente: solo tareas de empleados de SU departamento
+            baseQuery = `FROM tareas t JOIN usuarios u ON t.id_empleado = u.id_usuario WHERE t.id_empresa = ? AND t.eliminado = 0 AND u.id_departamento = ?`;
+            baseParams = [id_empresa, req.usuario.id_departamento];
         } else {
             baseQuery = `FROM tareas t WHERE t.id_empresa = ? AND t.eliminado = 0`;
             baseParams = [id_empresa];
