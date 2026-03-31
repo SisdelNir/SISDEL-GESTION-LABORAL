@@ -1441,24 +1441,57 @@ async function filtrarTareasEquipoSup(estado) {
         }
 
         container.innerHTML = tareasEquipo.map(t => {
-            const estadoColor = t.estado === 'pendiente' ? '#f59e0b' : t.estado === 'en_proceso' ? '#3b82f6' : t.estado === 'atrasada' ? '#ef4444' : '#10b981';
-            const prioColor = t.prioridad === 'urgente' ? '#ef4444' : t.prioridad === 'alta' ? '#f97316' : t.prioridad === 'media' ? '#f59e0b' : '#10b981';
-            
+            const prioridadColor = {
+                'urgente': '#ef4444', 'alta': '#f97316', 'media': '#6366f1', 'baja': '#10b981'
+            }[t.prioridad] || '#6366f1';
+            const estadoBadgeClass = {
+                'pendiente': 'badge-warning', 'en_proceso': 'badge-primary',
+                'finalizada': 'badge-success', 'atrasada': 'badge-danger',
+                'finalizada_atrasada': 'badge-warning', 'cancelada': 'badge-info'
+            }[t.estado] || 'badge-info';
+            const estadoTexto = {
+                'pendiente': '🟡 Pendiente', 'en_proceso': '🔵 En Proceso',
+                'finalizada': '🟢 Finalizada', 'atrasada': '🔴 Atrasada',
+                'finalizada_atrasada': '🟠 Fin. Atrasada', 'cancelada': '⬜ Cancelada'
+            }[t.estado] || t.estado;
+            let tiempoRealStr = '';
+            if ((t.estado === 'finalizada' || t.estado === 'finalizada_atrasada') && t.fecha_inicio && t.fecha_fin) {
+                const segs = Math.round((new Date(t.fecha_fin) - new Date(t.fecha_inicio)) / 1000);
+                tiempoRealStr = formatearCronoAdmin(segs);
+            }
             return `
-                <div class="glass" style="padding:14px;border-radius:12px;border-left:4px solid ${estadoColor};">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                        <strong style="font-size:0.9rem;">${t.titulo}</strong>
-                        <span class="badge" style="background:${estadoColor};color:white;font-size:0.68rem;">${t.estado.replace('_',' ').toUpperCase()}</span>
+            <div class="tarea-row-wrap" id="wrap-${t.id_tarea}">
+                <div class="tarea-row glass" style="border-left:4px solid ${prioridadColor};">
+                    <div class="tarea-row-prioridad" style="background:${prioridadColor}22;color:${prioridadColor};">${t.prioridad.toUpperCase()}</div>
+                    <div class="tarea-row-main">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            ${t.codigo_tarea ? `<span style="font-size:0.68rem;font-weight:700;color:var(--accent-primary);background:rgba(99,102,241,0.15);padding:2px 8px;border-radius:6px;">${t.codigo_tarea}</span>` : ''}
+                            <span style="font-size:0.95rem;font-weight:700;">${t.titulo}</span>
+                            <span class="badge ${estadoBadgeClass}" style="font-size:0.65rem;">${estadoTexto}</span>
+                            ${t.nombre_tipo ? `<span style="font-size:0.7rem;color:var(--text-muted);background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:10px;">${t.nombre_tipo}</span>` : ''}
+                        </div>
+                        ${t.descripcion ? `<div style="font-size:0.77rem;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:350px;" title="${t.descripcion}">${t.descripcion}</div>` : ''}
                     </div>
-                    ${t.descripcion ? `<p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">${t.descripcion}</p>` : ''}
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:0.75rem;">
-                        <span style="background:rgba(59,130,246,0.15);padding:2px 8px;border-radius:6px;">👤 ${t.nombre_empleado || 'Sin asignar'}</span>
-                        <span style="background:${prioColor}22;color:${prioColor};padding:2px 8px;border-radius:6px;font-weight:600;">${t.prioridad.toUpperCase()}</span>
-                        ${t.tiempo_estimado_minutos ? `<span>⏱ ${t.tiempo_estimado_minutos} min</span>` : ''}
-                        ${t.fecha_creacion ? `<span style="color:var(--text-muted);">📅 ${formatearFechaHora(t.fecha_creacion)}</span>` : ''}
+                    <div class="tarea-row-info">
+                        ${t.nombre_empleado ? `<span class="empresa-stat">👤 ${t.nombre_empleado}</span>` : '<span class="empresa-stat" style="opacity:0.4;">Sin asignar</span>'}
+                        ${t.nombre_supervisor ? `<span class="empresa-stat">👁 ${t.nombre_supervisor}</span>` : ''}
+                        ${tiempoRealStr ? `<span class="empresa-stat" style="color:#00ff88;font-weight:600;">⏱ ${tiempoRealStr}</span>` : (t.tiempo_estimado_minutos ? `<span class="empresa-stat">⏳ ${formatearTiempo(t.tiempo_estimado_minutos)}</span>` : '')}
+                        ${t.total_evidencias > 0 ? `<span class="empresa-stat" style="color:#a78bfa;">📸 ${t.total_evidencias}</span>` : ''}
+                        ${t.total_comentarios > 0 ? `<span class="empresa-stat" style="color:#60a5fa;">💬 ${t.total_comentarios}</span>` : ''}
+                    </div>
+                    <div class="tarea-row-fecha">
+                        <span style="font-size:0.7rem;color:var(--text-muted);">📅 ${formatearFecha(t.fecha_creacion)}</span>
+                        <span style="font-size:0.68rem;color:#a78bfa;">🕐 ${formatearHoraEmpresa(t.fecha_creacion)}</span>
+                        ${t.fecha_fin ? `<span style="font-size:0.68rem;color:#10b981;">✅ ${formatearFecha(t.fecha_fin)}</span>` : ''}
+                        <button class="btn-expand-tarea" onclick="event.stopPropagation();toggleDetalleTarea('${t.id_tarea}')" title="Ver detalles">
+                            <span id="icon-expand-${t.id_tarea}">▼</span>
+                        </button>
                     </div>
                 </div>
-            `;
+                <div id="detalle-${t.id_tarea}" class="tarea-detalle-panel" style="display:none;">
+                    <div class="tarea-detalle-loading">⏳ Cargando detalles...</div>
+                </div>
+            </div>`;
         }).join('');
     } catch(err) {
         console.error('Error filtrando tareas equipo:', err);
