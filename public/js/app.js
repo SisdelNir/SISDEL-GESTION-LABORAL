@@ -2470,18 +2470,27 @@ async function abrirModalAsignarEmpleados(idSupervisor, nombreSupervisor) {
         if (empleados.length === 0) {
             html = '<div style="text-align:center;padding:10px;color:var(--text-muted)">No hay empleados registrados en la empresa.</div>';
         } else {
-            empleados.forEach(emp => {
-                const checked = asignados.includes(emp.id_usuario) ? 'checked' : '';
-                html += `
-                    <label style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:6px;transition:0.2s;cursor:pointer;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" name="emp_asignado" value="${emp.id_usuario}" ${checked} style="width:18px;height:18px;accent-color:var(--primary);">
-                        <div style="display:flex;flex-direction:column;">
-                            <span style="font-weight:600;font-size:0.95rem;">${emp.nombre}</span>
-                            <span style="font-size:0.75rem;color:var(--text-muted);">Cód: ${emp.codigo_acceso}</span>
-                        </div>
-                    </label>
-                `;
+            // Filtrar: Solo mostrar si NO tienen supervisor O si el supervisor es el actual (para poder desmarcar)
+            const empleadosDisponibles = empleados.filter(emp => {
+                return !emp.supervisor || emp.supervisor.id_supervisor === idSupervisor;
             });
+
+            if (empleadosDisponibles.length === 0) {
+                html = '<div style="text-align:center;padding:10px;color:var(--text-muted)">Todos los empleados ya tienen un supervisor asignado.</div>';
+            } else {
+                empleadosDisponibles.forEach(emp => {
+                    const checked = asignados.includes(emp.id_usuario) ? 'checked' : '';
+                    html += `
+                        <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;transition:0.2s;cursor:pointer;border:1px solid var(--border-color);margin-bottom:6px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+                            <input type="checkbox" name="emp_asignado" value="${emp.id_usuario}" ${checked} style="width:20px;height:20px;accent-color:var(--accent-primary);">
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-weight:700;font-size:0.95rem;color:var(--text-primary);">${emp.nombre}</span>
+                                <span style="font-size:0.75rem;color:var(--text-muted);">Cód: ${emp.codigo_acceso}</span>
+                            </div>
+                        </label>
+                    `;
+                });
+            }
         }
         document.getElementById('lista-checks-empleados').innerHTML = html;
         document.getElementById('btn-submit-asignar').disabled = false;
@@ -2707,16 +2716,28 @@ async function mostrarFormularioUsuario(rol) {
             }
         } else if (rol === 'SUPERVISOR') {
             grupoJefe.style.display = 'block';
-            labelJefe.textContent = 'Jefe Inmediato';
+            labelJefe.textContent = 'Jefe Inmediato (Gerente)';
             selectJefe.removeAttribute('required');
-            selectJefe.innerHTML = '<option value="">-- Seleccionar --</option>';
+            selectJefe.innerHTML = '<option value="">-- Seleccionar Gerente --</option>';
+            
+            // Si el que crea es GERENTE, se auto-selecciona como jefe
             if (USUARIO.rol === 'GERENTE') {
-                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
+                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Yo)</option>`;
             }
+            
             try {
-                const admins = await fetchAPI('/api/usuarios?rol=ADMIN');
-                admins.forEach(a => selectJefe.innerHTML += `<option value="${a.id_usuario}">${a.nombre}</option>`);
-            } catch(e) { console.log('No se pudo cargar admins:', e); }
+                // Los supervisores dependen únicamente de Gerentes
+                const gerentes = await fetchAPI('/api/usuarios?rol=GERENTE');
+                gerentes.forEach(g => {
+                    if (USUARIO.rol === 'GERENTE' && g.id_usuario === USUARIO.id_usuario) return;
+                    selectJefe.innerHTML += `<option value="${g.id_usuario}">${g.nombre} (Gerente)</option>`;
+                });
+                
+                // Si el Admin está creando sin gerentes previos, dejarle a él como jefe
+                if (USUARIO.rol === 'ADMIN' && gerentes.length === 0) {
+                    selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Admin)</option>`;
+                }
+            } catch(e) { console.log('No se pudo cargar gerentes:', e); }
         } else {
             grupoJefe.style.display = 'none';
             selectJefe.removeAttribute('required');
