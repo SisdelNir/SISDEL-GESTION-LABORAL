@@ -3651,14 +3651,16 @@ async function abrirModalPlantillas() {
         empSelects.forEach(selId => {
             const sel = document.getElementById(selId);
             if (!sel) return;
-            sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+            sel.innerHTML = '<option value="">-- Seleccionar empleado --</option>';
+            // 1. Empleados
             usuarios.filter(u => u.rol === 'EMPLEADO').forEach(u => {
                 const idSup = u.id_jefe || (u.supervisor && u.supervisor.id_supervisor) || '';
                 sel.innerHTML += `<option value="${u.id_usuario}" data-supervisor="${idSup}">${u.nombre}</option>`;
             });
-            // También agregar supervisores como asignables
+            // 2. También agregar supervisores como asignables (pueden auto-asignarse tareas)
             usuarios.filter(u => u.rol === 'SUPERVISOR').forEach(u => {
-                sel.innerHTML += `<option value="${u.id_usuario}" data-supervisor="">[SUP] ${u.nombre}</option>`;
+                // Un supervisor no suele tener un jefe por encima, pero puede actuar como empleado
+                sel.innerHTML += `<option value="${u.id_usuario}" data-supervisor="${u.id_usuario}">[SUP] ${u.nombre}</option>`;
             });
         });
 
@@ -3677,17 +3679,30 @@ async function abrirModalPlantillas() {
             const selEmp = document.getElementById(empId);
             const selSup = document.getElementById(supId);
             if (!selEmp || !selSup) return;
-            selEmp.onchange = function() {
+
+            // Si el usuario actual es SUPERVISOR, pre-seleccionarlo a él mismo
+            if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
+                selSup.value = USUARIO.id_usuario;
+            }
+
+            selEmp.addEventListener('change', function() {
                 const opt = this.options[this.selectedIndex];
-                if (!opt) return;
+                if (!opt || !opt.value) return;
+
                 const idSup = opt.getAttribute('data-supervisor');
-                console.log(`Auto-selección (${empId}->${supId}):`, idSup);
+                console.log(`📡 Auto-selección de supervisor para ${opt.text}:`, idSup);
+
                 if (idSup && idSup !== 'null' && idSup !== 'undefined') {
-                    selSup.value = idSup;
-                } else {
-                    selSup.value = '';
+                    // Solo cambiar si el supervisor existe en el select
+                    const exists = Array.from(selSup.options).some(o => o.value === idSup);
+                    if (exists) {
+                        selSup.value = idSup;
+                    }
+                } else if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
+                    // Si no tiene jefe asignado pero el que crea es supervisor, dejar al creador
+                    selSup.value = USUARIO.id_usuario;
                 }
-            };
+            });
         }
         setupAutoSupervisor('plt-empleado', 'plt-supervisor');
         setupAutoSupervisor('cal-empleado', 'cal-supervisor');
