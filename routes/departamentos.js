@@ -90,4 +90,43 @@ router.post('/batch', verificarToken, verificarRol('ADMIN'), async (req, res) =>
     }
 });
 
+/**
+ * GET /api/departamentos/datos-360
+ * Obtiene el mapa completo de la empresa para Alta Gerencia
+ */
+router.get('/datos-360', verificarToken, verificarRol('ADMIN'), async (req, res) => {
+    try {
+        const id_empresa = req.usuario.id_empresa;
+        
+        // 1. Obtener Departamentos
+        const departamentos = await db.all('SELECT id_departamento, nombre FROM departamentos WHERE id_empresa = ? AND estado = 1 ORDER BY nombre', id_empresa);
+        
+        const result = [];
+        for (const depto of departamentos) {
+            // 2. Obtener Supervisores de este depto
+            const supervisores = await db.all('SELECT id_usuario, nombre FROM usuarios WHERE id_departamento = ? AND rol = ? AND eliminado = 0', depto.id_departamento, 'SUPERVISOR');
+            
+            const supsConEmp = [];
+            for (const sup of supervisores) {
+                // 3. Obtener Empleados de este supervisor
+                const empleados = await db.all('SELECT id_usuario, nombre FROM usuarios WHERE id_jefe = ? AND eliminado = 0', sup.id_usuario);
+                
+                const empsConTareas = [];
+                for (const emp of empleados) {
+                    // 4. Obtener Tareas activas del empleado
+                    const tareas = await db.all("SELECT id_tarea, titulo, estado FROM tareas WHERE id_empleado = ? AND estado NOT IN ('finalizada', 'finalizada_atrasada') AND eliminado = 0", emp.id_usuario);
+                    empsConTareas.push({ ...emp, tareas });
+                }
+                supsConEmp.push({ ...sup, empleados: empsConTareas });
+            }
+            result.push({ ...depto, supervisores: supsConEmp });
+        }
+        
+        res.json(result);
+    } catch (err) {
+        console.error('Error en datos-360:', err);
+        res.status(500).json({ error: 'Error al obtener visión estratégica' });
+    }
+});
+
 module.exports = router;

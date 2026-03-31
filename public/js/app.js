@@ -319,12 +319,15 @@ function abrirPanelPorRol() {
         document.getElementById('admin-empresa-nombre').textContent = labelEmp;
         const rolBadge = document.getElementById('admin-role-badge');
         if (rolBadge) rolBadge.textContent = USUARIO.rol === 'GERENTE' ? 'GERENTE' : 'DIRECTOR GENERAL';
+        
+        actualizarVisibilidadCreacion();
         cambiarPanelAdmin('tareas');
     } else if (USUARIO.rol === 'SUPERVISOR') {
         mostrarPantalla('supervisor');
         const depStr = USUARIO.nombre_departamento ? ` — ${USUARIO.nombre_departamento}` : '';
         document.getElementById('sup-user-name').textContent = USUARIO.nombre + depStr;
         document.getElementById('sup-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
+        actualizarVisibilidadCreacion();
         cargarTareasEmpleado(); // Igual que empleado
         verificarEstadoCheckin();
         iniciarAlertasEmpleado(); // Alertas de tareas asignadas al supervisor
@@ -1119,7 +1122,14 @@ function cambiarPanelAdmin(panel) {
     if (panel === 'notificaciones') cargarNotificaciones();
     if (panel === 'auditoria') cargarAuditoria();
     if (panel === 'asistencia') cargarAsistenciaAdmin();
-    if (panel === 'configuracion') cargarGerenciasConfig();
+    if (panel === 'configuracion') {
+        if (USUARIO.rol !== 'ADMIN') {
+            mostrarToast('Acceso restringido al Director General', 'error');
+            cambiarPanelAdmin('tareas');
+            return;
+        }
+        cargarGerenciasConfig();
+    }
 }
 
 // ═══════════════════════════════════════════
@@ -1132,6 +1142,7 @@ function toggleModulosPanel() {
     if (isOpen) {
         cerrarModulosPanel();
     } else {
+        actualizarVisibilidadCreacion();
         panel.classList.add('abierto');
         btn.classList.add('abierto');
     }
@@ -2227,11 +2238,29 @@ async function cargarDashboardAdmin() {
                 const eff = s.total_tareas > 0 ? Math.round((s.a_tiempo / Math.max(s.completadas,1)) * 100) : 0;
                 return `
                 <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);">
-                    <span style="flex:1;font-size:0.88rem;font-weight:500;">${s.nombre}</span>
+                    <div style="flex:1;">
+                        <span style="font-size:0.88rem;font-weight:500;display:block;">${s.nombre}</span>
+                        <small style="color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;">${s.nombre_departamento || 'Sin Depto'}</small>
+                    </div>
                     <span style="font-size:0.78rem;color:var(--text-muted);">${s.completadas}/${s.total_tareas} tareas</span>
                     <span class="badge ${eff >= 80 ? 'badge-success' : eff >= 50 ? 'badge-warning' : 'badge-danger'}">${eff}% ef.</span>
                 </div>`;
             }).join('') : '<p style="color:var(--text-muted);font-size:0.85rem;">Sin supervisores aún</p>';
+
+        // --- EXCLUSIVO ALTA GERENCIA: INSIGHTS IA ---
+        const aiPanel = document.getElementById('ai-insights-panel');
+        const aiContent = document.getElementById('ai-insights-content');
+        if (aiPanel && data.iaInsights && data.iaInsights.length > 0) {
+            aiPanel.style.display = 'block';
+            aiContent.innerHTML = data.iaInsights.map(insight => `
+                <div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.03);border-left:4px solid ${insight.tipo==='success'?'#10b981':insight.tipo==='warning'?'#f59e0b':'#6366f1'};display:flex;gap:12px;align-items:flex-start;">
+                    <span style="font-size:1.2rem;">${insight.tipo==='success'?'🚀':insight.tipo==='warning'?'⚠️':'ℹ️'}</span>
+                    <div style="font-size:0.85rem;line-height:1.4;color:var(--text-secondary);">${insight.texto}</div>
+                </div>
+            `).join('');
+        } else if (aiPanel) {
+            aiPanel.style.display = 'none';
+        }
 
     } catch(err) {
         console.error('Error cargando dashboard:', err);
@@ -2305,6 +2334,103 @@ async function cargarRanking() {
     } catch(err) {
         console.error('Error cargando ranking:', err);
     }
+}
+
+// ═══════════════════════════════════════════
+// ALTA GERENCIA: VISIÓN GLOBAL 360°
+// ═══════════════════════════════════════════
+
+// Caché para búsqueda local rápida en la vista 360
+let DATA_VISTA_360 = [];
+
+async function abrirVisionGlobal360() {
+    try {
+        mostrarCargando();
+        document.getElementById('modal-vision-360').style.display = 'flex';
+        
+        // Carga jerárquica masiva desde el nuevo endpoint
+        const response = await fetchAPI('/api/departamentos/datos-360');
+        DATA_VISTA_360 = response || [];
+        
+        dibujarVista360(DATA_VISTA_360);
+        ocultarCargando();
+    } catch(err) {
+        ocultarCargando();
+        console.error('Error 360:', err);
+        mostrarToast('Error al cargar visión estratégica', 'error');
+    }
+}
+
+function dibujarVista360(data) {
+    const container = document.getElementById('vision-360-container');
+    if (!data || !data.length) {
+        container.innerHTML = '<div class="empty-state"><p>No hay datos estructurales aún.</p></div>';
+        return;
+    }
+
+    container.innerHTML = data.map(dep => `
+        <div class="gerencia-group" style="margin-bottom:25px;border:1px solid rgba(255,255,255,0.05);border-radius:12px;background:rgba(255,255,255,0.02);overflow:hidden;">
+            <div style="background:rgba(99,102,241,0.15);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
+                <h4 style="margin:0;color:var(--primary);letter-spacing:1px;font-size:1rem;font-weight:700;">🏢 GERENCIA: ${dep.nombre.toUpperCase()}</h4>
+                <span class="badge" style="background:var(--primary);color:white;">${dep.supervisores.length} Directores Inmediatos</span>
+            </div>
+            
+            <div style="padding:15px;display:grid;grid-template-columns:repeat(auto-fill, minmax(450px, 1fr));gap:20px;">
+                ${dep.supervisores.length ? dep.supervisores.map(sup => `
+                    <div style="background:rgba(0,0,0,0.25);border-radius:10px;padding:15px;border:1px solid rgba(255,255,255,0.03);">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:10px;">
+                            <span style="font-size:1.3rem;">👤</span>
+                            <div>
+                                <strong style="color:var(--text-secondary);font-size:0.95rem;display:block;">${sup.nombre}</strong>
+                                <small style="color:var(--accent-primary);text-transform:uppercase;font-size:0.65rem;font-weight:700;">Supervisor Directo</small>
+                            </div>
+                        </div>
+                        
+                        <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+                            ${sup.empleados.length ? sup.empleados.map(emp => `
+                                <div class="glass" style="padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.01);">
+                                    <div style="font-weight:700;font-size:0.88rem;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                                        <span style="color:var(--text-primary);"><span style="margin-right:6px;">👨‍🔧</span>${emp.nombre}</span>
+                                        <span class="badge ${emp.tareas.length ? 'badge-primary' : 'badge-ghost'}" style="font-size:0.7rem;">${emp.tareas.length} Activas</span>
+                                    </div>
+                                    <div style="display:flex;flex-direction:column;gap:6px;">
+                                        ${emp.tareas.length ? emp.tareas.map(t => `
+                                            <div style="padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:4px;display:flex;justify-content:space-between;align-items:center;">
+                                                <span style="color:var(--text-muted);font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">• ${t.titulo}</span>
+                                                <span class="badge-status ${t.estado.replace('_','-')}" style="font-size:0.55rem;padding:2px 6px;">${t.estado.toUpperCase()}</span>
+                                            </div>
+                                        `).join('') : '<div style="color:var(--text-muted);font-size:0.78rem;font-style:italic;padding-left:10px;">Sin operación activa...</div>'}
+                                    </div>
+                                </div>
+                            `).join('') : '<div style="color:var(--text-muted);font-size:0.78rem;font-style:italic;text-align:center;">No tiene empleados asignados</div>'}
+                        </div>
+                    </div>
+                `).join('') : '<div class="empty-state" style="padding:20px;grid-column:1/-1;"><small>No hay supervisores en esta gerencia.</small></div>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+function filtrarVista360() {
+    const busqueda = document.getElementById('busqueda-360').value.toLowerCase();
+    if (!busqueda) {
+        dibujarVista360(DATA_VISTA_360);
+        return;
+    }
+
+    const filtrado = DATA_VISTA_360.map(dep => {
+        const supFiltrados = dep.supervisores.map(sup => {
+            const empFiltrados = sup.empleados.filter(emp => 
+                emp.nombre.toLowerCase().includes(busqueda) || 
+                emp.tareas.some(t => t.titulo.toLowerCase().includes(busqueda))
+            );
+            return { ...sup, empleados: empFiltrados };
+        }).filter(sup => sup.nombre.toLowerCase().includes(busqueda) || sup.empleados.length > 0);
+        
+        return { ...dep, supervisores: supFiltrados };
+    }).filter(dep => dep.nombre.toLowerCase().includes(busqueda) || dep.supervisores.length > 0);
+
+    dibujarVista360(filtrado);
 }
 
 // ═══════════════════════════════════════════
@@ -2706,6 +2832,91 @@ async function eliminarUsuario(idUsuario, nombre) {
 // ═══════════════════════════════════════════
 // GESTIÓN DE USUARIOS (Modal)
 // ═══════════════════════════════════════════
+// Helper: Detectar si el usuario es del área de RRHH o Administración Central
+function esUsuarioRRHH() {
+    if (!USUARIO) return false;
+    if (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'ROOT') return true;
+    
+    const depto = (USUARIO.nombre_departamento || '').toUpperCase();
+    const nombre = (USUARIO.nombre || '').toUpperCase();
+    
+    // Términos comunes para RRHH
+    const keywords = ['RRHH', 'RECURSOS HUMANOS', 'TALENTO HUMANO', 'HUMANOS', 'PERSONAL', 'ADMINISTRACION'];
+    const esRRHH = keywords.some(k => depto.includes(k) || nombre.includes(k));
+    
+    return esRRHH;
+}
+
+// Ocultar botones de creación si no es RRHH o ADMIN
+function actualizarVisibilidadCreacion() {
+    if (!USUARIO) return;
+    const accesible = esUsuarioRRHH();
+    
+    // Botones "Nuevo Supervisor" y "Nuevo Empleado"
+    document.querySelectorAll('.btn-sm').forEach(btn => {
+        if (btn.textContent.includes('Nuevo Supervisor') || btn.textContent.includes('Nuevo Empleado')) {
+            btn.style.display = accesible ? 'inline-flex' : 'none';
+        }
+    });
+
+    // Sidebar de configuración (Solo Director General)
+    const menuCfg = document.getElementById('menu-configuracion');
+    if (menuCfg) {
+        // Solo el Director General (ADMIN) puede ver o acceder a configuración
+        menuCfg.style.display = (USUARIO.rol === 'ADMIN') ? 'block' : 'none';
+    }
+}
+
+// Cargar jefes disponibles (Supervisores, Gerentes y Director) según el departamento destino
+async function cargarSupervisoresPorDepto(idDepto) {
+    const selectJefe = document.getElementById('usu-jefe');
+    if (!idDepto) {
+        selectJefe.innerHTML = '<option value="">-- Seleccionar Gerencia Primero --</option>';
+        return;
+    }
+    
+    const rolNuevo = document.getElementById('usu-rol').value;
+
+    try {
+        selectJefe.innerHTML = '<option value="">Cargando jefes...</option>';
+        
+        let html = '<option value="">-- Sin Jefe (Directo) --</option>';
+
+        // 1. Cargar el Director General (ADMIN) - Siempre disponible como opción superior
+        try {
+            const admins = await fetchAPI('/api/usuarios?rol=ADMIN');
+            admins.forEach(a => {
+                html += `<option value="${a.id_usuario}">${a.nombre} (Director General)</option>`;
+            });
+        } catch(e) {}
+
+        // 2. Cargar el Gerente de esta área
+        try {
+            const deptos = await fetchAPI('/api/departamentos');
+            const dActual = deptos.find(d => d.id_departamento === idDepto);
+            if (dActual && dActual.gerente) {
+                html += `<option value="${dActual.gerente.id_usuario}">${dActual.gerente.nombre} (Gerente de Área)</option>`;
+            }
+        } catch(e) {}
+
+        // 3. Si es para un EMPLEADO, también cargar los SUPERVISORES del área
+        if (rolNuevo === 'EMPLEADO') {
+            try {
+                const supervisores = await fetchAPI(`/api/usuarios?rol=SUPERVISOR&departamento=${idDepto}`);
+                supervisores.forEach(s => {
+                    html += `<option value="${s.id_usuario}">${s.nombre} (Supervisor de Área)</option>`;
+                });
+            } catch(e) {}
+        }
+        
+        selectJefe.innerHTML = html;
+        
+    } catch(e) {
+        console.error('Error cargando jefes por depto:', e);
+        selectJefe.innerHTML = '<option value="">-- Error al cargar jefes --</option>';
+    }
+}
+
 async function mostrarFormularioUsuario(rol) {
     try {
         document.getElementById('usu-rol').value = rol;
@@ -2714,89 +2925,65 @@ async function mostrarFormularioUsuario(rol) {
         document.getElementById('form-usuario').style.display = 'block';
         document.getElementById('resultado-usuario').style.display = 'none';
 
-        // OPEN MODAL FIRST — before any async calls
+        // OPEN MODAL FIRST
         document.getElementById('modal-usuario').style.display = 'flex';
 
-        document.getElementById('usu-lada').value = '+502'; // Default Guatemala
-        try {
-            if (USUARIO && USUARIO.id_empresa) {
-                const emp = await fetchAPI(`/api/empresas/${USUARIO.id_empresa}`);
-                if (emp) {
-                    const ladas = {
-                        'MX': '+52', 'GT': '+502', 'SV': '+503', 'HN': '+504',
-                        'NI': '+505', 'CR': '+506', 'PA': '+507', 'CO': '+57',
-                        'VE': '+58', 'EC': '+593', 'PE': '+51', 'BO': '+591',
-                        'CL': '+56', 'AR': '+54', 'UY': '+598', 'PY': '+595',
-                        'BR': '+55', 'DO': '+1', 'CU': '+53', 'PR': '+1',
-                        'ES': '+34', 'US': '+1'
-                    };
-                    if (emp.pais && ladas[emp.pais]) {
-                        document.getElementById('usu-lada').value = ladas[emp.pais];
-                    }
-                }
-            }
-        } catch(e) { console.log('No se pudo obtener lada:', e); }
+        document.getElementById('usu-lada').value = '+502'; // Default
+        
+        // 1. Manejo de Gerencia/Departamento de Destino
+        const rrhh = esUsuarioRRHH();
+        const grupoDepto = document.getElementById('grupo-usu-depto');
+        const selectDepto = document.getElementById('usu-depto');
+        
+        if (rrhh) {
+            grupoDepto.style.display = 'block';
+            selectDepto.innerHTML = '<option value="">Cargando departamentos...</option>';
+            try {
+                const deptos = await fetchAPI('/api/departamentos');
+                selectDepto.innerHTML = '<option value="">-- Seleccionar Destino --</option>';
+                deptos.forEach(d => {
+                    selectDepto.innerHTML += `<option value="${d.id_departamento}">${d.nombre}</option>`;
+                });
+                // Auto-seleccionar mi depto por defecto si soy RRHH
+                if (USUARIO.id_departamento) selectDepto.value = USUARIO.id_departamento;
+            } catch(e) { console.log('Error deptos:', e); }
+        } else {
+            grupoDepto.style.display = 'none';
+        }
 
-        // Lógica dinámica para jefe inmediato
+        // 2. Lógica de jefes inmediatos
         const grupoJefe = document.getElementById('grupo-jefe');
         const selectJefe = document.getElementById('usu-jefe');
         const labelJefe = document.getElementById('label-jefe');
         
         if (rol === 'EMPLEADO') {
             grupoJefe.style.display = 'block';
-            labelJefe.textContent = 'Jefe Inmediato (Supervisor)';
-            selectJefe.removeAttribute('required');
-            selectJefe.innerHTML = '<option value="">-- Sin Supervisor (Directo) --</option>';
-
-            // 1. Si el creador es el jefe, agregarlo de primero y seleccionarlo
-            if (USUARIO.rol === 'GERENTE') {
-                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
-                selectJefe.value = USUARIO.id_usuario;
-            } else if (USUARIO.rol === 'SUPERVISOR') {
-                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Supervisor)</option>`;
-                selectJefe.value = USUARIO.id_usuario;
+            labelJefe.textContent = 'Jefe Inmediato (Supervisor, Gerente o Director)';
+            
+            if (rrhh) {
+                // RRHH debe seleccionar depto primero
+                if (selectDepto.value) await cargarSupervisoresPorDepto(selectDepto.value);
+                else selectJefe.innerHTML = '<option value="">-- Selecciona Gerencia Primero --</option>';
+            } else {
+                // Caso legado o respaldo (auto-asignado)
+                selectJefe.innerHTML = `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Asignación Directa)</option>`;
             }
-
-            try {
-                // 2. Cargar el resto de los supervisores
-                const supervisores = await fetchAPI('/api/usuarios?rol=SUPERVISOR');
-                supervisores.forEach(s => {
-                    if (s.id_usuario === USUARIO.id_usuario) return; // No duplicar al creador
-                    selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre} (Supervisor)</option>`;
-                });
-            } catch(e) { console.log('No se pudo cargar supervisores:', e); }
-
         } else if (rol === 'SUPERVISOR') {
             grupoJefe.style.display = 'block';
-            labelJefe.textContent = 'Jefe Inmediato (Gerente)';
-            selectJefe.removeAttribute('required');
-            selectJefe.innerHTML = '<option value="">-- Seleccionar Gerente --</option>';
+            labelJefe.textContent = 'Jefe Inmediato (Gerente o Director)';
             
-            // Si el que crea es GERENTE, se auto-selecciona como jefe
-            if (USUARIO.rol === 'GERENTE') {
-                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Yo)</option>`;
+            if (rrhh) {
+                if (selectDepto.value) await cargarSupervisoresPorDepto(selectDepto.value);
+                else selectJefe.innerHTML = '<option value="">-- Selecciona Gerencia Primero --</option>';
+            } else {
+                selectJefe.innerHTML = `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente/Director)</option>`;
             }
-            
-            try {
-                // Los supervisores dependen únicamente de Gerentes
-                const gerentes = await fetchAPI('/api/usuarios?rol=GERENTE');
-                gerentes.forEach(g => {
-                    if (USUARIO.rol === 'GERENTE' && g.id_usuario === USUARIO.id_usuario) return;
-                    selectJefe.innerHTML += `<option value="${g.id_usuario}">${g.nombre} (Gerente)</option>`;
-                });
-                
-                // Si el Admin está creando sin gerentes previos, dejarle a él como jefe
-                if (USUARIO.rol === 'ADMIN' && gerentes.length === 0) {
-                    selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Admin)</option>`;
-                }
-            } catch(e) { console.log('No se pudo cargar gerentes:', e); }
         } else {
             grupoJefe.style.display = 'none';
-            selectJefe.removeAttribute('required');
         }
+
     } catch(err) {
         console.error('Error abriendo formulario usuario:', err);
-        // Asegurar que el modal se abra aún con error
         document.getElementById('modal-usuario').style.display = 'flex';
     }
 }
@@ -2834,6 +3021,7 @@ async function crearUsuario(e) {
         telefono: telefonoCompleto,
         correo: document.getElementById('usu-correo').value.trim(),
         rol: document.getElementById('usu-rol').value,
+        id_departamento: document.getElementById('usu-depto').value || undefined,
         id_jefe: document.getElementById('usu-jefe').value || undefined
     };
 

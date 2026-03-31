@@ -14,12 +14,32 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'),
 
         if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son requeridos' });
         if (!['SUPERVISOR', 'EMPLEADO'].includes(rol)) return res.status(400).json({ error: 'Rol debe ser SUPERVISOR o EMPLEADO' });
-        if (rol === 'SUPERVISOR' && req.usuario.rol !== 'ADMIN' && req.usuario.rol !== 'GERENTE') {
-            return res.status(403).json({ error: 'Solo el administrador o gerente puede crear supervisores' });
+        
+        // --- CENTRALIZACIÓN RRHH ---
+        let esRRHH = false;
+        if (req.usuario.rol === 'GERENTE') {
+            const deptoCreator = await db.get('SELECT nombre FROM departamentos WHERE id_departamento = ?', req.usuario.id_departamento);
+            const nombreDepto = (deptoCreator?.nombre || '').toUpperCase();
+            if (nombreDepto.includes('RRHH') || nombreDepto.includes('RECURSOS HUMANOS')) {
+                esRRHH = true;
+            }
         }
 
-        // GERENTE auto-asigna su departamento a los usuarios que crea
-        const deptoFinal = req.usuario.rol === 'GERENTE' ? req.usuario.id_departamento : (id_departamento || null);
+        if (req.usuario.rol === 'SUPERVISOR') {
+            return res.status(403).json({ error: 'Funcionalidad de creación restringida a RRHH' });
+        }
+
+        if (req.usuario.rol === 'GERENTE' && !esRRHH) {
+            return res.status(403).json({ error: 'Solo la gerencia de Recursos Humanos puede crear nuevos integrantes' });
+        }
+
+        if (rol === 'SUPERVISOR' && req.usuario.rol !== 'ADMIN' && !esRRHH) {
+            return res.status(403).json({ error: 'Solo el administrador o RRHH pueden crear supervisores' });
+        }
+
+        // GERENTE de RRHH o ADMIN pueden asignar cualquier departamento. 
+        // Si no es RRHH (aunque ya lo restringimos arriba), se auto-asigna su depto.
+        const deptoFinal = (req.usuario.rol === 'ADMIN' || esRRHH) ? (id_departamento || null) : req.usuario.id_departamento;
 
         const id_empresa = req.usuario.id_empresa;
         const empresa = await db.get('SELECT nombre FROM empresas WHERE id_empresa = ?', id_empresa);
