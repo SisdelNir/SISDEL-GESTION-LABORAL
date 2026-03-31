@@ -1578,7 +1578,9 @@ function iniciarCronosSupervisor(tareas) {
 async function cargarEmpleadosSupervisor() {
     try {
         const usuarios = await fetchAPI('/api/usuarios?rol=EMPLEADO');
-        const container = document.getElementById('sup-lista-empleados');
+        // Usar el ID del contenedor del panel de supervisor real
+        const container = document.getElementById('sup-mod-lista-empleados') || document.getElementById('sup-lista-empleados');
+        if (!container) return;
         if (!usuarios.length) {
             container.innerHTML = '<div class="empty-state"><p>No tienes empleados asignados</p></div>';
             return;
@@ -2718,8 +2720,11 @@ function cerrarModalUsuario() {
         }
         cargarEmpleados();
     } else if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
-        cargarEmpleadosSupervisor();
-        cargarDashboardSupervisor();
+        // Refrescar paneles de supervisor
+        if (typeof cargarEmpleadosModSup === 'function') cargarEmpleadosModSup();
+        if (typeof cargarDashboardSupervisor === 'function') cargarDashboardSupervisor();
+        // Si hay una lista genérica también
+        if (typeof cargarEmpleadosSupervisor === 'function') cargarEmpleadosSupervisor();
     }
 }
 
@@ -3091,10 +3096,12 @@ async function mostrarFormularioTarea() {
 
         // Event listener to auto-select supervisor when employee changes
         selEmp.onchange = function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const idSupervisor = selectedOption.getAttribute('data-supervisor');
-            if (idSupervisor) {
-                selSup.value = idSupervisor;
+            const opt = this.options[this.selectedIndex];
+            if (!opt) return;
+            const idSup = opt.getAttribute('data-supervisor');
+            console.log('Auto-seleccionando supervisor:', idSup);
+            if (idSup && idSup !== 'null' && idSup !== 'undefined') {
+                selSup.value = idSup;
             } else {
                 selSup.value = '';
             }
@@ -3672,8 +3679,14 @@ async function abrirModalPlantillas() {
             if (!selEmp || !selSup) return;
             selEmp.onchange = function() {
                 const opt = this.options[this.selectedIndex];
+                if (!opt) return;
                 const idSup = opt.getAttribute('data-supervisor');
-                selSup.value = idSup || '';
+                console.log(`Auto-selección (${empId}->${supId}):`, idSup);
+                if (idSup && idSup !== 'null' && idSup !== 'undefined') {
+                    selSup.value = idSup;
+                } else {
+                    selSup.value = '';
+                }
             };
         }
         setupAutoSupervisor('plt-empleado', 'plt-supervisor');

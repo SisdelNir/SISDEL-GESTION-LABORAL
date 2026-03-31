@@ -356,13 +356,17 @@ async function generarTareaDesdePlantilla(plantilla, id_creador, io) {
 // CRON JOB: Ejecutar plantillas y programadas
 // ═══════════════════════════════════════════
 async function ejecutarCronPlantillas(io) {
-    const ahora = new Date();
-    const horaActual = ahora.getHours();
-    const diaActual = ahora.getDay(); // 0=Dom, 6=Sab
-    const diaDelMes = ahora.getDate();
-    const mesActual = ahora.getMonth() + 1;
+    // Obtener la fecha y hora en la zona horaria correcta (Ej: America/Mexico_City)
+    const options = { timeZone: 'America/Mexico_City', hour12: false };
+    const dateStr = new Date().toLocaleString('en-US', options);
+    const ahoraMX = new Date(dateStr); // Fecha convertida al timezone MX
+
+    const horaActual = ahoraMX.getHours();
+    const diaActual = ahoraMX.getDay(); // 0=Dom, 6=Sab
+    const diaDelMes = ahoraMX.getDate();
+    const mesActual = ahoraMX.getMonth() + 1;
     const diaDelAnio = `${String(mesActual).padStart(2,'0')}-${String(diaDelMes).padStart(2,'0')}`;
-    const fechaHoy = ahora.toISOString().split('T')[0];
+    const fechaHoy = ahoraMX.getFullYear() + '-' + String(mesActual).padStart(2,'0') + '-' + String(diaDelMes).padStart(2,'0');
 
     try {
         // 1. Procesar plantillas repetitivas activas

@@ -754,7 +754,13 @@
 
                     <!-- Sección Empleados -->
                     <div id="sup-mod-sec-empleados" style="display:none;">
-                        <div class="vista-header"><h3>👥 Mis Empleados</h3></div>
+                        <div class="vista-header">
+                            <h3>👥 Mis Empleados</h3>
+                            <button class="btn btn-primary btn-sm" onclick="mostrarFormularioUsuario('EMPLEADO')">
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                Nuevo Empleado
+                            </button>
+                        </div>
                         <div id="sup-mod-lista-empleados" class="grid-cards"></div>
                     </div>
 
