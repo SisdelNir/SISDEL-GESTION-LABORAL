@@ -1988,11 +1988,12 @@ async function cargarTareasEmpleado() {
             return true;
         });
 
-        // 2. Estadísticas basadas en la lista filtrada de HOY
-        const pendientes = tareas.filter(t => t.estado === 'pendiente').length;
-        const enProceso = tareas.filter(t => t.estado === 'en_proceso').length;
-        const finalizadas = tareas.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada').length;
-        const atrasadas = tareas.filter(t => t.estado === 'atrasada').length;
+        // 2. Estadísticas
+        const pendientes  = tareas.filter(t => t.estado === 'pendiente').length;
+        const enProceso   = tareas.filter(t => t.estado === 'en_proceso').length;
+        const atrasadas   = tareas.filter(t => t.estado === 'atrasada').length;
+        // Finalizadas: contar desde tareasRaw porque 'tareas' las excluye por design
+        const finalizadas = tareasRaw.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada').length;
 
         // Cargar config de empresa
         let empPuedeIniciar = true;
@@ -2023,8 +2024,8 @@ async function cargarTareasEmpleado() {
         let tareasVista = [];
         if (window.EMP_FILTRO_TAREAS) {
             if (window.EMP_FILTRO_TAREAS === 'finalizada') {
-                // Historial: permitimos ver todas las terminadas (no solo hoy)
-                tareasVista = tareasRaw.filter(t => (t.estado === 'finalizada' || t.estado === 'finalizada_atrasada') && t.id_empleado === USUARIO.id_usuario);
+                // Historial: todas las finalizadas del usuario (sin límite de fecha)
+                tareasVista = tareasRaw.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada');
             } else {
                 tareasVista = tareas.filter(t => t.estado === window.EMP_FILTRO_TAREAS);
             }
