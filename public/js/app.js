@@ -41,16 +41,30 @@ function inicializarSocket() {
         
         socket.on('disconnect', () => console.log('❌ Socket desconectado'));
         
-        socket.on('nueva_tarea', (data) => {
+        socket.on('nueva_tarea', async (data) => {
             console.log('📨 Evento nueva_tarea recibido:', data);
-            console.log('👤 USUARIO actual:', USUARIO ? { id: USUARIO.id_usuario, rol: USUARIO.rol } : 'null');
             
             if (USUARIO && ['EMPLEADO', 'SUPERVISOR'].includes(USUARIO.rol) && data.id_empleado === USUARIO.id_usuario) {
-                console.log('✅ Tarea asignada al usuario actual, lanzando alerta');
-                lanzarAlertaNuevaTarea(data);
-                cargarTareasEmpleado(); // Recargar Mis Tareas (funciona para ambos roles)
-            } else if (USUARIO && USUARIO.rol === 'SUPERVISOR') {
-                // Tarea de equipo, no necesita recargar Mis Tareas
+                // Verificar si la tarea es para hoy antes de alertar
+                const hoyLocalStr = new Date(Date.now() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                let esParaHoy = true;
+                
+                if (data.fecha_programada || data.fecha_creacion) {
+                    const fechaRef = data.fecha_programada || data.fecha_creacion;
+                    let s = fechaRef.trim().replace(' ', 'T');
+                    if (!s.includes('Z') && !s.includes('+')) s += 'Z';
+                    const fechaObj = new Date(s);
+                    const fechaLoc = new Date(fechaObj.getTime() - (fechaObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    esParaHoy = (fechaLoc === hoyLocalStr);
+                }
+
+                if (esParaHoy) {
+                    console.log('✅ Tarea para hoy detectada, lanzando alerta');
+                    lanzarAlertaNuevaTarea(data);
+                }
+                
+                // Recargar siempre la lista (las futuras quedarán ocultas por el filtro de cargarTareasEmpleado)
+                setTimeout(() => cargarTareasEmpleado(), 500); 
             } else if (USUARIO && (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE')) {
                 if (typeof cargarTareas === 'function') cargarTareas();
             }
@@ -1713,6 +1727,9 @@ function mostrarAlertaTarea(tarea, tipo) {
         animation: modalAlertaPulse 2s infinite;
     `;
 
+    // Determinar si puede iniciar (basado en rol o config si estuviera disponible)
+    const puedeIniciar = (USUARIO.rol === 'EMPLEADO' || USUARIO.rol === 'SUPERVISOR');
+
     modal.innerHTML = `
         <div style="font-size: 5rem; line-height: 1; margin-bottom: 20px; animation: shakeEmoji 0.5s infinite;">
             ${emoji}
@@ -1721,22 +1738,29 @@ function mostrarAlertaTarea(tarea, tipo) {
             ${titulo}
         </h2>
         <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 20px; margin: 25px 0; border: 1px solid rgba(255,255,255,0.1);">
-            <p style="font-size: 1.3rem; font-weight: 700; margin: 0 0 10px 0;">${tarea.titulo}</p>
-            <p style="font-size: 0.95rem; opacity: 0.9; margin: 0;"><strong>Código:</strong> ${tarea.codigo_tarea || '-'}</p>
-            ${tarea.descripcion ? `<p style="font-size: 0.95rem; opacity: 0.9; margin: 10px 0 0 0;">${tarea.descripcion}</p>` : ''}
+            <p style="font-size: 1.4rem; font-weight: 800; margin: 0 0 10px 0;">${tarea.titulo}</p>
+            <p style="font-size: 0.95rem; opacity: 0.9; margin: 0;"><strong>Prioridad:</strong> ${tarea.prioridad.toUpperCase()}</p>
+            ${tarea.descripcion ? `<p style="font-size: 0.95rem; opacity: 0.9; margin: 10px 0 0 0; font-style:italic;">"${tarea.descripcion}"</p>` : ''}
         </div>
         
-        <p style="font-size: 1.1rem; margin-bottom: 30px; font-weight: 500;">
-            ${esUrgente ? 'Esta tarea requiere tu atención inmediata.' : 'Tienes una nueva tarea asignada en tu panel.'}
-        </p>
-
-        <div style="display: flex; gap: 15px; justify-content: center;">
+        <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center; align-items: center; width: 100%;">
+            ${puedeIniciar ? `
+                <button id="btn-iniciar-alerta-${tarea.id_tarea}" style="
+                    background: #10b981; border: none; width: 100%;
+                    color: white; padding: 18px; border-radius: 12px; font-size: 1.3rem;
+                    font-weight: 900; cursor: pointer; transition: all 0.2s;
+                    box-shadow: 0 4px 15px rgba(16,185,129,0.4);
+                " onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                    ▶ INICIAR TAREA AHORA
+                </button>
+            ` : ''}
+            
             <button id="btn-cerrar-alerta-${tarea.id_tarea}" style="
-                background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.5);
-                color: white; padding: 14px 28px; border-radius: 12px; font-size: 1.1rem;
-                font-weight: bold; cursor: pointer; transition: all 0.2s;
-            " onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
-                Aceptar y Cerrar
+                background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+                color: white; padding: 12px 24px; border-radius: 10px; font-size: 1rem;
+                font-weight: 600; cursor: pointer; opacity: 0.8;
+            ">
+                Solo cerrar aviso
             </button>
         </div>
     `;
@@ -1750,14 +1774,27 @@ function mostrarAlertaTarea(tarea, tipo) {
         modal.style.transform = 'scale(1) translateY(0)';
     });
 
-    // Cerrar
-    document.getElementById(`btn-cerrar-alerta-${tarea.id_tarea}`).onclick = () => {
+    const limpiarAlerta = () => {
         detenerSirenaTarea();
         if (navigator.vibrate) navigator.vibrate(0);
         overlay.style.opacity = '0';
         modal.style.transform = 'scale(0.9) translateY(20px)';
         setTimeout(() => overlay.remove(), 300);
     };
+
+    // Evento Iniciar
+    const btnIni = document.getElementById(`btn-iniciar-alerta-${tarea.id_tarea}`);
+    if (btnIni) {
+        btnIni.onclick = async () => {
+            limpiarAlerta();
+            if (typeof iniciarTareaEmpleado === 'function') {
+                await iniciarTareaEmpleado(tarea.id_tarea);
+            }
+        };
+    }
+
+    // Evento Cerrar
+    document.getElementById(`btn-cerrar-alerta-${tarea.id_tarea}`).onclick = limpiarAlerta;
 
     // Agregar sirena, vibración agresiva y notificaciones push
     tocarSirenaTarea(esUrgente);
