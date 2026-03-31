@@ -309,19 +309,29 @@ function abrirPanelPorRol() {
 
     if (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE') {
         mostrarPantalla('admin');
-        const depStr = (USUARIO.nombre_departamento && !esUsuarioRRHH()) ? ` — ${USUARIO.nombre_departamento}` : '';
-        document.getElementById('admin-user-name').textContent = USUARIO.nombre + depStr;
-        
-        const labelEmp = (USUARIO.rol === 'GERENTE' && !esUsuarioRRHH() && USUARIO.nombre_departamento)
-            ? `${USUARIO.nombre_empresa} • ${USUARIO.nombre_departamento}`
-            : (USUARIO.nombre_empresa || 'Empresa');
-            
-        document.getElementById('admin-empresa-nombre').textContent = labelEmp;
+
+        const esGerente = USUARIO.rol === 'GERENTE' && !esUsuarioRRHH() && USUARIO.nombre_departamento;
+
+        // Izquierda: empresa + gerencia debajo (solo para gerente)
+        document.getElementById('admin-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
+        const deptoEl = document.getElementById('admin-depto-nombre');
+        if (deptoEl) {
+            if (esGerente) {
+                deptoEl.textContent = USUARIO.nombre_departamento;
+                deptoEl.style.display = 'block';
+            } else {
+                deptoEl.style.display = 'none';
+            }
+        }
+
+        // Derecha: solo el nombre del usuario (sin repetir gerencia)
+        document.getElementById('admin-user-name').textContent = USUARIO.nombre;
+
         const rolBadge = document.getElementById('admin-role-badge');
         if (rolBadge) {
             rolBadge.textContent = (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'ROOT') ? 'DIRECTOR GENERAL' : 'GERENTE';
         }
-        
+
         actualizarVisibilidadCreacion();
         cambiarPanelAdmin('tareas');
     } else if (USUARIO.rol === 'SUPERVISOR') {
