@@ -378,13 +378,18 @@ function parseFechaDBSeguro(str) {
     let s = str.trim();
     // Si la base de datos devuelve solo la fecha (ej. tareas de calendario "YYYY-MM-DD")
     if (s.length === 10 && s.includes('-')) {
-        s += 'T00:00:00Z'; // Safari requiere la T y el tiempo explícito
+        // Para evitar desplazamientos de zona horaria, tratamos YYYY-MM-DD como mediodía local
+        // o simplemente dejamos que el constructor de Date lo maneje. 
+        // En Safari, "YYYY-MM-DD" se interpreta como UTC si no hay T.
+        // Lo forzamos a un formato que Safari acepte como local: "YYYY/MM/DD 00:00:00"
+        s = s.replace(/-/g, '/') + ' 00:00:00';
     } else {
         if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
-        if (!s.includes('Z') && !s.includes('+') && s.includes('T')) s += 'Z';
+        // Si tiene T pero no zona, Safari puede fallar o asumir UTC.
+        // Intentamos normalizar a un formato estándar sin forzar Z si queremos local.
     }
     const d = new Date(s);
-    return isNaN(d) ? null : d;
+    return isNaN(d.getTime()) ? null : d;
 }
 
 // ═══════════════════════════════════════════
@@ -1466,9 +1471,25 @@ window.SUP_FILTRO_MIS_TAREAS = null;
 async function cargarMisTareasAsignadasSupervisor() {
     try {
         const todasTareas = await fetchAPI('/api/tareas');
-        const misTareas = todasTareas.filter(t => t.id_empleado === USUARIO.id_usuario);
+        const misTareasRaw = todasTareas.filter(t => t.id_empleado === USUARIO.id_usuario);
 
-        // Estadísticas
+        // 1. FILTRADO PARA HOY (Sincronizado)
+        const hoySinHora = new Date(); hoySinHora.setHours(0,0,0,0);
+        const misTareas = misTareasRaw.filter(t => {
+            if (['en_proceso', 'atrasada'].includes(t.estado)) return true;
+            if (['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado)) return true; // para el historial
+            
+            // Pendientes: solo si son para hoy o ya pasaron
+            const fObj = parseFechaDBSeguro(t.fecha_programada || t.fecha_creacion);
+            if (!fObj) return true;
+            if (fObj > hoySinHora) {
+                const esHoy = fObj.getFullYear() === hoySinHora.getFullYear() && fObj.getMonth() === hoySinHora.getMonth() && fObj.getDate() === hoySinHora.getDate();
+                if (!esHoy) return false;
+            }
+            return true;
+        });
+
+        // 2. Estadísticas basadas en la lista filtrada
         const pendientes = misTareas.filter(t => t.estado === 'pendiente').length;
         const enProceso = misTareas.filter(t => t.estado === 'en_proceso').length;
         const finalizadas = misTareas.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada').length;
@@ -1489,7 +1510,7 @@ async function cargarMisTareasAsignadasSupervisor() {
             const activas = misTareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
             containerDash.innerHTML = activas.length 
                 ? renderTareasSupCards(activas) 
-                : '<p style="color:var(--text-muted);font-size:0.85rem;">No tienes tareas asignadas directamente</p>';
+                : '<p style="color:var(--text-muted);font-size:0.85rem;">No tienes tareas para el día de hoy</p>';
             iniciarCronosSupervisor(activas);
         }
 
@@ -1921,12 +1942,34 @@ function iniciarAlertasEmpleado() {
 
 async function cargarTareasEmpleado() {
     try {
-        let tareas = await fetchAPI('/api/tareas');
+        let tareasRaw = await fetchAPI('/api/tareas');
 
         // Para supervisor: solo mostrar sus propias tareas (no las del equipo)
         if (USUARIO.rol === 'SUPERVISOR') {
-            tareas = tareas.filter(t => t.id_empleado === USUARIO.id_usuario);
+            tareasRaw = tareasRaw.filter(t => t.id_empleado === USUARIO.id_usuario);
         }
+
+        // 1. FILTRADO PARA HOY (Sincronizado con KPIs)
+        const hoySinHora = new Date(); hoySinHora.setHours(0,0,0,0);
+        let tareas = tareasRaw.filter(t => {
+            if (t.estado === 'en_proceso' || t.estado === 'atrasada') return true;
+            if (['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado)) return false;
+
+            // Pendientes: solo si son para hoy o ya pasaron
+            const fObj = parseFechaDBSeguro(t.fecha_programada || t.fecha_creacion);
+            if (!fObj) return true;
+            if (fObj > hoySinHora) {
+                const esHoy = fObj.getFullYear() === hoySinHora.getFullYear() && fObj.getMonth() === hoySinHora.getMonth() && fObj.getDate() === hoySinHora.getDate();
+                if (!esHoy) return false;
+            }
+            return true;
+        });
+
+        // 2. Estadísticas basadas en la lista filtrada de HOY
+        const pendientes = tareas.filter(t => t.estado === 'pendiente').length;
+        const enProceso = tareas.filter(t => t.estado === 'en_proceso').length;
+        const finalizadas = tareas.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada').length;
+        const atrasadas = tareas.filter(t => t.estado === 'atrasada').length;
 
         // Cargar config de empresa
         let empPuedeIniciar = true;
@@ -1935,12 +1978,6 @@ async function cargarTareasEmpleado() {
             empPuedeIniciar = config.empleado_puede_iniciar !== 0 && config.empleado_puede_iniciar !== false;
             window.FORMATO_HORA_EMPRESA = config.formato_hora || '12h';
         } catch(e) {}
-
-        // Estadísticas
-        const pendientes = tareas.filter(t => t.estado === 'pendiente').length;
-        const enProceso = tareas.filter(t => t.estado === 'en_proceso').length;
-        const finalizadas = tareas.filter(t => t.estado === 'finalizada' || t.estado === 'finalizada_atrasada').length;
-        const atrasadas = tareas.filter(t => t.estado === 'atrasada').length;
 
         // Usar IDs correctos según rol
         const prefix = USUARIO.rol === 'SUPERVISOR' ? 'sup' : 'emp';
@@ -1957,36 +1994,8 @@ async function cargarTareasEmpleado() {
 
         const container = document.getElementById(`${prefix}-lista-tareas`);
 
-        // Solo tareas no completadas
-        tareas = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
-
-        // Obtener fecha de hoy en formato local YYYY-MM-DD
-        const hoy = new Date();
-        const hoyLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        const hoyStr = hoyLocal; // "YYYY-MM-DD" local del usuario
-
-        // Función interna (mantenida por retrocompatibilidad visual en la lógica)
-        const parseFechaDB = parseFechaDBSeguro;
-
-        tareas = tareas.filter(t => {
-            // 1. Siempre mostrar tareas activas (en proceso o ya atrasadas)
-            if (t.estado === 'en_proceso' || t.estado === 'atrasada') return true;
-            
-            // 2. Para tareas pendientes, filtrar por fecha de ejecución
-            // Prioridad: Programación (calendario) > Vencimiento > Creación
-            const fechaRef = t.fecha_programada || t.fecha_vencimiento || t.fecha_creacion;
-            if (!fechaRef) return false;
-            
-            const fechaObj = parseFechaDB(fechaRef);
-            if (!fechaObj) return false;
-
-            // Obtener el YYYY-MM-DD local de esa fecha
-            const fechaLocal = new Date(fechaObj.getTime() - (fechaObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            
-            // Solo mostrar si es para hoy o es una tarea que quedó pendiente de días anteriores
-            return fechaLocal <= hoyStr;
-        });
-
+        // (El filtrado de HOY y cálculo de KPIs ya se realizó arriba sincronizadamente)
+        
         // Disparar alertas para tareas urgentes de hoy que estén pendientes
         tareas.forEach(t => {
             if (t.prioridad === 'urgente' && t.estado === 'pendiente' && !tareasYaAlertadas.has(t.id_tarea)) {
@@ -3839,34 +3848,45 @@ async function subirImagenEvidencia() {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
-    fileInput.capture = 'environment'; // Abrir cámara trasera en móviles
+    fileInput.multiple = true;
+    
     fileInput.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
         
-        mostrarToast('📸 Optimizando imagen...', 'info');
+        Swal.fire({ 
+            title: 'Optimizando...', 
+            html: `<p>Comprimiendo e subiendo ${files.length} imagen(es)...</p>`, 
+            allowOutsideClick: false, 
+            didOpen: () => { Swal.showLoading() } 
+        });
         
-        try {
-            // 🖼️ OPTIMIZAR: resize 1024px + JPEG 70% (como Pillow en Python)
-            const { base64, originalKB, optimizedKB } = await optimizarImagen(file, {
-                maxSize: 1024,
-                quality: 0.70
-            });
-            
-            const resp = await fetch(`/api/tareas/${TAREA_ACTUAL.id_tarea}/evidencias/base64`, {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
-            });
-            if (!resp.ok) throw new Error('Error al subir imagen');
-            
-            const ahorro = originalKB > 0 ? Math.round((1 - optimizedKB / originalKB) * 100) : 0;
+        let subidas = 0;
+        
+        for (const file of files) {
+            try {
+                // 🖼️ OPTIMIZAR: resize 1024px + JPEG 70%
+                const { base64 } = await optimizarImagen(file, { maxSize: 1024, quality: 0.70 });
+                
+                const resp = await fetch(`/api/tareas/${TAREA_ACTUAL.id_tarea}/evidencias/base64`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
+                });
+                if (resp.ok) subidas++;
+            } catch(err) {
+                console.error("Error optimizando o subiendo imagen:", err);
+            }
+        }
+        
+        Swal.close();
+        
+        if (subidas > 0) {
             verDetalleTarea(TAREA_ACTUAL.id_tarea);
-            mostrarToast(`📸 Imagen subida ✅ (${originalKB}KB → ${optimizedKB}KB, ${ahorro}% más ligera)`, 'success');
-        } catch(err) { mostrarToast('Error al subir imagen', 'error'); }
+            mostrarToast(`📸 ${subidas} Imagen(es) subida(s) correctamente`, 'success');
+        } else {
+            mostrarToast('Error al subir imágenes. Intente de nuevo.', 'error');
+        }
     };
     fileInput.click();
 }
