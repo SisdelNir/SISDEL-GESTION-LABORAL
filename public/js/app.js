@@ -2900,6 +2900,7 @@ async function cargarSupervisoresPorDepto(idDepto) {
         selectJefe.innerHTML = '<option value="">Cargando jefes...</option>';
         
         let html = '<option value="">-- Sin Jefe (Directo) --</option>';
+        let idGerenteFocus = null;
 
         // 1. Cargar el Director General (ADMIN) - Siempre disponible como opción superior
         try {
@@ -2915,6 +2916,7 @@ async function cargarSupervisoresPorDepto(idDepto) {
             const dActual = deptos.find(d => d.id_departamento === idDepto);
             if (dActual && dActual.gerente) {
                 html += `<option value="${dActual.gerente.id_usuario}">${dActual.gerente.nombre} (Gerente de Área)</option>`;
+                idGerenteFocus = dActual.gerente.id_usuario;
             }
         } catch(e) {}
 
@@ -2929,6 +2931,9 @@ async function cargarSupervisoresPorDepto(idDepto) {
         }
         
         selectJefe.innerHTML = html;
+        if (idGerenteFocus) {
+            selectJefe.value = idGerenteFocus;
+        }
         
     } catch(e) {
         console.error('Error cargando jefes por depto:', e);
