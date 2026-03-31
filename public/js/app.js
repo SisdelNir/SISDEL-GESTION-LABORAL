@@ -2319,6 +2319,25 @@ async function cargarTareasEmpleado() {
                 `;
             }
 
+            // Botón 👤 Cliente (si la tarea requiere seguimiento de cliente)
+            let clienteBtn = '';
+            const tieneCliente = t.tiene_cliente === 1 || t.tiene_cliente === '1' || t.tiene_cliente === true;
+            if (tieneCliente) {
+                const concluido = t.cliente_concluido === 1 || t.cliente_concluido === '1';
+                clienteBtn = `
+                    <div style="margin-top:8px;">
+                        <button onclick="event.stopPropagation(); abrirModalCliente('${t.id_tarea}')"
+                            style="width:100%;padding:8px 14px;border-radius:9px;border:none;cursor:pointer;font-size:0.8rem;font-weight:700;
+                                   background:${concluido ? 'linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.08))' : 'linear-gradient(135deg,rgba(16,185,129,0.2),rgba(16,185,129,0.1))'};
+                                   color:${concluido ? '#10b981' : '#34d399'};
+                                   border:1px solid ${concluido ? 'rgba(16,185,129,0.3)' : 'rgba(52,211,153,0.4)'};
+                                   display:flex;align-items:center;justify-content:center;gap:6px;">
+                            ${concluido ? '✅ Cliente Atendido' : '👤 Datos del Cliente'}
+                            ${t.nombre_cliente ? `<span style="font-weight:400;font-size:0.72rem;opacity:0.8;">· ${t.nombre_cliente}</span>` : '<span style="font-weight:400;font-size:0.72rem;opacity:0.7;">· Pendiente de registro</span>'}
+                        </button>
+                    </div>`;
+            }
+
             return `
                 <div class="emp-tarea-card" id="emp-card-${t.id_tarea}">
                     <div class="tarea-info">
@@ -2334,6 +2353,7 @@ async function cargarTareasEmpleado() {
                             ${t.fecha_creacion ? `<span style="font-size:0.65rem;color:#a78bfa;">🕐 ${formatearHoraEmpresa(t.fecha_creacion)}</span>` : ''}
                         </div>
                         ${evidenciaBtns}
+                        ${clienteBtn}
                     </div>
                     <div class="crono-container" style="flex-shrink:0;margin:0;padding:10px 14px;min-width:auto;flex-wrap:wrap;justify-content:center;">
                         <span style="font-size:1rem;">⏱</span>
@@ -5361,3 +5381,134 @@ async function verEvidenciasTarea(idTarea) {
     }
 }
 
+// ══════════════════════════════════════════════════════════════
+// MODAL DE CLIENTE (para Empleado / Supervisor como empleado)
+// ══════════════════════════════════════════════════════════════
+let _clienteModalIdTarea = null;
+
+async function abrirModalCliente(idTarea) {
+    _clienteModalIdTarea = idTarea;
+    const modal = document.getElementById('modal-cliente-emp');
+    if (!modal) return;
+
+    // Limpiar formulario
+    ['cli-nombre','cli-codigo','cli-telefono','cli-correo','cli-obs','cli-fecha-seguimiento'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('cli-sugerencias').style.display = 'none';
+    document.getElementById('cli-btn-concluir').style.display = 'none';
+    const banner = document.getElementById('cli-estado-banner');
+    banner.style.display = 'none';
+    modal.style.display = 'flex';
+
+    // Cargar datos existentes si ya fueron registrados
+    try {
+        const tarea = await fetchAPI(`/api/tareas/${idTarea}`);
+        if (tarea.nombre_cliente) {
+            document.getElementById('cli-nombre').value = tarea.nombre_cliente || '';
+            document.getElementById('cli-codigo').value = tarea.codigo_cliente || '';
+            document.getElementById('cli-telefono').value = tarea.telefono_cliente || '';
+            document.getElementById('cli-correo').value = tarea.correo_cliente || '';
+            document.getElementById('cli-obs').value = tarea.obs_cliente || '';
+            document.getElementById('cli-fecha-seguimiento').value = tarea.fecha_seguimiento || '';
+        }
+        const concluido = tarea.cliente_concluido === 1 || tarea.cliente_concluido === '1';
+        if (concluido) {
+            banner.textContent = '✅ Este evento con el cliente ya fue marcado como concluido';
+            banner.style.display = 'block';
+            banner.style.background = 'rgba(16,185,129,0.15)';
+            banner.style.color = '#10b981';
+            ['cli-nombre','cli-telefono','cli-correo','cli-obs','cli-fecha-seguimiento'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.readOnly = true;
+            });
+        } else {
+            ['cli-nombre','cli-telefono','cli-correo','cli-obs','cli-fecha-seguimiento'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.readOnly = false;
+            });
+            if (tarea.nombre_cliente) document.getElementById('cli-btn-concluir').style.display = 'inline-flex';
+        }
+    } catch(e) {}
+}
+
+function cerrarModalCliente() {
+    const modal = document.getElementById('modal-cliente-emp');
+    if (modal) modal.style.display = 'none';
+    _clienteModalIdTarea = null;
+}
+
+let _cliSugTimer = null;
+async function buscarClientesSugerencias_emp(q) {
+    const box = document.getElementById('cli-sugerencias');
+    if (!box) return;
+    clearTimeout(_cliSugTimer);
+    if (q.length < 2) { box.style.display = 'none'; return; }
+    _cliSugTimer = setTimeout(async () => {
+        try {
+            const res = await fetchAPI(`/api/tareas/clientes/buscar?q=${encodeURIComponent(q)}`);
+            if (!res.length) { box.style.display = 'none'; return; }
+            box.innerHTML = res.map(c => `
+                <div onclick="seleccionarClienteExistente_emp(${JSON.stringify(c).replace(/"/g,'&quot;')})"
+                     style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border-color);font-size:0.82rem;"
+                     onmouseover="this.style.background='rgba(16,185,129,0.1)'" onmouseout="this.style.background=''">
+                    <strong>${c.nombre_cliente}</strong>
+                    <span style="color:#10b981;font-size:0.72rem;margin-left:6px;">${c.codigo_cliente}</span>
+                    ${c.telefono_cliente ? `<span style="color:var(--text-muted);margin-left:6px;">📞${c.telefono_cliente}</span>` : ''}
+                </div>`).join('');
+            box.style.display = 'block';
+        } catch(e) {}
+    }, 300);
+}
+
+function seleccionarClienteExistente_emp(c) {
+    document.getElementById('cli-nombre').value = c.nombre_cliente || '';
+    document.getElementById('cli-codigo').value = c.codigo_cliente || '';
+    document.getElementById('cli-telefono').value = c.telefono_cliente || '';
+    document.getElementById('cli-correo').value = c.correo_cliente || '';
+    document.getElementById('cli-sugerencias').style.display = 'none';
+    document.getElementById('cli-btn-concluir').style.display = 'inline-flex';
+}
+
+async function guardarDatosCliente() {
+    if (!_clienteModalIdTarea) return;
+    const nombre = document.getElementById('cli-nombre').value.trim();
+    if (!nombre) { mostrarToast('Ingresa el nombre del cliente', 'error'); document.getElementById('cli-nombre').focus(); return; }
+
+    let codigo = document.getElementById('cli-codigo').value.trim();
+    if (!codigo) {
+        const letras = nombre.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g,'').substring(0,3).toUpperCase().padEnd(3,'X');
+        codigo = letras + String(Math.floor(Math.random()*90)+10);
+        document.getElementById('cli-codigo').value = codigo;
+    }
+    const fecha = document.getElementById('cli-fecha-seguimiento').value || null;
+    try {
+        const resp = await fetchAPI(`/api/tareas/${_clienteModalIdTarea}/seguimiento-cliente`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                nombre_cliente: nombre,
+                codigo_cliente: codigo,
+                telefono_cliente: document.getElementById('cli-telefono').value.trim() || null,
+                correo_cliente: document.getElementById('cli-correo').value.trim() || null,
+                obs_cliente: document.getElementById('cli-obs').value.trim() || null,
+                fecha_seguimiento: fecha
+            })
+        });
+        document.getElementById('cli-btn-concluir').style.display = 'inline-flex';
+        const msg = resp.nueva_tarea_id
+            ? '✅ Datos guardados — Nueva tarea de seguimiento creada automáticamente'
+            : '✅ Datos del cliente guardados';
+        mostrarToast(msg, 'success');
+        cargarTareasEmpleado();
+    } catch(e) { mostrarToast(e.message, 'error'); }
+}
+
+async function concluirEventoCliente() {
+    if (!_clienteModalIdTarea) return;
+    if (!confirm('¿Marcar el evento con este cliente como concluido?')) return;
+    try {
+        await fetchAPI(`/api/tareas/${_clienteModalIdTarea}/cliente-concluido`, { method: 'PUT' });
+        mostrarToast('✅ Evento con cliente marcado como concluido', 'success');
+        cerrarModalCliente();
+        cargarTareasEmpleado();
+    } catch(e) { mostrarToast(e.message, 'error'); }
+}

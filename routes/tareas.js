@@ -855,34 +855,47 @@ router.put('/:id/observaciones', verificarToken, async (req, res) => {
  */
 router.put('/:id/seguimiento-cliente', verificarToken, async (req, res) => {
     try {
-        const { obs_cliente, fecha_seguimiento } = req.body;
+        const { obs_cliente, fecha_seguimiento, nombre_cliente, codigo_cliente, telefono_cliente, correo_cliente } = req.body;
         const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
         if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
 
+        // Merge: usar los nuevos valores si vienen, si no conservar los existentes
+        const nuevoNombre = nombre_cliente !== undefined ? nombre_cliente : tarea.nombre_cliente;
+        const nuevoCodigo = codigo_cliente !== undefined ? codigo_cliente : tarea.codigo_cliente;
+        const nuevoTel = telefono_cliente !== undefined ? telefono_cliente : tarea.telefono_cliente;
+        const nuevoCorreo = correo_cliente !== undefined ? correo_cliente : tarea.correo_cliente;
+        const nuevaObs = obs_cliente !== undefined ? obs_cliente : tarea.obs_cliente;
+        const nuevaFecha = fecha_seguimiento !== undefined ? (fecha_seguimiento || null) : (tarea.fecha_seguimiento || null);
+
+        // Si se registra cliente por primera vez, activar tiene_cliente = 1
+        const activarCliente = nuevoNombre ? 1 : tarea.tiene_cliente;
+
         await db.run(
-            'UPDATE tareas SET obs_cliente = ?, fecha_seguimiento = ? WHERE id_tarea = ?',
-            obs_cliente || tarea.obs_cliente, fecha_seguimiento || null, req.params.id
+            `UPDATE tareas SET tiene_cliente = ?, nombre_cliente = ?, codigo_cliente = ?,
+             telefono_cliente = ?, correo_cliente = ?, obs_cliente = ?, fecha_seguimiento = ?
+             WHERE id_tarea = ?`,
+            activarCliente, nuevoNombre || null, nuevoCodigo || null,
+            nuevoTel || null, nuevoCorreo || null, nuevaObs || null, nuevaFecha, req.params.id
         );
 
         let nuevaTareaId = null;
-        // Si hay fecha de seguimiento → crear nueva tarea programada automáticamente
-        if (fecha_seguimiento && tarea.nombre_cliente) {
+        // Si hay fecha de seguimiento nueva y hay cliente → crear nueva tarea programada
+        if (fecha_seguimiento && nuevoNombre && fecha_seguimiento !== tarea.fecha_seguimiento) {
             const { v4: uuidv4Local } = require('uuid');
             nuevaTareaId = uuidv4Local();
             const codigo_tarea = await generarCodigoTarea(req.usuario.id_empresa);
-            const tituloSeguimiento = `Seguimiento cliente: ${tarea.nombre_cliente}`;
+            const tituloSeguimiento = `Seguimiento cliente: ${nuevoNombre}`;
             await db.run(
                 `INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor, id_creador, prioridad, estado, fecha_creacion,
                     tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, 1, ?, ?, ?, ?)`,
                 nuevaTareaId, req.usuario.id_empresa, codigo_tarea, tituloSeguimiento,
-                `Seguimiento programado para cliente ${tarea.nombre_cliente} a partir de la tarea "${tarea.titulo}"`,
+                `Seguimiento programado para cliente ${nuevoNombre} a partir de la tarea "${tarea.titulo}"`,
                 tarea.id_empleado, tarea.id_supervisor, req.usuario.id_usuario,
                 tarea.prioridad || 'media', new Date().toISOString(),
-                tarea.codigo_cliente, tarea.nombre_cliente, tarea.telefono_cliente, tarea.correo_cliente
+                nuevoCodigo, nuevoNombre, nuevoTel, nuevoCorreo
             );
             await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4Local(), nuevaTareaId);
-            // Notificar al empleado
             if (tarea.id_empleado) {
                 await db.run(
                     `INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'nueva_tarea')`,

@@ -1094,45 +1094,13 @@
                         <!-- ── SEGUIMIENTO DE CLIENTE ── -->
                         <div class="form-group full-width">
                             <div style="padding:10px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;">
-                                <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleClienteForm()">
-                                    <input type="checkbox" id="tarea-tiene-cliente" style="width:auto;margin:0;accent-color:#10b981;" onclick="event.stopPropagation();toggleClienteForm()">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <input type="checkbox" id="tarea-tiene-cliente" style="width:auto;margin:0;accent-color:#10b981;">
                                     <label for="tarea-tiene-cliente" style="margin:0;font-size:0.82rem;font-weight:600;color:#10b981;text-transform:none;cursor:pointer;">
                                         👤 Activar Seguimiento de Cliente
                                     </label>
                                 </div>
-                                <!-- Panel de datos del cliente (oculto por defecto) -->
-                                <div id="panel-cliente-tarea" style="display:none;margin-top:14px;border-top:1px solid rgba(16,185,129,0.2);padding-top:14px;">
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                        <div class="form-group" style="margin:0;">
-                                            <label style="font-size:0.75rem;color:var(--text-muted);">Nombre del Cliente *</label>
-                                            <div style="position:relative;">
-                                                <input type="text" id="cliente-nombre" placeholder="Buscar o ingresar cliente..." autocomplete="off"
-                                                    oninput="buscarClientesSugerencias(this.value)" style="width:100%;">
-                                                <div id="cliente-sugerencias" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;z-index:100;max-height:150px;overflow-y:auto;"></div>
-                                            </div>
-                                        </div>
-                                        <div class="form-group" style="margin:0;">
-                                            <label style="font-size:0.75rem;color:var(--text-muted);">Código (auto)</label>
-                                            <input type="text" id="cliente-codigo" placeholder="Se genera automático" readonly style="background:rgba(255,255,255,0.04);cursor:default;">
-                                        </div>
-                                        <div class="form-group" style="margin:0;">
-                                            <label style="font-size:0.75rem;color:var(--text-muted);">Teléfono</label>
-                                            <input type="tel" id="cliente-telefono" placeholder="+502 1234-5678">
-                                        </div>
-                                        <div class="form-group" style="margin:0;">
-                                            <label style="font-size:0.75rem;color:var(--text-muted);">Correo</label>
-                                            <input type="email" id="cliente-correo" placeholder="cliente@correo.com">
-                                        </div>
-                                        <div class="form-group full-width" style="margin:0;grid-column:1/-1;">
-                                            <label style="font-size:0.75rem;color:var(--text-muted);">Observaciones del Cliente</label>
-                                            <textarea id="cliente-obs" rows="2" placeholder="Notas sobre el cliente o la visita..." style="resize:vertical;width:100%;"></textarea>
-                                        </div>
-                                        <div class="form-group full-width" style="margin:0;grid-column:1/-1;">
-                                            <label style="font-size:0.75rem;color:var(--text-muted);">📅 Fecha de Seguimiento (genera nueva tarea automáticamente)</label>
-                                            <input type="date" id="cliente-fecha-seguimiento">
-                                        </div>
-                                    </div>
-                                </div>
+                                <p style="margin:6px 0 0 24px;font-size:0.72rem;color:var(--text-muted);">El empleado asignado podrá registrar los datos del cliente desde su módulo de tareas.</p>
                             </div>
                         </div>
                     </div>
@@ -1546,6 +1514,75 @@
                 <!-- Tabla Jerárquica -->
                 <div id="vision-360-container" class="vision-360-grid">
                     <!-- Dinámico -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Formulario de Cliente (Empleado) -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="modal-cliente-emp" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="cerrarModalCliente()"></div>
+        <div class="modal-content glass" style="max-width:540px;">
+            <div class="modal-header" style="border-bottom:1px solid rgba(16,185,129,0.3);">
+                <h3 style="color:#10b981;">👤 Datos del Cliente</h3>
+                <button class="btn-close" onclick="cerrarModalCliente()">×</button>
+            </div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+                <!-- Estado del cliente -->
+                <div id="cli-estado-banner" style="display:none;padding:8px 12px;border-radius:8px;font-size:0.82rem;font-weight:600;"></div>
+
+                <!-- Nombre + Código -->
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
+                    <div>
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Nombre del Cliente *</label>
+                        <div style="position:relative;">
+                            <input type="text" id="cli-nombre" placeholder="Buscar o escribir nombre..." autocomplete="off"
+                                oninput="buscarClientesSugerencias_emp(this.value)" style="width:100%;">
+                            <div id="cli-sugerencias" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;z-index:200;max-height:160px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.3);"></div>
+                        </div>
+                    </div>
+                    <div style="min-width:110px;">
+                        <label style="font-size:0.75rem;color:var(--text-muted);">Código</label>
+                        <input type="text" id="cli-codigo" placeholder="Auto" readonly style="background:rgba(16,185,129,0.07);cursor:default;color:#10b981;font-weight:700;letter-spacing:1px;">
+                    </div>
+                </div>
+
+                <!-- Teléfono + Correo -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div>
+                        <label style="font-size:0.75rem;color:var(--text-muted);">📞 Teléfono</label>
+                        <input type="tel" id="cli-telefono" placeholder="+502 1234-5678">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;color:var(--text-muted);">✉️ Correo</label>
+                        <input type="email" id="cli-correo" placeholder="cliente@correo.com">
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div>
+                    <label style="font-size:0.75rem;color:var(--text-muted);">📝 Observaciones / Notas</label>
+                    <textarea id="cli-obs" rows="3" placeholder="Notas sobre el cliente, la visita o el acuerdo..." style="resize:vertical;width:100%;"></textarea>
+                </div>
+
+                <!-- Fecha de seguimiento -->
+                <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 12px;">
+                    <label style="font-size:0.75rem;color:#f59e0b;font-weight:600;">📅 Fecha de Seguimiento</label>
+                    <p style="font-size:0.7rem;color:var(--text-muted);margin:2px 0 6px;">Si estableces una fecha, se creará automáticamente una nueva tarea de seguimiento asignada a ti.</p>
+                    <input type="date" id="cli-fecha-seguimiento" style="width:100%;">
+                </div>
+
+                <!-- Botones de acción -->
+                <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;border-top:1px solid var(--border-color);padding-top:12px;">
+                    <button class="btn btn-ghost btn-sm" onclick="cerrarModalCliente()">Cancelar</button>
+                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;" onclick="guardarDatosCliente()">
+                        💾 Guardar
+                    </button>
+                    <button id="cli-btn-concluir" class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;display:none;" onclick="concluirEventoCliente()">
+                        ✅ Evento Concluido
+                    </button>
                 </div>
             </div>
         </div>
