@@ -338,9 +338,12 @@ function abrirPanelPorRol() {
         cambiarPanelAdmin(USUARIO.rol === 'GERENTE' ? 'graficas-gerencia' : 'tareas');
     } else if (USUARIO.rol === 'SUPERVISOR') {
         mostrarPantalla('supervisor');
-        const depStr = USUARIO.nombre_departamento ? ` — ${USUARIO.nombre_departamento}` : '';
-        document.getElementById('sup-user-name').textContent = USUARIO.nombre + depStr;
+        // Derecha: solo el nombre del supervisor
+        document.getElementById('sup-user-name').textContent = USUARIO.nombre;
+        // Izquierda: empresa arriba, gerencia/departamento abajo
         document.getElementById('sup-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
+        const supDeptoEl = document.getElementById('sup-depto-nombre');
+        if (supDeptoEl) supDeptoEl.textContent = USUARIO.nombre_departamento || '';
         actualizarVisibilidadCreacion();
         cargarTareasEmpleado(); // Igual que empleado
         verificarEstadoCheckin();
