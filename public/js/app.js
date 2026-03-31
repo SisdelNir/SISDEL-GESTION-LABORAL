@@ -4740,7 +4740,11 @@ async function verificarPermisosSupervisor() {
 
 function formatearHoraEmpresa(fechaStr) {
     if (!fechaStr) return '—';
-    const d = new Date(fechaStr);
+    let s = fechaStr.trim();
+    if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
+    if (!s.includes('Z') && !s.includes('+')) s += 'Z';
+    const d = new Date(s);
+    if (isNaN(d)) return '—';
     if (window.FORMATO_HORA_EMPRESA === '24h') {
         return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
     }
