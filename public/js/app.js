@@ -3817,73 +3817,8 @@ async function crearTarea(e) {
     e.preventDefault();
     const tiempoEstFinal = calcularTiempoEstimadoDisplay() || undefined;
 
-// ── SEGUIMIENTO DE CLIENTE: lógica del formulario ──
-function toggleClienteForm() {
-    const chk = document.getElementById('tarea-tiene-cliente');
-    const panel = document.getElementById('panel-cliente-tarea');
-    if (!chk || !panel) return;
-    panel.style.display = chk.checked ? 'block' : 'none';
-    if (chk.checked) {
-        // Generar código si el nombre ya tiene algo
-        const nombre = document.getElementById('cliente-nombre').value.trim();
-        if (nombre && !document.getElementById('cliente-codigo').value) {
-            document.getElementById('cliente-codigo').value = generarCodigoCliente(nombre);
-        }
-    }
-}
-
-function generarCodigoCliente(nombre) {
-    const letras = nombre.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'X');
-    const nums = String(Math.floor(Math.random() * 90) + 10);
-    return letras + nums;
-}
-
-// Generar código al escribir el nombre del cliente
-document.addEventListener('DOMContentLoaded', () => {
-    const inputNombre = document.getElementById('cliente-nombre');
-    if (inputNombre) {
-        inputNombre.addEventListener('blur', () => {
-            const nombre = inputNombre.value.trim();
-            const codigoEl = document.getElementById('cliente-codigo');
-            if (nombre && !codigoEl.value) {
-                codigoEl.value = generarCodigoCliente(nombre);
-            }
-        });
-    }
-});
-
-let _buscarClienteTimer = null;
-async function buscarClientesSugerencias(q) {
-    const box = document.getElementById('cliente-sugerencias');
-    if (!box) return;
-    clearTimeout(_buscarClienteTimer);
-    if (q.length < 2) { box.style.display = 'none'; return; }
-    _buscarClienteTimer = setTimeout(async () => {
-        try {
-            const resultados = await fetchAPI(`/api/tareas/clientes/buscar?q=${encodeURIComponent(q)}`);
-            if (!resultados.length) { box.style.display = 'none'; return; }
-            box.innerHTML = resultados.map(c => `
-                <div onclick="seleccionarClienteExistente(${JSON.stringify(c).replace(/"/g,'&quot;')})"
-                     style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border-color);font-size:0.82rem;"
-                     onmouseover="this.style.background='rgba(16,185,129,0.1)'" onmouseout="this.style.background=''">
-                    <strong>${c.nombre_cliente}</strong>
-                    <span style="color:var(--accent-primary);font-size:0.72rem;margin-left:6px;">${c.codigo_cliente}</span>
-                    ${c.telefono_cliente ? `<span style="color:var(--text-muted);margin-left:6px;">📞${c.telefono_cliente}</span>` : ''}
-                </div>`).join('');
-            box.style.display = 'block';
-        } catch(e) {}
-    }, 300);
-}
-
-function seleccionarClienteExistente(c) {
-    document.getElementById('cliente-nombre').value = c.nombre_cliente || '';
-    document.getElementById('cliente-codigo').value = c.codigo_cliente || '';
-    document.getElementById('cliente-telefono').value = c.telefono_cliente || '';
-    document.getElementById('cliente-correo').value = c.correo_cliente || '';
-    document.getElementById('cliente-sugerencias').style.display = 'none';
-}
-
     const tieneCliente = document.getElementById('tarea-tiene-cliente')?.checked;
+    
     const datos = {
         titulo: document.getElementById('tarea-titulo').value.trim(),
         descripcion: document.getElementById('tarea-descripcion').value.trim(),
@@ -3893,29 +3828,21 @@ function seleccionarClienteExistente(c) {
         prioridad: document.getElementById('tarea-prioridad').value,
         tiempo_estimado_minutos: tiempoEstFinal,
         requiere_evidencia: document.getElementById('tarea-req-evidencia') ? document.getElementById('tarea-req-evidencia').checked : false,
-        // Campos de cliente
-        tiene_cliente: tieneCliente ? 1 : 0,
-        codigo_cliente: tieneCliente ? (document.getElementById('cliente-codigo').value.trim() || generarCodigoCliente(document.getElementById('cliente-nombre').value.trim())) : undefined,
-        nombre_cliente: tieneCliente ? document.getElementById('cliente-nombre').value.trim() : undefined,
-        telefono_cliente: tieneCliente ? document.getElementById('cliente-telefono').value.trim() : undefined,
-        correo_cliente: tieneCliente ? document.getElementById('cliente-correo').value.trim() : undefined,
-        obs_cliente: tieneCliente ? document.getElementById('cliente-obs').value.trim() : undefined,
-        fecha_seguimiento: tieneCliente ? (document.getElementById('cliente-fecha-seguimiento').value || undefined) : undefined
+        // Al crear la tarea ahora solo enviamos el flag de que sí requiere cliente
+        tiene_cliente: tieneCliente ? 1 : 0
     };
-    // Si se activó cliente pero no se ingresó nombre → desactivar silenciosamente
-    if (tieneCliente && !datos.nombre_cliente) {
-        datos.tiene_cliente = 0;
-        datos.codigo_cliente = undefined;
-    }
+
     try {
         const resp = await fetchAPI('/api/tareas', { method: 'POST', body: JSON.stringify(datos) });
         cerrarModalTarea();
-        // Resetear campos de cliente
-        document.getElementById('tarea-tiene-cliente').checked = false;
-        document.getElementById('panel-cliente-tarea').style.display = 'none';
+        
+        // Resetear campo
+        if (document.getElementById('tarea-tiene-cliente')) document.getElementById('tarea-tiene-cliente').checked = false;
+        
         // Restaurar campo supervisor si estaba oculto
         const supGroup = document.getElementById('tarea-supervisor')?.closest('.form-group');
         if (supGroup) supGroup.style.display = '';
+        
         // Recargar panel según rol
         if (USUARIO.rol === 'SUPERVISOR') {
             filtrarTareasEquipoSup('');
