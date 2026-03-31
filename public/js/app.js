@@ -1898,19 +1898,39 @@ async function cargarTareasEmpleado() {
         // Solo tareas no completadas
         tareas = tareas.filter(t => !['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado));
 
-        // Filtrar solo las que correspondan al día actual (asignadas/programadas hoy) o que ya estén en proceso
+        // Obtener fecha de hoy en formato local YYYY-MM-DD
         const hoy = new Date();
         const hoyLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        
+        const hoyStr = hoyLocal; // "YYYY-MM-DD" local del usuario
+
+        // Función interna para normalizar fechas de la DB (SQLite/Postgres) a objeto Date local
+        const parseFechaDB = (str) => {
+            if (!str) return null;
+            let s = str.trim();
+            // Si el formato es "YYYY-MM-DD HH:MM:SS" (SQLite), convertir a ISO
+            if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
+            // Si no tiene zona horaria, asumir que viene en UTC desde el servidor
+            if (!s.includes('Z') && !s.includes('+')) s += 'Z';
+            return new Date(s);
+        };
+
         tareas = tareas.filter(t => {
-            if (t.estado === 'en_proceso' || t.estado === 'atrasada') return true; // Mantener las que ya están corriendo aunque sean de días anteriores
+            // 1. Siempre mostrar tareas activas (en proceso o ya atrasadas)
+            if (t.estado === 'en_proceso' || t.estado === 'atrasada') return true;
             
+            // 2. Para tareas pendientes, filtrar por fecha de ejecución
+            // Prioridad: Programación (calendario) > Vencimiento > Creación
             const fechaRef = t.fecha_programada || t.fecha_vencimiento || t.fecha_creacion;
             if (!fechaRef) return false;
             
-            const fechaObj = new Date(fechaRef);
+            const fechaObj = parseFechaDB(fechaRef);
+            if (!fechaObj) return false;
+
+            // Obtener el YYYY-MM-DD local de esa fecha
             const fechaLocal = new Date(fechaObj.getTime() - (fechaObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            return fechaLocal === hoyLocal;
+            
+            // Solo mostrar si es para hoy o es una tarea de calendario que ya pasó y quedó pendiente
+            return fechaLocal === hoyStr || (t.fecha_programada && fechaLocal < hoyStr);
         });
 
         // Disparar alertas para tareas urgentes de hoy que estén pendientes

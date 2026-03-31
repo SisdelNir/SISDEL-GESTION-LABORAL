@@ -157,7 +157,7 @@ async function inicializarDB() {
             estado INTEGER DEFAULT 1,
             eliminado INTEGER DEFAULT 0,
             fecha_eliminacion TEXT,
-            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha_creacion TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
         )
     `);
 
@@ -169,7 +169,7 @@ async function inicializarDB() {
             descripcion TEXT,
             id_responsable TEXT,
             estado INTEGER DEFAULT 1,
-            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"},
             FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
         )
     `);
@@ -194,7 +194,7 @@ async function inicializarDB() {
             eliminado INTEGER DEFAULT 0,
             fecha_eliminacion TEXT,
             eliminado_por TEXT,
-            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"},
             FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
         )
     `);
@@ -206,7 +206,7 @@ async function inicializarDB() {
             refresh_token TEXT NOT NULL,
             dispositivo TEXT,
             ip TEXT,
-            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"},
             fecha_expiracion TEXT NOT NULL,
             activa INTEGER DEFAULT 1,
             FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
@@ -244,7 +244,7 @@ async function inicializarDB() {
             id_relacion TEXT PRIMARY KEY,
             id_supervisor TEXT NOT NULL,
             id_empleado TEXT NOT NULL,
-            fecha_asignacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha_asignacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"}
         )
     `);
 
@@ -255,7 +255,7 @@ async function inicializarDB() {
             nombre TEXT NOT NULL,
             descripcion TEXT,
             peso_complejidad INTEGER DEFAULT 1,
-            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"},
             FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
         )
     `);
@@ -274,7 +274,7 @@ async function inicializarDB() {
             tiempo_estimado_minutos INTEGER,
             requiere_evidencia INTEGER DEFAULT 0,
             estado TEXT DEFAULT 'pendiente',
-            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"},
             fecha_inicio TEXT,
             fecha_fin TEXT,
             eliminado INTEGER DEFAULT 0,
@@ -290,7 +290,7 @@ async function inicializarDB() {
             estado_nuevo TEXT NOT NULL,
             id_usuario TEXT,
             comentario TEXT,
-            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"}
         )
     `);
 
@@ -314,7 +314,7 @@ async function inicializarDB() {
             id_tarea TEXT NOT NULL,
             tipo TEXT,
             contenido TEXT,
-            fecha_registro TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha_registro TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"}
         )
     `);
 
@@ -324,7 +324,7 @@ async function inicializarDB() {
             id_tarea TEXT NOT NULL,
             id_usuario TEXT NOT NULL,
             contenido TEXT NOT NULL,
-            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"}
         )
     `);
 
@@ -336,7 +336,7 @@ async function inicializarDB() {
             mensaje TEXT,
             tipo TEXT,
             leido INTEGER DEFAULT 0,
-            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"}
         )
     `);
 
@@ -358,7 +358,7 @@ async function inicializarDB() {
             incluir_finsemana INTEGER DEFAULT 1,
             ultima_ejecucion TEXT,
             total_generadas INTEGER DEFAULT 0,
-            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"}
         )
     `);
 
@@ -390,7 +390,7 @@ async function inicializarDB() {
             hora_programada TEXT DEFAULT '08:00',
             ejecutada INTEGER DEFAULT 0,
             id_tarea_generada TEXT,
-            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            fecha_creacion TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"},
             FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
         )
     `);
@@ -403,7 +403,7 @@ async function inicializarDB() {
             puntos INTEGER NOT NULL,
             motivo TEXT NOT NULL,
             descripcion TEXT,
-            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"}
         )
     `);
 
@@ -484,7 +484,7 @@ async function inicializarDB() {
             id_usuario TEXT,
             accion TEXT NOT NULL,
             descripcion TEXT,
-            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"}
+            fecha TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"}
         )
     `);
 
@@ -492,7 +492,7 @@ async function inicializarDB() {
         CREATE TABLE IF NOT EXISTS accesos (
             id_acceso ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             id_usuario TEXT,
-            fecha_login TEXT DEFAULT ${isPostgres ? 'NOW()' : "(datetime('now', 'localtime'))"},
+            fecha_login TEXT DEFAULT ${isPostgres ? 'NOW()' : "(strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"},
             ip TEXT,
             dispositivo TEXT
         )
