@@ -2982,8 +2982,7 @@ function actualizarVisibilidadCreacion() {
     if (menuResumenGerencia) {
         const esGerente = USUARIO.rol === 'GERENTE';
         if (esGerente) {
-            const nombreGerencia = USUARIO.nombre_departamento || 'Mi Gerencia';
-            menuResumenGerencia.textContent = `📋 Resumen de Tareas de Empleados de Gerencia: ${nombreGerencia}`;
+            menuResumenGerencia.textContent = `📋 Reporte-Tareas`;
             menuResumenGerencia.style.display = 'block';
         } else {
             menuResumenGerencia.style.display = 'none';
