@@ -2047,15 +2047,7 @@ async function cargarTareasEmpleado() {
             return;
         }
 
-        container.innerHTML = tareasVista.map(t => {
-            const esEnProceso = t.estado === 'en_proceso';
-            const esAtrasada = t.estado === 'atrasada';
-            const colorEstado = esAtrasada ? 'var(--accent-danger)' : (esEnProceso ? 'var(--accent-primary)' : 'var(--accent-amber)');
-            
-            return renderTareaCardEmpleado(t, empPuedeIniciar);
-        }).join('');
-
-        iniciarCronometrosEmpleado(tareasVista);
+        // (Rogue method calls removed)
 
         // Si empleado NO puede iniciar → auto-iniciar tareas pendientes
         if (!empPuedeIniciar) {
@@ -2072,7 +2064,7 @@ async function cargarTareasEmpleado() {
             }
         }
 
-        container.innerHTML = tareas.map(t => {
+        container.innerHTML = tareasVista.map(t => {
             const esFinalizada = t.estado === 'finalizada' || t.estado === 'finalizada_atrasada';
             const enProcesoActivo = t.estado === 'en_proceso' || t.estado === 'atrasada';
             const esPendiente = t.estado === 'pendiente';
@@ -2146,7 +2138,7 @@ async function cargarTareasEmpleado() {
         }).join('');
 
         // Iniciar cronómetros activos
-        tareas.forEach(t => {
+        tareasVista.forEach(t => {
             const enProcesoActivo = t.estado === 'en_proceso' || t.estado === 'atrasada';
             const esFinalizada = t.estado === 'finalizada' || t.estado === 'finalizada_atrasada';
 

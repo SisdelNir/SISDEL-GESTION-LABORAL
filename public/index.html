@@ -524,7 +524,7 @@
                         <div style="display:flex;gap:8px;">
                             <button class="btn btn-primary btn-sm" onclick="mostrarFormularioTarea()">
                                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                                Nueva Tarea
+                                Tarea para Hoy
                             </button>
                             <button class="btn btn-sm" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;" onclick="abrirModalPlantillas()">
                                 🔄 Repetitivas
@@ -763,7 +763,7 @@
                                 🔄 Repetitivas
                             </button>
                             <button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600;padding:10px 20px;border-radius:10px;" onclick="abrirNuevaTareaSupervisor()">
-                                ➕ Nueva Tarea
+                                ➕ Tarea para Hoy
                             </button>
                         </div>
                     </div>
@@ -948,7 +948,7 @@
         <div class="modal-overlay" onclick="cerrarModalTarea()"></div>
         <div class="modal-content glass" style="max-width:600px;">
             <div class="modal-header">
-                <h3>📋 Nueva Tarea</h3>
+                <h3>📋 Tarea para Hoy</h3>
                 <button class="btn-close" onclick="cerrarModalTarea()">&times;</button>
             </div>
             <form id="form-tarea" onsubmit="crearTarea(event)">
@@ -1405,6 +1405,6 @@
     <div id="toast-container"></div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=2.0"></script>
 </body>
 </html>
