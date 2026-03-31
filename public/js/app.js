@@ -309,14 +309,21 @@ function abrirPanelPorRol() {
 
     if (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE') {
         mostrarPantalla('admin');
-        document.getElementById('admin-user-name').textContent = USUARIO.nombre;
-        document.getElementById('admin-empresa-nombre').textContent = USUARIO.rol === 'GERENTE' ? `${USUARIO.nombre_empresa} • Gerente` : (USUARIO.nombre_empresa || 'Empresa');
+        const depStr = USUARIO.nombre_departamento ? ` — ${USUARIO.nombre_departamento}` : '';
+        document.getElementById('admin-user-name').textContent = USUARIO.nombre + depStr;
+        
+        const labelEmp = USUARIO.rol === 'GERENTE' && USUARIO.nombre_departamento 
+            ? `${USUARIO.nombre_empresa} • ${USUARIO.nombre_departamento}` 
+            : (USUARIO.rol === 'GERENTE' ? `${USUARIO.nombre_empresa} • Gerente` : (USUARIO.nombre_empresa || 'Empresa'));
+            
+        document.getElementById('admin-empresa-nombre').textContent = labelEmp;
         const rolBadge = document.getElementById('admin-role-badge');
         if (rolBadge) rolBadge.textContent = USUARIO.rol === 'GERENTE' ? 'GERENTE' : 'DIRECTOR GENERAL';
         cambiarPanelAdmin('tareas');
     } else if (USUARIO.rol === 'SUPERVISOR') {
         mostrarPantalla('supervisor');
-        document.getElementById('sup-user-name').textContent = USUARIO.nombre;
+        const depStr = USUARIO.nombre_departamento ? ` — ${USUARIO.nombre_departamento}` : '';
+        document.getElementById('sup-user-name').textContent = USUARIO.nombre + depStr;
         document.getElementById('sup-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
         cargarTareasEmpleado(); // Igual que empleado
         verificarEstadoCheckin();

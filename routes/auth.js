@@ -49,9 +49,11 @@ router.post('/login', async (req, res) => {
         }
 
         const usuario = await db.get(`
-            SELECT u.*, e.nombre as nombre_empresa, e.logo_url as logo_empresa
+            SELECT u.*, e.nombre as nombre_empresa, e.logo_url as logo_empresa,
+                   d.nombre as nombre_departamento
             FROM usuarios u
             JOIN empresas e ON u.id_empresa = e.id_empresa
+            LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
             WHERE u.codigo_acceso = ? AND u.eliminado = 0 AND u.estado = 1
         `, codigo_acceso);
 
@@ -115,6 +117,7 @@ router.post('/login', async (req, res) => {
                 codigo_acceso: usuario.codigo_acceso,
                 id_empresa: usuario.id_empresa,
                 id_departamento: usuario.id_departamento || null,
+                nombre_departamento: usuario.nombre_departamento || null,
                 nombre_empresa: usuario.nombre_empresa,
                 logo_empresa: usuario.logo_empresa
             },
@@ -144,9 +147,11 @@ router.get('/me', verificarToken, async (req, res) => {
         }
 
         const usuario = await db.get(`
-            SELECT u.*, e.nombre as nombre_empresa, e.logo_url as logo_empresa
+            SELECT u.*, e.nombre as nombre_empresa, e.logo_url as logo_empresa,
+                   d.nombre as nombre_departamento
             FROM usuarios u
             JOIN empresas e ON u.id_empresa = e.id_empresa
+            LEFT JOIN departamentos d ON u.id_departamento = d.id_departamento
             WHERE u.id_usuario = ? AND u.eliminado = 0
         `, req.usuario.id_usuario);
 
@@ -164,6 +169,7 @@ router.get('/me', verificarToken, async (req, res) => {
             codigo_acceso: usuario.codigo_acceso,
             id_empresa: usuario.id_empresa,
             id_departamento: usuario.id_departamento || null,
+            nombre_departamento: usuario.nombre_departamento || null,
             nombre_empresa: usuario.nombre_empresa,
             logo_empresa: usuario.logo_empresa
         });
