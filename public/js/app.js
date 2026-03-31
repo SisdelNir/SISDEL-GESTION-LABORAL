@@ -2927,6 +2927,11 @@ async function cargarSupervisoresPorDepto(idDepto) {
                 supervisores.forEach(s => {
                     html += `<option value="${s.id_usuario}">${s.nombre} (Supervisor de Área)</option>`;
                 });
+                
+                // Si estamos creando un Empleado y hay supervisores, preferimos auto-seleccionar al primer supervisor
+                if (supervisores.length > 0) {
+                    idGerenteFocus = supervisores[0].id_usuario;
+                }
             } catch(e) {}
         }
         
