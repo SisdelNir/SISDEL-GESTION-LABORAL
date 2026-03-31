@@ -3720,13 +3720,20 @@ async function abrirModalPlantillas() {
             });
         });
 
-        // Poblar selects de supervisores
+        // Poblar selects de supervisores y asegurar visibilidad
         supSelects.forEach(selId => {
             const sel = document.getElementById(selId);
             if (!sel) return;
+            
+            // Asegurar que el grupo sea visible para Admin/Gerente
+            const group = sel.closest('.form-group');
+            if (group && (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'GERENTE')) {
+                group.style.display = '';
+            }
+
             sel.innerHTML = '<option value="">-- Seleccionar --</option>';
-            usuarios.filter(u => u.rol === 'SUPERVISOR').forEach(u => {
-                sel.innerHTML += `<option value="${u.id_usuario}">${u.nombre}</option>`;
+            usuarios.filter(u => u.rol === 'SUPERVISOR' || u.rol === 'GERENTE').forEach(u => {
+                sel.innerHTML += `<option value="${u.id_usuario}">${u.nombre} (${u.rol})</option>`;
             });
         });
 
