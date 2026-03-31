@@ -2751,10 +2751,20 @@ async function mostrarFormularioUsuario(rol) {
             if (USUARIO.rol === 'GERENTE') {
                 selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Gerente)</option>`;
             }
+            // Si es SUPERVISOR, agregarse y auto-seleccionarse
+            if (USUARIO.rol === 'SUPERVISOR') {
+                selectJefe.innerHTML += `<option value="${USUARIO.id_usuario}" selected>${USUARIO.nombre} (Yo)</option>`;
+            }
+
             try {
                 const supervisores = await fetchAPI('/api/usuarios?rol=SUPERVISOR');
-                supervisores.forEach(s => selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`);
+                supervisores.forEach(s => {
+                    // No duplicar si ya se agregó arriba
+                    if (USUARIO.rol === 'SUPERVISOR' && s.id_usuario === USUARIO.id_usuario) return;
+                    selectJefe.innerHTML += `<option value="${s.id_usuario}">${s.nombre}</option>`;
+                });
             } catch(e) { console.log('No se pudo cargar supervisores:', e); }
+
             if (USUARIO.rol === 'SUPERVISOR') {
                 selectJefe.value = USUARIO.id_usuario;
             }
