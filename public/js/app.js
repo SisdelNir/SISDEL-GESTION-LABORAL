@@ -163,39 +163,41 @@ function optimizarImagen(file, opts = {}) {
     });
 }
 
-// Sirena progresiva (tipo Botón de Pánico)
-function tocarSirenaTarea(esUrgente) {
+// Sonido de notificación agradable e instantáneo
+function tocarSonidoNotificacion(esUrgente) {
     if (!_tareaAudioCtx || !_tareaAudioDesbloqueado) {
-        // Intentar crear contexto de respaldo
-        try {
-            _tareaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } catch(e) { return; }
+        try { _tareaAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } 
+        catch(e) { return; }
     }
-    let repeticiones = 0;
-    const maxRep = esUrgente ? 10 : 6;
-    const freqBase = esUrgente ? 800 : 600;
-    const freqPeak = esUrgente ? 1400 : 1000;
     
-    _tareasSirenInterval = setInterval(() => {
-        if (repeticiones >= maxRep) { detenerSirenaTarea(); return; }
-        try {
-            const osc = _tareaAudioCtx.createOscillator();
-            const gain = _tareaAudioCtx.createGain();
-            osc.type = esUrgente ? 'square' : 'sawtooth';
-            osc.frequency.setValueAtTime(freqBase, _tareaAudioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(freqPeak, _tareaAudioCtx.currentTime + 0.15);
-            osc.frequency.linearRampToValueAtTime(freqBase, _tareaAudioCtx.currentTime + 0.3);
-            gain.gain.setValueAtTime(0.35, _tareaAudioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, _tareaAudioCtx.currentTime + 0.45);
-            osc.connect(gain); gain.connect(_tareaAudioCtx.destination);
-            osc.start(); osc.stop(_tareaAudioCtx.currentTime + 0.45);
-        } catch(e) {}
-        repeticiones++;
-    }, 450);
+    try {
+        const osc = _tareaAudioCtx.createOscillator();
+        const gain = _tareaAudioCtx.createGain();
+        
+        // Tonos diferentes: más alto/agudo si es urgente
+        osc.type = 'sine';
+        const freq1 = esUrgente ? 880 : 523.25; // A5 o C5
+        const freq2 = esUrgente ? 1108.73 : 659.25; // C#6 o E5
+        
+        osc.frequency.setValueAtTime(freq1, _tareaAudioCtx.currentTime);
+        osc.frequency.setValueAtTime(freq2, _tareaAudioCtx.currentTime + 0.1);
+        
+        gain.gain.setValueAtTime(0, _tareaAudioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.5, _tareaAudioCtx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, _tareaAudioCtx.currentTime + 0.4);
+        
+        osc.connect(gain);
+        gain.connect(_tareaAudioCtx.destination);
+        
+        osc.start(_tareaAudioCtx.currentTime);
+        osc.stop(_tareaAudioCtx.currentTime + 0.5);
+    } catch(e) {
+        console.warn('Error al reproducir audio de notificación:', e);
+    }
 }
 
 function detenerSirenaTarea() {
-    if (_tareasSirenInterval) { clearInterval(_tareasSirenInterval); _tareasSirenInterval = null; }
+    // Ya no es necesario limpiar intervalos de sirena
 }
 
 // El antiguo asegurarOverlayTarea ha sido reemplazado por mostrarAlertaTarea a pantalla completa
@@ -206,7 +208,6 @@ function lanzarAlertaNuevaTarea(data) {
 }
 
 function dismissAlertaTarea() {
-    detenerSirenaTarea();
     if (navigator.vibrate) navigator.vibrate(0); // cancelar vibración
 }
 
@@ -2135,6 +2136,9 @@ function mostrarAlertaTarea(tarea, tipo) {
     const bgGrad = esUrgente
         ? 'linear-gradient(135deg, rgba(220,38,38,0.98), rgba(153,27,27,0.98))'
         : 'linear-gradient(135deg, rgba(37,99,235,0.98), rgba(30,58,138,0.98))';
+    
+    tocarSonidoNotificacion(esUrgente);
+    
     const emoji = esUrgente ? '🚨' : '⏰';
     const titulo = esUrgente ? '¡NUEVA TAREA URGENTE!' : '¡NUEVA TAREA ASIGNADA!';
     const sombra = esUrgente ? 'rgba(239,68,68,0.6)' : 'rgba(59,130,246,0.6)';
@@ -2460,7 +2464,7 @@ async function cargarTareasEmpleado() {
                 const cantEv = t.total_evidencias || 0;
                 evidenciaBtns = `
                     <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:8px;">
-                        <button onclick="event.stopPropagation(); abrirSelectorFotos('${t.id_tarea}')" style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;border:none;display:inline-flex;align-items:center;transition:all 0.2s;">
+                        <button onclick="event.stopPropagation(); tomarSubirFotoDirecto('${t.id_tarea}')" style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;border:none;display:inline-flex;align-items:center;transition:all 0.2s;">
                             📸 Tomar / Subir Foto
                         </button>
                         <span style="font-size:0.75rem;color:${cantEv > 0 ? '#10b981' : '#ef4444'};font-weight:700;">
@@ -4353,117 +4357,105 @@ async function subirImagenRapida(idTarea) {
     fileInput.click();
 }
 
-// Abre selector de fotos de forma programática (más confiable que onchange en template)
-window.abrirSelectorFotos = function(idTarea) {
-    console.log(`📸 abrirSelectorFotos llamado para tarea: ${idTarea}`);
+// Función unificada y directa para tomar/subir fotos desde la tarjeta
+window.tomarSubirFotoDirecto = function(idTarea) {
+    console.log(`📸 tomarSubirFotoDirecto: Iniciando para tarea ${idTarea}`);
+    
+    // Crear input en memoria (sin appendChild para evitar bugs de DOM/Safari)
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
     fileInput.multiple = true;
-    fileInput.style.display = 'none';
-    document.body.appendChild(fileInput);
+    
+    // Usar onchange directamente aquí
     fileInput.onchange = async (e) => {
         const files = Array.from(e.target.files);
-        document.body.removeChild(fileInput);
-        console.log(`📸 ${files.length} archivo(s) seleccionado(s)`);
-        if (files.length > 0) {
-            await procesarFotosRapidasSwal(idTarea, { files: files });
-        }
-    };
-    fileInput.click();
-};
+        console.log(`📸 Archivos seleccionados: ${files.length}`);
+        if (!files.length) return;
+        
+        // --- Comienza el proceso de subida ---
+        const estados = files.map(f => ({ nombre: f.name, status: 'wait', msg: '' }));
 
-window.procesarFotosRapidasSwal = async function(idTarea, inputElement) {
-    const files = Array.from(inputElement.files || inputElement || []);
-    console.log(`📸 procesarFotosRapidasSwal: ${files.length} archivo(s) para tarea ${idTarea}`);
-    if (!files.length) { console.warn('⚠️ No hay archivos seleccionados'); return; }
-    
-    // Reset file input value so same files can be selected again if needed
-    inputElement.value = '';
+        const renderLista = () => estados.map((s) => {
+            const icono = s.status === 'ok' ? '✅' : s.status === 'error' ? '❌' : '⏳';
+            const color = s.status === 'ok' ? '#10b981' : s.status === 'error' ? '#ef4444' : '#f59e0b';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:4px;">
+                <span style="font-size:1rem;min-width:24px;text-align:center;">${icono}</span>
+                <span style="font-size:0.8rem;color:${color};word-break:break-all;flex:1;">${s.nombre}${s.msg ? ' — '+s.msg : ''}</span>
+            </div>`;
+        }).join('');
 
-    // Estado por foto: { nombre, status: 'wait'|'ok'|'error', msg }
-    const estados = files.map(f => ({ nombre: f.name, status: 'wait', msg: '' }));
+        await Swal.fire({
+            title: `📸 Subiendo ${files.length} foto(s)`,
+            html: `<div id="fotos-lista" style="text-align:left;max-height:280px;overflow-y:auto;">${renderLista()}</div>`,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: async () => {
+                let subidas = 0;
+                let errores = 0;
 
-    const renderLista = () => estados.map((s) => {
-        const icono = s.status === 'ok' ? '✅' : s.status === 'error' ? '❌' : '⏳';
-        const color = s.status === 'ok' ? '#10b981' : s.status === 'error' ? '#ef4444' : '#f59e0b';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:4px;">
-            <span style="font-size:1rem;min-width:24px;text-align:center;">${icono}</span>
-            <span style="font-size:0.8rem;color:${color};word-break:break-all;flex:1;">${s.nombre}${s.msg ? ' — '+s.msg : ''}</span>
-        </div>`;
-    }).join('');
+                const updateRow = (i, status, msg) => {
+                    estados[i].status = status;
+                    estados[i].msg = msg || '';
+                    const lista = document.getElementById('fotos-lista');
+                    if (lista) lista.innerHTML = renderLista();
+                };
 
-    await Swal.fire({
-        title: `📸 Subiendo ${files.length} foto(s)`,
-        html: `<div id="fotos-lista" style="text-align:left;max-height:280px;overflow-y:auto;">${renderLista()}</div>`,
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: async () => {
-            let subidas = 0;
-            let errores = 0;
-
-            const updateRow = (i, status, msg) => {
-                estados[i].status = status;
-                estados[i].msg = msg || '';
-                const lista = document.getElementById('fotos-lista');
-                if (lista) lista.innerHTML = renderLista();
-            };
-
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                try {
-                    console.log(`📤 Procesando archivo ${i+1}/${files.length}: ${file.name} (${Math.round(file.size/1024)}KB)`);
-                    
-                    // Usar FileReader — más simple y confiable que canvas
-                    const base64 = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => resolve(e.target.result);
-                        reader.onerror = (e) => reject(new Error('FileReader error: ' + e.target.error));
-                        reader.readAsDataURL(file);
-                    });
-                    
-                    console.log(`📦 Base64 listo: ${Math.round(base64.length/1024)}KB, enviando al servidor...`);
-                    
-                    const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
-                        method: 'POST', 
-                        headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
-                    });
-                    
-                    console.log(`📡 Respuesta servidor: ${resp.status}`);
-                    
-                    if (resp.ok) {
-                        const kb = Math.round(base64.length / 1024);
-                        updateRow(i, 'ok', `${kb}KB`);
-                        subidas++;
-                    } else {
-                        const errData = await resp.json().catch(() => ({}));
-                        const errMsg = errData.error || `HTTP ${resp.status}`;
-                        console.error(`❌ Error HTTP subiendo ${file.name}:`, errMsg);
-                        updateRow(i, 'error', errMsg);
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    try {
+                        console.log(`📤 Procesando archivo ${i+1}/${files.length}: ${file.name}`);
+                        
+                        const base64 = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => resolve(ev.target.result);
+                            reader.onerror = (ev) => reject(new Error('FileReader error: ' + ev.target.error));
+                            reader.readAsDataURL(file);
+                        });
+                        
+                        const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
+                            method: 'POST', 
+                            headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
+                        });
+                        
+                        if (resp.ok) {
+                            const kb = Math.round(base64.length / 1024);
+                            updateRow(i, 'ok', `${kb}KB`);
+                            subidas++;
+                        } else {
+                            const errData = await resp.json().catch(() => ({}));
+                            const errMsg = errData.error || `HTTP ${resp.status}`;
+                            console.error(`❌ Error HTTP subiendo ${file.name}:`, errMsg);
+                            updateRow(i, 'error', errMsg);
+                            errores++;
+                        }
+                    } catch(err) {
+                        console.error(`❌ Error procesando ${file.name}:`, err);
+                        updateRow(i, 'error', err.message || 'Error desconocido');
                         errores++;
                     }
-                } catch(err) {
-                    console.error(`❌ Error procesando ${file.name}:`, err);
-                    updateRow(i, 'error', err.message || 'Error desconocido');
-                    errores++;
                 }
-            }
 
-            await new Promise(r => setTimeout(r, 800));
-            Swal.close();
-            
-            if (subidas > 0) {
-                mostrarToast(`📸 ${subidas} foto(s) subida(s)${errores > 0 ? ` · ${errores} fallida(s)` : ''} ✅`, 'success');
-            } else {
-                mostrarToast('❌ No se pudo subir ninguna imagen. Revisa tu conexión.', 'error');
+                await new Promise(r => setTimeout(r, 800));
+                Swal.close();
+                
+                if (subidas > 0) {
+                    mostrarToast(`📸 ${subidas} foto(s) subida(s) ✅`, 'success');
+                } else {
+                    mostrarToast('❌ Error subiendo imágenes', 'error');
+                }
+                
+                // Recargar todo para actualizar checks
+                if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
+                if (USUARIO.rol === 'SUPERVISOR') cargarMisTareasAsignadasSupervisor();
+                if (TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
             }
-            
-            if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
-            if (USUARIO.rol === 'SUPERVISOR') cargarMisTareasAsignadasSupervisor();
-            if (TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
-        }
-    });
+        });
+    };
+    
+    // Disparar
+    fileInput.click();
 };
 
 // Galería Interactiva de Evidencias (Managers/Supervisors)
