@@ -1666,6 +1666,16 @@ function cambiarSeccionModSup(seccion) {
 async function abrirNuevaTareaSupervisor() {
     // Reusar el modal de admin con datos filtrados
     document.getElementById('form-tarea').reset();
+    
+    // Configurar valores por defecto solicitados
+    const inputTiempo = document.getElementById('tarea-tiempo');
+    const inputUnidad = document.getElementById('tarea-tiempo-unidad');
+    if (inputTiempo) inputTiempo.value = 1;
+    if (inputUnidad) inputUnidad.value = 60;
+    
+    const preview = document.getElementById('tarea-tiempo-preview');
+    if (preview) preview.style.display = 'none';
+
     try {
         const usuarios = await fetchAPI('/api/usuarios?rol=EMPLEADO');
         const selEmp = document.getElementById('tarea-empleado');
@@ -1685,8 +1695,19 @@ async function abrirNuevaTareaSupervisor() {
         const selTipo = document.getElementById('tarea-tipo');
         selTipo.innerHTML = '<option value="">-- Seleccionar tipo --</option>';
         tipos.forEach(t => {
-            selTipo.innerHTML += `<option value="${t.id_tipo}">${t.nombre}</option>`;
+            const isSelected = (t.nombre && t.nombre.toLowerCase().includes('operativa')) ? 'selected' : '';
+            selTipo.innerHTML += `<option value="${t.id_tipo}" ${isSelected}>${t.nombre}</option>`;
         });
+        
+        // Forzar selección si no se aplicó por alguna razón
+        if (selTipo && !selTipo.value) {
+            for (let opt of selTipo.options) {
+                if (opt.text.toLowerCase().includes('operativa')) {
+                    opt.selected = true;
+                    break;
+                }
+            }
+        }
     } catch(e) {}
     document.getElementById('modal-tarea').style.display = 'flex';
 }
