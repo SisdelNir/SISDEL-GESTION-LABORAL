@@ -386,9 +386,12 @@
                 <span id="notif-badge-header" style="display:none;"></span>
             </div>
             <div class="header-right">
-                <div class="user-info">
-                    <span id="admin-user-name" class="user-name" style="font-size:0.88rem;"></span>
-                    <span class="user-badge admin" id="admin-role-badge">DIRECTOR GENERAL</span>
+                <div class="user-info" style="flex-direction:column;align-items:flex-end;justify-content:center;gap:2px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span id="admin-user-name" class="user-name" style="font-size:0.88rem;"></span>
+                        <span class="user-badge admin" id="admin-role-badge">DIRECTOR GENERAL</span>
+                    </div>
+                    <span id="admin-user-depto" style="font-size:0.65rem;color:var(--text-muted);display:none;font-weight:600;letter-spacing:0.3px;"></span>
                 </div>
                 <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">
                     <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>

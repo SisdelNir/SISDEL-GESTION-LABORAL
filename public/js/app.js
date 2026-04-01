@@ -333,6 +333,16 @@ function abrirPanelPorRol() {
             rolBadge.textContent = (USUARIO.rol === 'ADMIN' || USUARIO.rol === 'ROOT') ? 'DIRECTOR GENERAL' : 'GERENTE';
         }
 
+        const userDeptoEl = document.getElementById('admin-user-depto');
+        if (userDeptoEl) {
+            if (USUARIO.rol === 'GERENTE' && USUARIO.nombre_departamento) {
+                userDeptoEl.textContent = USUARIO.nombre_departamento;
+                userDeptoEl.style.display = 'block';
+            } else {
+                userDeptoEl.style.display = 'none';
+            }
+        }
+
         actualizarVisibilidadCreacion();
         // Gerente → panel de gráficas; Admin → panel de tareas
         cambiarPanelAdmin(USUARIO.rol === 'GERENTE' ? 'graficas-gerencia' : 'tareas');
