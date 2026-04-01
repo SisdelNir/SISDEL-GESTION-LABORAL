@@ -2453,17 +2453,16 @@ async function cargarTareasEmpleado() {
                 }
             }
 
-            // Evidencia: mostrar botón de subir foto con <label> nativo para iOS
+            // Evidencia: botón que llama a abrirSelectorFotos() — enfoque programático confiable
             let evidenciaBtns = '';
             const reqEv = t.requiere_evidencia === 1 || t.requiere_evidencia === '1' || t.requiere_evidencia === true;
             if (reqEv && enProcesoActivo) {
                 const cantEv = t.total_evidencias || 0;
                 evidenciaBtns = `
                     <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:8px;">
-                        <label style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;margin:0;display:inline-flex;align-items:center;transition:all 0.2s;">
+                        <button onclick="event.stopPropagation(); abrirSelectorFotos('${t.id_tarea}')" style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;border:none;display:inline-flex;align-items:center;transition:all 0.2s;">
                             📸 Tomar / Subir Foto
-                            <input type="file" accept="image/*" multiple style="display:none;" onchange="procesarFotosRapidasSwal('${t.id_tarea}', this)">
-                        </label>
+                        </button>
                         <span style="font-size:0.75rem;color:${cantEv > 0 ? '#10b981' : '#ef4444'};font-weight:700;">
                             ${cantEv > 0
                                 ? `<span style="display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap;">${Array.from({length:Math.min(cantEv,10)}).map(()=>'<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#10b981;border-radius:50%;font-size:8px;color:white;font-weight:900;line-height:1;">✓</span>').join('')}${cantEv>10?`<span style="font-size:0.7rem;color:#10b981;font-weight:700;">+${cantEv-10}</span>`:''}</span>`
@@ -4354,8 +4353,28 @@ async function subirImagenRapida(idTarea) {
     fileInput.click();
 }
 
+// Abre selector de fotos de forma programática (más confiable que onchange en template)
+window.abrirSelectorFotos = function(idTarea) {
+    console.log(`📸 abrirSelectorFotos llamado para tarea: ${idTarea}`);
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.multiple = true;
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    fileInput.onchange = async (e) => {
+        const files = Array.from(e.target.files);
+        document.body.removeChild(fileInput);
+        console.log(`📸 ${files.length} archivo(s) seleccionado(s)`);
+        if (files.length > 0) {
+            await procesarFotosRapidasSwal(idTarea, { files: files });
+        }
+    };
+    fileInput.click();
+};
+
 window.procesarFotosRapidasSwal = async function(idTarea, inputElement) {
-    const files = Array.from(inputElement.files);
+    const files = Array.from(inputElement.files || inputElement || []);
     console.log(`📸 procesarFotosRapidasSwal: ${files.length} archivo(s) para tarea ${idTarea}`);
     if (!files.length) { console.warn('⚠️ No hay archivos seleccionados'); return; }
     
