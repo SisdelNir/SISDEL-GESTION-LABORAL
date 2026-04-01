@@ -4356,7 +4356,8 @@ async function subirImagenRapida(idTarea) {
 
 window.procesarFotosRapidasSwal = async function(idTarea, inputElement) {
     const files = Array.from(inputElement.files);
-    if (!files.length) return;
+    console.log(`📸 procesarFotosRapidasSwal: ${files.length} archivo(s) para tarea ${idTarea}`);
+    if (!files.length) { console.warn('⚠️ No hay archivos seleccionados'); return; }
     
     // Reset file input value so same files can be selected again if needed
     inputElement.value = '';
@@ -4364,7 +4365,7 @@ window.procesarFotosRapidasSwal = async function(idTarea, inputElement) {
     // Estado por foto: { nombre, status: 'wait'|'ok'|'error', msg }
     const estados = files.map(f => ({ nombre: f.name, status: 'wait', msg: '' }));
 
-    const renderLista = () => estados.map((s, i) => {
+    const renderLista = () => estados.map((s) => {
         const icono = s.status === 'ok' ? '✅' : s.status === 'error' ? '❌' : '⏳';
         const color = s.status === 'ok' ? '#10b981' : s.status === 'error' ? '#ef4444' : '#f59e0b';
         return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:4px;">
@@ -4392,23 +4393,34 @@ window.procesarFotosRapidasSwal = async function(idTarea, inputElement) {
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 try {
-                    // Paso 1: Optimizar imagen
-                    const { base64, originalKB, optimizedKB } = await optimizarImagen(file, { maxSize: 1024, quality: 0.70 });
+                    console.log(`📤 Procesando archivo ${i+1}/${files.length}: ${file.name} (${Math.round(file.size/1024)}KB)`);
                     
-                    // Paso 2: Subir al servidor
+                    // Usar FileReader — más simple y confiable que canvas
+                    const base64 = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = (e) => reject(new Error('FileReader error: ' + e.target.error));
+                        reader.readAsDataURL(file);
+                    });
+                    
+                    console.log(`📦 Base64 listo: ${Math.round(base64.length/1024)}KB, enviando al servidor...`);
+                    
                     const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
                         method: 'POST', 
                         headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, 
                         body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
                     });
                     
+                    console.log(`📡 Respuesta servidor: ${resp.status}`);
+                    
                     if (resp.ok) {
-                        updateRow(i, 'ok', `${optimizedKB}KB`);
+                        const kb = Math.round(base64.length / 1024);
+                        updateRow(i, 'ok', `${kb}KB`);
                         subidas++;
                     } else {
                         const errData = await resp.json().catch(() => ({}));
                         const errMsg = errData.error || `HTTP ${resp.status}`;
-                        console.error(`❌ Error subiendo ${file.name}:`, errMsg);
+                        console.error(`❌ Error HTTP subiendo ${file.name}:`, errMsg);
                         updateRow(i, 'error', errMsg);
                         errores++;
                     }
@@ -4419,7 +4431,6 @@ window.procesarFotosRapidasSwal = async function(idTarea, inputElement) {
                 }
             }
 
-            // Pequeña pausa para que el usuario vea el resultado final
             await new Promise(r => setTimeout(r, 800));
             Swal.close();
             
