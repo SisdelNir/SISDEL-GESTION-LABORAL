@@ -455,12 +455,31 @@ router.put('/:id/finalizar', verificarToken, async (req, res) => {
             return res.status(400).json({ error: 'Solo se pueden finalizar tareas en proceso o atrasadas' });
         }
 
-        // Validar si requiere evidencia de IMAGEN (compatible con PostgreSQL y SQLite)
+        // Validar si requiere evidencia de IMAGEN
+        // CRÍTICO: En PostgreSQL, usar cliente dedicado con search_path explícito
+        // para evitar que la query busque en el schema equivocado y retorne 0
         const reqEv = tarea.requiere_evidencia;
         if (reqEv && reqEv !== 0 && reqEv !== '0' && reqEv !== false) {
-            const evidenciaCount = await db.get("SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_tarea = ? AND tipo = 'imagen'", req.params.id);
-            console.log(`🔍 Verificando evidencias para tarea ${req.params.id}: requiere_evidencia=${JSON.stringify(reqEv)}, imagenes_encontradas=${evidenciaCount ? evidenciaCount.total : 0}`);
-            if (!evidenciaCount || evidenciaCount.total === 0) {
+            let evidenciaTotal = 0;
+            const { isPostgres } = require('../database/init');
+            if (isPostgres && db.pool) {
+                const client = await db.pool.connect();
+                try {
+                    await client.query('SET search_path TO gestion_laboral, public');
+                    const result = await client.query(
+                        "SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_tarea = $1 AND tipo = 'imagen'",
+                        [req.params.id]
+                    );
+                    evidenciaTotal = result.rows[0] ? parseInt(result.rows[0].total) : 0;
+                } finally {
+                    client.release();
+                }
+            } else {
+                const evidenciaCount = await db.get("SELECT COUNT(*) as total FROM evidencias_tarea WHERE id_tarea = ? AND tipo = 'imagen'", req.params.id);
+                evidenciaTotal = evidenciaCount ? evidenciaCount.total : 0;
+            }
+            console.log(`🔍 Verificando evidencias para tarea ${req.params.id}: requiere_evidencia=${JSON.stringify(reqEv)}, imagenes_encontradas=${evidenciaTotal}`);
+            if (evidenciaTotal === 0) {
                 return res.status(400).json({ 
                     error: 'Esta tarea requiere evidencias para finalizar',
                     reqEvidencia: true 
