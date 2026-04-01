@@ -2465,7 +2465,9 @@ async function cargarTareasEmpleado() {
                             <input type="file" accept="image/*" multiple style="display:none;" onchange="procesarFotosRapidasSwal('${t.id_tarea}', this)">
                         </label>
                         <span style="font-size:0.75rem;color:${cantEv > 0 ? '#10b981' : '#ef4444'};font-weight:700;">
-                            ${cantEv > 0 ? '✅ ' + cantEv + ' foto(s) guardadas' : '⚠️ Faltan fotos (obligatorio)'}
+                            ${cantEv > 0
+                                ? `<span style="display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap;">${Array.from({length:Math.min(cantEv,10)}).map(()=>'<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#10b981;border-radius:50%;font-size:8px;color:white;font-weight:900;line-height:1;">✓</span>').join('')}${cantEv>10?`<span style="font-size:0.7rem;color:#10b981;font-weight:700;">+${cantEv-10}</span>`:''}</span>`
+                                : '⚠️ Faltan fotos (obligatorio)'}
                         </span>
                     </div>
                 `;
