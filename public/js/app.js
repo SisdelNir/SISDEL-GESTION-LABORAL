@@ -4361,45 +4361,79 @@ window.procesarFotosRapidasSwal = async function(idTarea, inputElement) {
     // Reset file input value so same files can be selected again if needed
     inputElement.value = '';
 
-    Swal.fire({ 
-        title: 'Procesando...', 
-        html: `<p>Comprimiendo ${files.length} imagen(es)...</p><p style="font-size:0.8rem;color:#999;">Esto ahorra tiempo de subida y datos</p>`, 
-        allowOutsideClick: false, 
-        didOpen: () => { Swal.showLoading() } 
-    });
-    
-    let subidas = 0;
-    let errores = 0;
-    let totalOriginalKB = 0;
-    let totalOptimizedKB = 0;
-    
-    for (const file of files) {
-        try {
-            const { base64, originalKB, optimizedKB } = await optimizarImagen(file, { maxSize: 1024, quality: 0.70 });
-            totalOriginalKB += originalKB;
-            totalOptimizedKB += optimizedKB;
+    // Estado por foto: { nombre, status: 'wait'|'ok'|'error', msg }
+    const estados = files.map(f => ({ nombre: f.name, status: 'wait', msg: '' }));
+
+    const renderLista = () => estados.map((s, i) => {
+        const icono = s.status === 'ok' ? '✅' : s.status === 'error' ? '❌' : '⏳';
+        const color = s.status === 'ok' ? '#10b981' : s.status === 'error' ? '#ef4444' : '#f59e0b';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:4px;">
+            <span style="font-size:1rem;min-width:24px;text-align:center;">${icono}</span>
+            <span style="font-size:0.8rem;color:${color};word-break:break-all;flex:1;">${s.nombre}${s.msg ? ' — '+s.msg : ''}</span>
+        </div>`;
+    }).join('');
+
+    await Swal.fire({
+        title: `📸 Subiendo ${files.length} foto(s)`,
+        html: `<div id="fotos-lista" style="text-align:left;max-height:280px;overflow-y:auto;">${renderLista()}</div>`,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: async () => {
+            let subidas = 0;
+            let errores = 0;
+
+            const updateRow = (i, status, msg) => {
+                estados[i].status = status;
+                estados[i].msg = msg || '';
+                const lista = document.getElementById('fotos-lista');
+                if (lista) lista.innerHTML = renderLista();
+            };
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                try {
+                    // Paso 1: Optimizar imagen
+                    const { base64, originalKB, optimizedKB } = await optimizarImagen(file, { maxSize: 1024, quality: 0.70 });
+                    
+                    // Paso 2: Subir al servidor
+                    const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
+                        method: 'POST', 
+                        headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
+                    });
+                    
+                    if (resp.ok) {
+                        updateRow(i, 'ok', `${optimizedKB}KB`);
+                        subidas++;
+                    } else {
+                        const errData = await resp.json().catch(() => ({}));
+                        const errMsg = errData.error || `HTTP ${resp.status}`;
+                        console.error(`❌ Error subiendo ${file.name}:`, errMsg);
+                        updateRow(i, 'error', errMsg);
+                        errores++;
+                    }
+                } catch(err) {
+                    console.error(`❌ Error procesando ${file.name}:`, err);
+                    updateRow(i, 'error', err.message || 'Error desconocido');
+                    errores++;
+                }
+            }
+
+            // Pequeña pausa para que el usuario vea el resultado final
+            await new Promise(r => setTimeout(r, 800));
+            Swal.close();
             
-            const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
-                method: 'POST', 
-                headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
-            });
-            if (!resp.ok) throw new Error('Error al subir');
-            subidas++;
-        } catch(err) { errores++; }
-    }
-    
-    Swal.close();
-    if (subidas > 0) {
-        const ahorro = totalOriginalKB > 0 ? Math.round((1 - totalOptimizedKB / totalOriginalKB) * 100) : 0;
-        mostrarToast(`📸 ${subidas} foto(s) guardadas ✅ (-${ahorro}%)`, 'success');
-    } else {
-        mostrarToast('Error al subir imágenes', 'error');
-    }
-    
-    if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
-    if (USUARIO.rol === 'SUPERVISOR') cargarMisTareasAsignadasSupervisor();
-    if (TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
+            if (subidas > 0) {
+                mostrarToast(`📸 ${subidas} foto(s) subida(s)${errores > 0 ? ` · ${errores} fallida(s)` : ''} ✅`, 'success');
+            } else {
+                mostrarToast('❌ No se pudo subir ninguna imagen. Revisa tu conexión.', 'error');
+            }
+            
+            if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
+            if (USUARIO.rol === 'SUPERVISOR') cargarMisTareasAsignadasSupervisor();
+            if (TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
+        }
+    });
 };
 
 // Galería Interactiva de Evidencias (Managers/Supervisors)
