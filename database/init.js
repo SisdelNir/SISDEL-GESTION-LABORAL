@@ -16,7 +16,10 @@ if (isPostgres) {
     const { Pool } = require('pg');
     const pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.DATABASE_URL.includes('render.com') ? { rejectUnauthorized: false } : false
+        ssl: process.env.DATABASE_URL.includes('render.com') ? { rejectUnauthorized: false } : false,
+        // CRÍTICO: Forzar search_path en CADA conexión del pool automáticamente
+        // Esto resuelve los fallos intermitentes de evidencias y clientes
+        options: '-c search_path=gestion_laboral,public'
     });
 
     // Convertir placeholders ? → $1, $2, ...
