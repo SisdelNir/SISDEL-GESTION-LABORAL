@@ -365,6 +365,8 @@ function abrirPanelPorRol() {
         mostrarPantalla('empleado');
         document.getElementById('emp-panel-user-name').textContent = USUARIO.nombre;
         document.getElementById('emp-panel-empresa-nombre').textContent = USUARIO.nombre_empresa || 'Empresa';
+        const empDeptoEl = document.getElementById('emp-panel-depto-nombre');
+        if (empDeptoEl) empDeptoEl.textContent = USUARIO.nombre_departamento || '';
         cargarTareasEmpleado();
         verificarEstadoCheckin();
         verificarUbicacionFija();
