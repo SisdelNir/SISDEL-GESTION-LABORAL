@@ -902,18 +902,21 @@
 
                         <!-- Columna izquierda de botones -->
                         <div style="display:flex;flex-direction:column;gap:10px;min-width:190px;flex-shrink:0;">
-                            <button class="btn btn-sm" id="sup-mod-btn-empleados" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;padding:12px 20px;border-radius:10px;width:100%;text-align:left;" onclick="cambiarSeccionModSup('empleados')">
+                            <button class="btn btn-sm" id="sup-mod-btn-empleados" style="background:transparent;color:#60a5fa;font-weight:700;padding:12px 20px;border-radius:10px;width:100%;text-align:left;border:1px solid rgba(96,165,250,0.3);" onclick="cambiarSeccionModSup('empleados')">
                                 👥 Empleados
                             </button>
-                            <button class="btn btn-sm" id="sup-mod-btn-tareas" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-weight:600;padding:12px 20px;border-radius:10px;width:100%;text-align:left;" onclick="cambiarSeccionModSup('tareas')">
+                            <button class="btn btn-sm" id="sup-mod-btn-tareas" style="background:transparent;color:#a78bfa;font-weight:700;padding:12px 20px;border-radius:10px;width:100%;text-align:left;border:1px solid rgba(167,139,250,0.3);" onclick="cambiarSeccionModSup('tareas')">
                                 📋 Tareas de Empleados
                             </button>
                             <div id="sup-btns-crear-tareas" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-                                <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:600;padding:12px 20px;border-radius:10px;width:100%;text-align:left;" onclick="abrirModalPlantillas()">
+                                <button class="btn btn-sm" style="background:transparent;color:#fbbf24;font-weight:700;padding:12px 20px;border-radius:10px;width:100%;text-align:left;border:1px solid rgba(251,191,36,0.3);" onclick="abrirModalPlantillas()">
                                     🔄 Repetitivas
                                 </button>
-                                <button class="btn btn-sm" style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-weight:600;padding:12px 20px;border-radius:10px;width:100%;text-align:left;" onclick="abrirNuevaTareaSupervisor()">
+                                <button class="btn btn-sm" style="background:transparent;color:#34d399;font-weight:700;padding:12px 20px;border-radius:10px;width:100%;text-align:left;border:1px solid rgba(52,211,153,0.3);" onclick="abrirNuevaTareaSupervisor()">
                                     ➕ Tarea para Hoy
+                                </button>
+                                <button class="btn btn-sm" style="background:transparent;color:#22d3ee;font-weight:700;padding:12px 20px;border-radius:10px;width:100%;text-align:left;border:1px solid rgba(34,211,238,0.3);" onclick="cambiarPanelSupervisor('sup-asistencia')">
+                                    📍 Asistencia
                                 </button>
                             </div>
                         </div>

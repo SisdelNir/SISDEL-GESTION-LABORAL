@@ -4165,8 +4165,32 @@ async function verDetalleTarea(id) {
         if (tarea.estado === 'pendiente') {
             acciones += `<button class="btn btn-primary btn-sm" onclick="iniciarTarea('${tarea.id_tarea}')">▶️ Iniciar Tarea</button>`;
         }
+
         if (tarea.estado === 'en_proceso' || tarea.estado === 'atrasada') {
-            acciones += `<button class="btn btn-success btn-sm" onclick="finalizarTarea('${tarea.id_tarea}')">✅ Finalizar Tarea</button>`;
+            // Verificar si requiere evidencia de imagen
+            const reqEv = tarea.requiere_evidencia;
+            const totalImagenes = (tarea.evidencias || []).filter(e => e.tipo === 'imagen').length;
+            const necesitaFotos = reqEv && reqEv !== 0 && reqEv !== '0' && reqEv !== false && totalImagenes === 0;
+
+            if (necesitaFotos) {
+                // Bloquear Finalizar — mostrar aviso + botón de subida
+                acciones += `
+                <div style="display:flex;flex-direction:column;gap:8px;width:100%;">
+                    <div style="padding:10px 14px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:10px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:center;gap:8px;">
+                        📸 <span>Esta tarea requiere al menos <strong>1 foto de constancia</strong> para poder finalizarse.</span>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn btn-sm" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:600;" onclick="subirImagenEvidencia();cambiarTabDetalle('evidencias',document.querySelector('#modal-detalle-tarea .nav-btn:nth-child(2)'))">
+                            📷 Subir Fotos de Constancia
+                        </button>
+                        <button class="btn btn-sm" disabled style="background:rgba(100,100,100,0.2);color:#666;font-weight:600;cursor:not-allowed;border:1px solid rgba(100,100,100,0.2);" title="Sube al menos 1 foto para finalizar">
+                            ✅ Finalizar Tarea
+                        </button>
+                    </div>
+                </div>`;
+            } else {
+                acciones += `<button class="btn btn-success btn-sm" onclick="finalizarTarea('${tarea.id_tarea}')">✅ Finalizar Tarea</button>`;
+            }
         }
         
         let puedeModificar = true;
@@ -4550,7 +4574,10 @@ function renderizarEvidencias(evidencias) {
     if (!evidencias.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Sin evidencias</p>'; return; }
     container.innerHTML = evidencias.map(ev => `
         <div style="padding:8px 0;border-bottom:1px solid var(--border-color);" id="modal-ev-${ev.id_evidencia}">
-            <span class="badge ${ev.tipo === 'imagen' ? 'badge-info' : 'badge-primary'}" style="margin-bottom:4px;">${ev.tipo === 'imagen' ? '📸 Imagen' : '📝 Texto'}</span>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                <span class="badge ${ev.tipo === 'imagen' ? 'badge-info' : 'badge-primary'}">${ev.tipo === 'imagen' ? '📸 Imagen' : '📝 Texto'}</span>
+                ${ev.tipo === 'imagen' ? '<span style="font-size:0.72rem;background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);border-radius:20px;padding:1px 7px;font-weight:700;">✅ Guardada</span>' : ''}
+            </div>
             <div style="margin-top:6px;min-height:40px;display:flex;align-items:center;">
                 <span style="font-size:0.8rem;color:var(--text-muted);">⏳ Cargando contenido...</span>
             </div>
@@ -4604,48 +4631,81 @@ async function enviarEvidencia() {
 
 async function subirImagenEvidencia() {
     if (!TAREA_ACTUAL) return;
+    const idTarea = TAREA_ACTUAL.id_tarea;
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
     fileInput.multiple = true;
-    
+
     fileInput.onchange = async (e) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
-        
-        Swal.fire({ 
-            title: 'Optimizando...', 
-            html: `<p>Comprimiendo e subiendo ${files.length} imagen(es)...</p>`, 
-            allowOutsideClick: false, 
-            didOpen: () => { Swal.showLoading() } 
-        });
-        
-        let subidas = 0;
-        
-        for (const file of files) {
-            try {
-                // 🖼️ OPTIMIZAR: resize 1024px + JPEG 70%
-                const { base64 } = await optimizarImagen(file, { maxSize: 1024, quality: 0.70 });
-                
-                const resp = await fetch(`/api/tareas/${TAREA_ACTUAL.id_tarea}/evidencias/base64`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
-                });
-                if (resp.ok) subidas++;
-            } catch(err) {
-                console.error("Error optimizando o subiendo imagen:", err);
+
+        // Estado por foto: { nombre, status: 'wait'|'ok'|'error' }
+        const estados = files.map(f => ({ nombre: f.name, status: 'wait' }));
+
+        const renderLista = () => estados.map((s, i) => {
+            const icono = s.status === 'ok' ? '✅' : s.status === 'error' ? '❌' : '⏳';
+            const color = s.status === 'ok' ? '#10b981' : s.status === 'error' ? '#ef4444' : '#f59e0b';
+            return `<div id="ev-row-${i}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:4px;">
+                <span style="font-size:1rem;min-width:24px;text-align:center;">${icono}</span>
+                <span style="font-size:0.8rem;color:${color};word-break:break-all;flex:1;">${s.nombre}</span>
+            </div>`;
+        }).join('');
+
+        await Swal.fire({
+            title: `📸 Subiendo ${files.length} foto(s)`,
+            html: `<div id="ev-lista" style="text-align:left;max-height:280px;overflow-y:auto;">${renderLista()}</div>`,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: async () => {
+                let subidas = 0;
+                let errores = 0;
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    // Actualizar el DOM dentro del Swal
+                    const updateRow = (status) => {
+                        estados[i].status = status;
+                        const lista = document.getElementById('ev-lista');
+                        if (lista) lista.innerHTML = renderLista();
+                    };
+
+                    try {
+                        const { base64 } = await optimizarImagen(file, { maxSize: 1024, quality: 0.70 });
+                        const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
+                        });
+                        if (resp.ok) {
+                            updateRow('ok');
+                            subidas++;
+                        } else {
+                            const errData = await resp.json().catch(() => ({}));
+                            console.error(`❌ Error subiendo ${file.name}:`, errData);
+                            updateRow('error');
+                            errores++;
+                        }
+                    } catch (err) {
+                        console.error(`❌ Error procesando ${file.name}:`, err);
+                        updateRow('error');
+                        errores++;
+                    }
+                }
+
+                // Pequeña pausa para que el usuario vea el resultado
+                await new Promise(r => setTimeout(r, 700));
+                Swal.close();
+
+                if (subidas > 0) {
+                    mostrarToast(`📸 ${subidas} foto(s) subida(s)${errores > 0 ? ` · ${errores} fallida(s)` : ''} ✅`, 'success');
+                    verDetalleTarea(idTarea);
+                } else {
+                    mostrarToast('No se pudo subir ninguna imagen. Revisa tu conexión.', 'error');
+                }
             }
-        }
-        
-        Swal.close();
-        
-        if (subidas > 0) {
-            verDetalleTarea(TAREA_ACTUAL.id_tarea);
-            mostrarToast(`📸 ${subidas} Imagen(es) subida(s) correctamente`, 'success');
-        } else {
-            mostrarToast('Error al subir imágenes. Intente de nuevo.', 'error');
-        }
+        });
     };
     fileInput.click();
 }
