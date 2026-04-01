@@ -253,7 +253,7 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
             return res.status(403).json({ error: 'No tienes acceso a esta empresa' });
         }
 
-        const { usa_evidencias, tolerancia_tiempo, permite_supervisor_asignar, usa_gamificacion, usa_geolocalizacion, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo } = req.body;
+        const { usa_evidencias, tolerancia_tiempo, permite_supervisor_asignar, usa_gamificacion, usa_geolocalizacion, formato_hora, supervisor_ve_terminadas, empleado_puede_iniciar, supervisor_puede_modificar, modalidad_trabajo, radio_geofence, geofence_activo } = req.body;
 
         await db.run(`
             UPDATE configuraciones_empresa SET
@@ -266,7 +266,9 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
                 supervisor_ve_terminadas = COALESCE(?, supervisor_ve_terminadas),
                 empleado_puede_iniciar = COALESCE(?, empleado_puede_iniciar),
                 supervisor_puede_modificar = COALESCE(?, supervisor_puede_modificar),
-                modalidad_trabajo = COALESCE(?, modalidad_trabajo)
+                modalidad_trabajo = COALESCE(?, modalidad_trabajo),
+                radio_geofence = COALESCE(?, radio_geofence),
+                geofence_activo = COALESCE(?, geofence_activo)
             WHERE id_empresa = ?
         `,
             usa_evidencias !== undefined ? (usa_evidencias ? 1 : 0) : null,
@@ -279,6 +281,8 @@ router.put('/:id/configuracion', verificarToken, async (req, res) => {
             empleado_puede_iniciar !== undefined ? (empleado_puede_iniciar ? 1 : 0) : null,
             supervisor_puede_modificar !== undefined ? (supervisor_puede_modificar ? 1 : 0) : null,
             modalidad_trabajo || null,
+            radio_geofence !== undefined ? parseInt(radio_geofence) : null,
+            geofence_activo !== undefined ? (geofence_activo ? 1 : 0) : null,
             idEmpresa
         );
 

@@ -366,4 +366,49 @@ router.get('/mi-ubicacion', verificarToken, async (req, res) => {
     }
 });
 
+/**
+ * POST /api/usuarios/alerta-geofence
+ * Registra alerta de salida de perímetro y notifica al jefe superior
+ */
+router.post('/alerta-geofence', verificarToken, async (req, res) => {
+    try {
+        const { motivo, lat, lng, distancia } = req.body;
+        const id_usuario = req.usuario.id_usuario;
+        const id_empresa = req.usuario.id_empresa;
+
+        // Registrar en auditoría
+        registrarAuditoria(id_empresa, id_usuario, 'GEOFENCE_VIOLACION',
+            `${motivo || 'Salida del perímetro'} — Dist: ${distancia || '?'}m — GPS: (${lat || '?'}, ${lng || '?'})`);
+
+        // Notificar al jefe superior
+        const usuario = await db.get('SELECT nombre, id_jefe, rol FROM usuarios WHERE id_usuario = ?', id_usuario);
+        if (!usuario) return res.json({ ok: true });
+
+        const io = req.app.get('io');
+        const nombreUsuario = usuario.nombre || 'Usuario';
+        const mensajeAlerta = `⚠️ ${nombreUsuario} ${motivo === 'GPS_DESACTIVADO' ? 'DESACTIVÓ el GPS' : 'SALIÓ del perímetro de trabajo'} (${Math.round(distancia || 0)}m)`;
+
+        // Notificar al supervisor directo
+        if (usuario.id_jefe) {
+            await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'alerta_geofence')`,
+                uuidv4(), usuario.id_jefe, '🚨 Alerta de Perímetro', mensajeAlerta);
+            if (io) io.to(`user_${usuario.id_jefe}`).emit('notificacion', { titulo: '🚨 Alerta de Perímetro', mensaje: mensajeAlerta });
+        }
+
+        // Notificar a todos los ADMIN de la empresa
+        const admins = await db.all('SELECT id_usuario FROM usuarios WHERE id_empresa = ? AND rol = ? AND eliminado = 0', id_empresa, 'ADMIN');
+        for (const admin of admins) {
+            await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'alerta_geofence')`,
+                uuidv4(), admin.id_usuario, '🚨 Alerta de Perímetro', mensajeAlerta);
+            if (io) io.to(`user_${admin.id_usuario}`).emit('notificacion', { titulo: '🚨 Alerta de Perímetro', mensaje: mensajeAlerta });
+        }
+
+        res.json({ ok: true, mensaje: 'Alerta registrada' });
+    } catch (err) {
+        console.error('Error alerta geofence:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
+

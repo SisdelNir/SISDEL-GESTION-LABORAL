@@ -23,7 +23,7 @@ router.post('/root', (req, res) => {
         const token = jwt.sign(
             { rol: 'ROOT', id_usuario: 'ROOT' },
             process.env.JWT_SECRET,
-            { expiresIn: '24h' }
+            { expiresIn: '2h' }
         );
 
         res.json({
@@ -97,7 +97,7 @@ router.post('/login', async (req, res) => {
                 nombre: usuario.nombre
             },
             process.env.JWT_SECRET,
-            { expiresIn: '12h' }
+            { expiresIn: '8h' }
         );
 
         // Registrar acceso
@@ -124,7 +124,11 @@ router.post('/login', async (req, res) => {
                 id_departamento: usuario.id_departamento || null,
                 nombre_departamento: usuario.nombre_departamento || null,
                 nombre_empresa: usuario.nombre_empresa,
-                logo_empresa: usuario.logo_empresa
+                logo_empresa: usuario.logo_empresa,
+                ubicacion_fija_lat: usuario.ubicacion_fija_lat || null,
+                ubicacion_fija_lng: usuario.ubicacion_fija_lng || null,
+                ubicacion_fija_nombre: usuario.ubicacion_fija_nombre || '',
+                requiere_gps: usuario.requiere_gps !== undefined ? usuario.requiere_gps : 1
             },
             configuracion: config || {}
         });
@@ -176,7 +180,11 @@ router.get('/me', verificarToken, async (req, res) => {
             id_departamento: usuario.id_departamento || null,
             nombre_departamento: usuario.nombre_departamento || null,
             nombre_empresa: usuario.nombre_empresa,
-            logo_empresa: usuario.logo_empresa
+            logo_empresa: usuario.logo_empresa,
+            ubicacion_fija_lat: usuario.ubicacion_fija_lat || null,
+            ubicacion_fija_lng: usuario.ubicacion_fija_lng || null,
+            ubicacion_fija_nombre: usuario.ubicacion_fija_nombre || '',
+            requiere_gps: usuario.requiere_gps !== undefined ? usuario.requiere_gps : 1
         });
     } catch (err) {
         res.status(500).json({ error: 'Error obteniendo datos de usuario' });

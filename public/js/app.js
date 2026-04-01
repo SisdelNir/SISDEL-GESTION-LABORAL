@@ -3,8 +3,8 @@
    ═══════════════════════════════════════════════════ */
 
 const API = '';
-let TOKEN = localStorage.getItem('gl_token') || null;
-let USUARIO = JSON.parse(localStorage.getItem('gl_usuario') || 'null');
+let TOKEN = sessionStorage.getItem('gl_token') || null;
+let USUARIO = JSON.parse(sessionStorage.getItem('gl_usuario') || 'null');
 let socket = null;
 
 // ═══════════════════════════════════════════
@@ -223,18 +223,18 @@ async function verificarSesion() {
         const res = await fetchAPI('/api/auth/me');
         if (res.rol === 'ROOT') {
             USUARIO = { rol: 'ROOT', nombre: 'Programador' };
-            localStorage.setItem('gl_usuario', JSON.stringify(USUARIO));
+            sessionStorage.setItem('gl_usuario', JSON.stringify(USUARIO));
             mostrarPantalla('root');
             cargarEmpresas();
         } else {
             USUARIO = res;
-            localStorage.setItem('gl_usuario', JSON.stringify(USUARIO));
+            sessionStorage.setItem('gl_usuario', JSON.stringify(USUARIO));
             abrirPanelPorRol();
         }
     } catch(err) {
         TOKEN = null;
-        localStorage.removeItem('gl_token');
-        localStorage.removeItem('gl_usuario');
+        sessionStorage.removeItem('gl_token');
+        sessionStorage.removeItem('gl_usuario');
         mostrarPantalla('login');
     }
 }
@@ -259,8 +259,8 @@ async function loginUnificado() {
             const data = await resRoot.json();
             TOKEN = data.token;
             USUARIO = data.usuario;
-            localStorage.setItem('gl_token', TOKEN);
-            localStorage.setItem('gl_usuario', JSON.stringify(USUARIO));
+            sessionStorage.setItem('gl_token', TOKEN);
+            sessionStorage.setItem('gl_usuario', JSON.stringify(USUARIO));
             mostrarPantalla('root');
             cargarEmpresas();
             mostrarToast('Acceso ROOT concedido', 'success');
@@ -285,8 +285,8 @@ async function loginUnificado() {
 
         TOKEN = data.token;
         USUARIO = data.usuario;
-        localStorage.setItem('gl_token', TOKEN);
-        localStorage.setItem('gl_usuario', JSON.stringify(USUARIO));
+        sessionStorage.setItem('gl_token', TOKEN);
+        sessionStorage.setItem('gl_usuario', JSON.stringify(USUARIO));
 
         // Unirse al canal de la empresa via socket
         if (socket) {
@@ -347,7 +347,10 @@ function abrirPanelPorRol() {
         actualizarVisibilidadCreacion();
         cargarTareasEmpleado(); // Igual que empleado
         verificarEstadoCheckin();
+        verificarUbicacionFija();
         iniciarAlertasEmpleado(); // Alertas de tareas asignadas al supervisor
+        // GPS Geofencing
+        verificarAccesoGPS().then(ok => { if (ok) iniciarMonitoreoGPS(); });
     } else if (USUARIO.rol === 'EMPLEADO') {
         mostrarPantalla('empleado');
         document.getElementById('emp-panel-user-name').textContent = USUARIO.nombre;
@@ -356,6 +359,8 @@ function abrirPanelPorRol() {
         verificarEstadoCheckin();
         verificarUbicacionFija();
         iniciarAlertasEmpleado();
+        // GPS Geofencing
+        verificarAccesoGPS().then(ok => { if (ok) iniciarMonitoreoGPS(); });
     }
 }
 
@@ -380,8 +385,8 @@ function formatearTiempo(mins) {
 function cerrarSesion() {
     TOKEN = null;
     USUARIO = null;
-    localStorage.removeItem('gl_token');
-    localStorage.removeItem('gl_usuario');
+    sessionStorage.removeItem('gl_token');
+    sessionStorage.removeItem('gl_usuario');
     document.getElementById('input-codigo-acceso').value = '';
     mostrarPantalla('login');
     mostrarToast('Sesión cerrada', 'info');
@@ -948,6 +953,68 @@ async function enviarRespuestaObs() {
         mostrarToast('Respuesta enviada', 'success');
     } catch(e) { mostrarToast(e.message, 'error'); }
 }
+
+// ═══════════════════════════════════════════
+// OBSERVACIONES INLINE (Empleado/Supervisor)
+// ═══════════════════════════════════════════
+let _obsInlineTimers = {};
+
+function toggleObsInline(idTarea) {
+    const panel = document.getElementById(`obs-inline-${idTarea}`);
+    if (!panel) return;
+    if (panel.style.display === 'none') {
+        // Cerrar cualquier otro panel abierto
+        document.querySelectorAll('.obs-inline-panel').forEach(p => {
+            if (p.id !== `obs-inline-${idTarea}`) p.style.display = 'none';
+        });
+        panel.style.display = 'block';
+        const textarea = document.getElementById(`obs-text-${idTarea}`);
+        if (textarea) textarea.focus();
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function autoguardarObsInline(idTarea) {
+    clearTimeout(_obsInlineTimers[idTarea]);
+    const status = document.getElementById(`obs-status-${idTarea}`);
+    if (status) { status.textContent = '⏳ Guardando...'; status.style.color = '#f59e0b'; }
+    _obsInlineTimers[idTarea] = setTimeout(() => guardarObsInline(idTarea, true), 2000);
+}
+
+async function guardarObsInline(idTarea, silente = false) {
+    const textarea = document.getElementById(`obs-text-${idTarea}`);
+    if (!textarea) return;
+    const texto = textarea.value || '';
+    const status = document.getElementById(`obs-status-${idTarea}`);
+    try {
+        await fetchAPI(`/api/tareas/${idTarea}/observaciones`, {
+            method: 'PUT',
+            body: JSON.stringify({ observaciones_tarea: texto })
+        });
+        if (status) { status.textContent = '✅ Guardado'; status.style.color = '#10b981'; }
+        if (!silente) mostrarToast('📝 Observaciones guardadas', 'success');
+        // Actualizar el badge del botón en la tarjeta
+        const card = document.getElementById(`emp-card-${idTarea}`);
+        if (card) {
+            const btn = card.querySelector('[onclick*="toggleObsInline"]');
+            if (btn) {
+                const hasBadge = btn.querySelector('span[style*="background:#10b981"]');
+                if (texto.trim() && !hasBadge) {
+                    btn.insertAdjacentHTML('beforeend', ' <span style="background:#10b981;color:white;font-size:0.6rem;padding:1px 6px;border-radius:99px;font-weight:700;">✓</span>');
+                } else if (!texto.trim() && hasBadge) {
+                    hasBadge.remove();
+                }
+            }
+        }
+        // Limpiar status después de 3s
+        setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+    } catch(e) {
+        if (status) { status.textContent = '❌ Error'; status.style.color = '#ef4444'; }
+        if (!silente) mostrarToast(e.message || 'Error al guardar observaciones', 'error');
+    }
+}
+
 async function crearEmpresa(e) {
     if (e && e.preventDefault) e.preventDefault();
 
@@ -1378,6 +1445,45 @@ async function cargarGerenciasConfig() {
         }
     } catch(err) {
         sinMsg.textContent = 'Error cargando gerencias';
+    }
+    // Cargar config de geofence
+    cargarConfigGeofence();
+}
+
+async function cargarConfigGeofence() {
+    try {
+        const config = await fetchAPI('/api/empresas/mi-config');
+        const chk = document.getElementById('config-geofence-activo');
+        const slider = document.getElementById('config-geofence-radio');
+        const label = document.getElementById('config-geofence-radio-label');
+        const dot = document.getElementById('config-geofence-toggle-dot');
+        if (chk) {
+            const activo = config.geofence_activo !== 0 && config.geofence_activo !== '0';
+            chk.checked = activo;
+            const toggleBg = chk.nextElementSibling;
+            if (toggleBg) toggleBg.style.background = activo ? '#10b981' : '#4b5563';
+        }
+        if (slider) {
+            slider.value = config.radio_geofence || 800;
+            if (label) label.textContent = (config.radio_geofence || 800) + 'm';
+        }
+    } catch(e) {}
+}
+
+async function guardarConfigGeofence() {
+    const chk = document.getElementById('config-geofence-activo');
+    const slider = document.getElementById('config-geofence-radio');
+    const geofence_activo = chk ? chk.checked : true;
+    const radio_geofence = slider ? parseInt(slider.value) : 800;
+
+    try {
+        await fetchAPI(`/api/empresas/${USUARIO.id_empresa}/configuracion`, {
+            method: 'PUT',
+            body: JSON.stringify({ geofence_activo, radio_geofence })
+        });
+        mostrarToast(`✅ Configuración GPS guardada — ${geofence_activo ? 'Activo' : 'Desactivado'} · Radio: ${radio_geofence}m`, 'success');
+    } catch(err) {
+        mostrarToast('Error al guardar configuración GPS', 'error');
     }
 }
 
@@ -2338,6 +2444,20 @@ async function cargarTareasEmpleado() {
                     </div>`;
             }
 
+            // Botón de observaciones inline
+            const tieneObs = t.observaciones_tarea && t.observaciones_tarea.trim().length > 0;
+            const obsBtn = `
+                <div style="margin-top:8px;">
+                    <button onclick="event.stopPropagation(); toggleObsInline('${t.id_tarea}')"
+                        style="width:100%;padding:7px 14px;border-radius:9px;border:none;cursor:pointer;font-size:0.78rem;font-weight:600;
+                               background:${tieneObs ? 'linear-gradient(135deg,rgba(99,102,241,0.15),rgba(99,102,241,0.08))' : 'linear-gradient(135deg,rgba(139,92,246,0.12),rgba(139,92,246,0.06))'};
+                               color:${tieneObs ? '#6366f1' : '#a78bfa'};
+                               border:1px solid ${tieneObs ? 'rgba(99,102,241,0.3)' : 'rgba(139,92,246,0.25)'};
+                               display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;">
+                        📝 Observaciones ${tieneObs ? '<span style="background:#10b981;color:white;font-size:0.6rem;padding:1px 6px;border-radius:99px;font-weight:700;">✓</span>' : ''}
+                    </button>
+                </div>`;
+
             return `
                 <div class="emp-tarea-card" id="emp-card-${t.id_tarea}">
                     <div class="tarea-info">
@@ -2354,11 +2474,30 @@ async function cargarTareasEmpleado() {
                         </div>
                         ${evidenciaBtns}
                         ${clienteBtn}
+                        ${obsBtn}
                     </div>
                     <div class="crono-container" style="flex-shrink:0;margin:0;padding:10px 14px;min-width:auto;flex-wrap:wrap;justify-content:center;">
                         <span style="font-size:1rem;">⏱</span>
                         <span class="crono-display ${cronoClase}" id="crono-${t.id_tarea}" data-inicio="${t.fecha_inicio || ''}" data-fin="${t.fecha_fin || ''}" style="font-size:1.4rem;min-width:110px;">00:00:00</span>
                         <div class="crono-acciones">${acciones}</div>
+                    </div>
+                </div>
+                <!-- Panel de observaciones inline (colapsado por defecto) -->
+                <div id="obs-inline-${t.id_tarea}" class="obs-inline-panel" style="display:none;margin:-6px 0 10px 0;padding:14px 16px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(139,92,246,0.04));border:1px solid rgba(99,102,241,0.2);border-radius:0 0 14px 14px;animation:slideDown 0.25s ease;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <span style="font-size:0.78rem;font-weight:700;color:#6366f1;">📝 Tus Observaciones</span>
+                        <span id="obs-status-${t.id_tarea}" style="font-size:0.65rem;color:var(--text-muted);"></span>
+                    </div>
+                    <textarea id="obs-text-${t.id_tarea}" rows="3"
+                        placeholder="Escribe tus observaciones, problemas, notas importantes..."
+                        style="width:100%;resize:vertical;border:1px solid rgba(99,102,241,0.25);border-radius:8px;background:rgba(99,102,241,0.04);font-size:0.82rem;padding:10px;color:var(--text-main);font-family:inherit;"
+                        oninput="autoguardarObsInline('${t.id_tarea}')">${t.observaciones_tarea || ''}</textarea>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                        <span style="font-size:0.68rem;color:var(--text-muted);">💡 Se guarda automáticamente</span>
+                        <button class="btn btn-sm" onclick="guardarObsInline('${t.id_tarea}')"
+                            style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;font-size:0.72rem;padding:5px 14px;border-radius:8px;">
+                            💾 Guardar
+                        </button>
                     </div>
                 </div>
             `;
@@ -3714,9 +3853,12 @@ function abrirImagenCompleta(src) {
 async function mostrarFormularioTarea() {
     document.getElementById('form-tarea').reset();
     
-    // Asegurar que el campo supervisor sea visible para Admin/Gerente
     const supGroup = document.getElementById('tarea-supervisor')?.closest('.form-group');
     if (supGroup) supGroup.style.display = '';
+
+    // Valores por defecto
+    document.getElementById('tarea-tiempo').value = 1;
+    document.getElementById('tarea-tiempo-unidad').value = 60;
 
     // Cargar empleados y supervisores
     try {
@@ -3774,6 +3916,17 @@ async function mostrarFormularioTarea() {
             selTipo.innerHTML += `<option value="${t.id_tipo}" ${isSelected}>${t.nombre}</option>`; 
         });
     } catch(e) {}
+    
+    // Si no se seleccionó nada, intentar forzar la selección de 'operativa'
+    const selTipo = document.getElementById('tarea-tipo');
+    if (selTipo && !selTipo.value) {
+        for (let opt of selTipo.options) {
+            if (opt.text.toLowerCase().includes('operativa')) {
+                opt.selected = true;
+                break;
+            }
+        }
+    }
     document.getElementById('modal-tarea').style.display = 'flex';
     document.getElementById('tarea-tiempo-preview').style.display = 'none'; // reset preview
 }
@@ -4324,6 +4477,16 @@ let PLANTILLA_TAB_ACTUAL = 'diaria';
 
 async function abrirModalPlantillas() {
     document.getElementById('modal-plantillas').style.display = 'flex';
+    
+    // Valores por defecto
+    ['plt-tiempo', 'cal-tiempo'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 1;
+    });
+    ['plt-tiempo-unidad', 'cal-tiempo-unidad'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 60;
+    });
     // Cargar empleados y supervisores en los selects
     try {
         const usuarios = await fetchAPI('/api/usuarios');
@@ -4411,6 +4574,19 @@ async function abrirModalPlantillas() {
             });
         });
     } catch(e) {}
+
+    // Forzar selección de 'operativa' si no hay nada seleccionado
+    ['plt-tipo', 'cal-tipo'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel && !sel.value) {
+            for (let opt of sel.options) {
+                if (opt.text.toLowerCase().includes('operativa')) {
+                    opt.selected = true;
+                    break;
+                }
+            }
+        }
+    });
 
     cambiarTabPlantilla('diaria', document.querySelector('#modal-plantillas .nav-btn'));
 }
@@ -4921,6 +5097,265 @@ async function configurarUbicacionFija() {
     } catch(err) {
         mostrarToast('Error al guardar ubicación', 'error');
     }
+}
+
+// ═══════════════════════════════════════════
+// GEOFENCING GPS — MONITOREO CONTINUO
+// ═══════════════════════════════════════════
+let _geoWatchId = null;
+let _geoStrikesConsecutivos = 0;
+let _geoConfig = { radio: 800, activo: true };
+
+/**
+ * Fórmula Haversine: distancia en metros entre dos puntos GPS
+ */
+function calcularDistanciaHaversine(lat1, lng1, lat2, lng2) {
+    const R = 6371000; // Radio de la tierra en metros
+    const toRad = deg => deg * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Verificar acceso GPS antes de permitir uso del sistema
+ * Si el usuario requiere GPS y no lo tiene activo, bloquea acceso
+ */
+async function verificarAccesoGPS() {
+    if (!USUARIO || (USUARIO.rol !== 'EMPLEADO' && USUARIO.rol !== 'SUPERVISOR')) return true;
+    if (USUARIO.requiere_gps !== 1 && USUARIO.requiere_gps !== '1') return true;
+
+    // Cargar config de geofence
+    try {
+        const config = await fetchAPI('/api/empresas/mi-config');
+        _geoConfig.radio = config.radio_geofence || 800;
+        _geoConfig.activo = config.geofence_activo !== 0 && config.geofence_activo !== '0';
+    } catch(e) {}
+
+    if (!_geoConfig.activo) return true;
+
+    // Verificar que el navegador soporta y tiene permiso GPS
+    if (!navigator.geolocation) {
+        mostrarOverlayGPS('Tu navegador no soporta GPS. Se requiere GPS activo para usar el sistema.');
+        return false;
+    }
+
+    try {
+        await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true });
+        });
+        return true;
+    } catch(e) {
+        mostrarOverlayGPS('Debes activar el GPS y permitir acceso a tu ubicación para iniciar sesión de trabajo.');
+        return false;
+    }
+}
+
+function mostrarOverlayGPS(mensaje) {
+    // Remover si ya existe
+    const existente = document.getElementById('overlay-gps-bloqueado');
+    if (existente) existente.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'overlay-gps-bloqueado';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+        <div style="text-align:center;max-width:380px;">
+            <div style="font-size:4rem;margin-bottom:16px;">📍</div>
+            <h2 style="color:#ef4444;font-size:1.3rem;margin-bottom:12px;">GPS Requerido</h2>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:24px;line-height:1.6;">${mensaje}</p>
+            <button onclick="reintenrarGPS()" style="padding:12px 30px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;margin-bottom:10px;">
+                🔄 Reintentar
+            </button>
+            <br>
+            <button onclick="cerrarSesionGeofence('GPS_DENEGADO')" style="padding:8px 20px;background:none;color:#a78bfa;border:1px solid rgba(139,92,246,0.3);border-radius:8px;font-size:0.78rem;cursor:pointer;margin-top:8px;">
+                Cerrar Sesión
+            </button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+async function reintenrarGPS() {
+    const overlay = document.getElementById('overlay-gps-bloqueado');
+    try {
+        await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true });
+        });
+        if (overlay) overlay.remove();
+        mostrarToast('✅ GPS activado correctamente', 'success');
+        iniciarMonitoreoGPS();
+    } catch(e) {
+        mostrarToast('❌ GPS sigue desactivado. Permite el acceso en la configuración de tu navegador.', 'error');
+    }
+}
+
+/**
+ * Iniciar monitoreo continuo de GPS con geofencing
+ * Usa watchPosition para detectar salida del perímetro
+ */
+async function iniciarMonitoreoGPS() {
+    if (!USUARIO || (USUARIO.rol !== 'EMPLEADO' && USUARIO.rol !== 'SUPERVISOR')) return;
+    if (USUARIO.requiere_gps !== 1 && USUARIO.requiere_gps !== '1') return;
+    if (!_geoConfig.activo) return;
+
+    // Detener monitoreo anterior si existe
+    if (_geoWatchId !== null) {
+        navigator.geolocation.clearWatch(_geoWatchId);
+        _geoWatchId = null;
+    }
+    _geoStrikesConsecutivos = 0;
+
+    // Obtener coordenadas del lugar de trabajo
+    const ubLat = USUARIO.ubicacion_fija_lat;
+    const ubLng = USUARIO.ubicacion_fija_lng;
+
+    if (!ubLat || !ubLng) {
+        // No tiene ubicación registrada — no monitorear pero mostrar aviso
+        console.log('⚠️ Geofence: usuario sin ubicación fija registrada');
+        return;
+    }
+
+    const radio = _geoConfig.radio || 800;
+
+    // Mostrar banner de estado GPS
+    mostrarBannerGPS('dentro', 0);
+
+    // Monitoreo continuo
+    _geoWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+            const distancia = calcularDistanciaHaversine(ubLat, ubLng, pos.coords.latitude, pos.coords.longitude);
+            console.log(`📡 GPS: ${Math.round(distancia)}m del trabajo (radio: ${radio}m)`);
+
+            if (distancia > radio) {
+                _geoStrikesConsecutivos++;
+                console.log(`⚠️ FUERA del perímetro — Strike ${_geoStrikesConsecutivos}/3`);
+
+                if (_geoStrikesConsecutivos === 1) {
+                    mostrarBannerGPS('advertencia', distancia);
+                    mostrarToast(`⚠️ Estás a ${Math.round(distancia)}m — fuera del perímetro (${radio}m)`, 'error');
+                } else if (_geoStrikesConsecutivos === 2) {
+                    mostrarBannerGPS('peligro', distancia);
+                    mostrarToast('🚨 ¡REGRESA al área de trabajo! Próxima lectura cerrará tu sesión.', 'error');
+                } else if (_geoStrikesConsecutivos >= 3) {
+                    // 3 strikes → cerrar sesión
+                    enviarAlertaGeofence('FUERA_PERIMETRO', pos.coords.latitude, pos.coords.longitude, distancia);
+                    cerrarSesionGeofence('FUERA_PERIMETRO');
+                }
+            } else {
+                // Dentro del perímetro — resetear strikes
+                if (_geoStrikesConsecutivos > 0) {
+                    mostrarToast('✅ De vuelta en el área de trabajo', 'success');
+                }
+                _geoStrikesConsecutivos = 0;
+                mostrarBannerGPS('dentro', distancia);
+            }
+        },
+        (err) => {
+            // Error de GPS = posible desactivación
+            console.error('❌ GPS error:', err.code, err.message);
+            if (err.code === 1) { // PERMISSION_DENIED
+                enviarAlertaGeofence('GPS_DESACTIVADO', null, null, 0);
+                cerrarSesionGeofence('GPS_DESACTIVADO');
+            } else if (err.code === 2) { // POSITION_UNAVAILABLE
+                mostrarBannerGPS('sinsenal', 0);
+                mostrarToast('⚠️ Señal GPS perdida. Asegúrate de tener el GPS activo.', 'error');
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 30000,
+            maximumAge: 15000 // Cachear posición por 15s
+        }
+    );
+
+    console.log(`🛰️ Geofencing iniciado — Radio: ${radio}m — WatchID: ${_geoWatchId}`);
+}
+
+function mostrarBannerGPS(estado, distancia) {
+    const prefix = USUARIO.rol === 'SUPERVISOR' ? 'sup' : 'emp';
+    let container = document.getElementById(`${prefix}-gps-banner`);
+
+    // Crear container si no existe
+    if (!container) {
+        const panelLista = document.getElementById(`${prefix}-lista-tareas`);
+        if (!panelLista) return;
+        container = document.createElement('div');
+        container.id = `${prefix}-gps-banner`;
+        panelLista.parentElement.insertBefore(container, panelLista);
+    }
+
+    const distTxt = distancia > 0 ? `${Math.round(distancia)}m` : '';
+    let html = '';
+
+    if (estado === 'dentro') {
+        html = `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);font-size:0.75rem;color:#10b981;font-weight:600;">
+            <span style="animation:cronoPulse 2s infinite;">📍</span> Dentro del área de trabajo ${distTxt ? `· ${distTxt}` : ''} <span style="margin-left:auto;font-size:0.65rem;color:var(--text-muted);">GPS activo</span>
+        </div>`;
+    } else if (estado === 'advertencia') {
+        html = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:10px;border-radius:10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);font-size:0.78rem;color:#f59e0b;font-weight:700;">
+            ⚠️ Fuera del perímetro · ${distTxt} <span style="margin-left:auto;font-size:0.65rem;">Strike 1/3</span>
+        </div>`;
+    } else if (estado === 'peligro') {
+        html = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:10px;border-radius:10px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);font-size:0.82rem;color:#ef4444;font-weight:800;animation:cronoPulse 0.5s infinite;">
+            🚨 ¡REGRESA AL ÁREA! · ${distTxt} <span style="margin-left:auto;font-size:0.7rem;">Strike 2/3</span>
+        </div>`;
+    } else if (estado === 'sinsenal') {
+        html = `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:10px;border-radius:10px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);font-size:0.75rem;color:#a78bfa;font-weight:600;">
+            📡 Señal GPS débil — reconectando...
+        </div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+async function enviarAlertaGeofence(motivo, lat, lng, distancia) {
+    try {
+        await fetchAPI('/api/usuarios/alerta-geofence', {
+            method: 'POST',
+            body: JSON.stringify({ motivo, lat, lng, distancia })
+        });
+    } catch(e) { console.error('Error enviando alerta geofence:', e); }
+}
+
+function cerrarSesionGeofence(motivo) {
+    // Detener monitoreo GPS
+    if (_geoWatchId !== null) {
+        navigator.geolocation.clearWatch(_geoWatchId);
+        _geoWatchId = null;
+    }
+
+    // Limpiar sesión
+    sessionStorage.removeItem('gl_token');
+    sessionStorage.removeItem('gl_usuario');
+    TOKEN = null;
+    USUARIO = null;
+
+    // Mostrar pantalla de login con mensaje
+    const mensajes = {
+        'FUERA_PERIMETRO': '🚨 Tu sesión fue cerrada porque te alejaste del área de trabajo autorizada. Se notificó a tu supervisor.',
+        'GPS_DESACTIVADO': '🚨 Tu sesión fue cerrada porque el GPS fue desactivado. Se requiere GPS activo durante la jornada laboral.',
+        'GPS_DENEGADO': '⚠️ Sesión cerrada. Activa el GPS para poder trabajar.'
+    };
+
+    mostrarPantalla('login');
+
+    // Remover overlay si existe
+    const overlay = document.getElementById('overlay-gps-bloqueado');
+    if (overlay) overlay.remove();
+
+    // Mostrar alerta prominente en la pantalla de login
+    setTimeout(() => {
+        const loginCard = document.querySelector('.login-card');
+        if (loginCard) {
+            const alerta = document.createElement('div');
+            alerta.style.cssText = 'padding:14px 18px;margin-bottom:16px;border-radius:10px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);font-size:0.82rem;color:#ef4444;font-weight:600;text-align:center;line-height:1.5;';
+            alerta.textContent = mensajes[motivo] || '🚨 Sesión cerrada por política de seguridad GPS.';
+            loginCard.insertBefore(alerta, loginCard.firstChild);
+        }
+    }, 300);
 }
 
 function actualizarUICheckin(presente) {

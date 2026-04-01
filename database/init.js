@@ -431,7 +431,9 @@ async function inicializarDB() {
         "ALTER TABLE configuraciones_empresa ADD COLUMN supervisor_ve_terminadas INTEGER DEFAULT 1",
         "ALTER TABLE configuraciones_empresa ADD COLUMN empleado_puede_iniciar INTEGER DEFAULT 1",
         "ALTER TABLE configuraciones_empresa ADD COLUMN supervisor_puede_modificar INTEGER DEFAULT 1",
-        "ALTER TABLE configuraciones_empresa ADD COLUMN modalidad_trabajo TEXT DEFAULT 'fijo'"
+        "ALTER TABLE configuraciones_empresa ADD COLUMN modalidad_trabajo TEXT DEFAULT 'fijo'",
+        "ALTER TABLE configuraciones_empresa ADD COLUMN radio_geofence INTEGER DEFAULT 800",
+        "ALTER TABLE configuraciones_empresa ADD COLUMN geofence_activo INTEGER DEFAULT 1"
     ];
     for (const mig of migracionesConfig) {
         try { await db.run(mig); } catch(e) { /* ya existe */ }
@@ -441,7 +443,8 @@ async function inicializarDB() {
         'ALTER TABLE usuarios ADD COLUMN ubicacion_fija_lat REAL',
         'ALTER TABLE usuarios ADD COLUMN ubicacion_fija_lng REAL',
         "ALTER TABLE usuarios ADD COLUMN ubicacion_fija_nombre TEXT DEFAULT ''",
-        "ALTER TABLE usuarios ADD COLUMN id_jefe TEXT"
+        "ALTER TABLE usuarios ADD COLUMN id_jefe TEXT",
+        "ALTER TABLE usuarios ADD COLUMN requiere_gps INTEGER DEFAULT 1"
     ];
     for (const mig of migracionesUsuarios) {
         try { await db.run(mig); } catch(e) { /* ya existe */ }

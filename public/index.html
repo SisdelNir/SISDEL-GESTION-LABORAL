@@ -45,7 +45,7 @@
 
             <p class="login-footer">© 2026 Gestión Laboral · v1.0</p>
             <p style="text-align:center;margin-top:0.5rem">
-                <a href="#" onclick="localStorage.clear();location.reload();" style="font-size:0.72rem;color:var(--text-muted);text-decoration:none;opacity:0.6">
+                <a href="#" onclick="sessionStorage.clear();location.reload();" style="font-size:0.72rem;color:var(--text-muted);text-decoration:none;opacity:0.6">
                     ↺ Limpiar sesión
                 </a>
             </p>
@@ -536,7 +536,7 @@
                         <div class="glass" style="padding:20px;border-radius:16px;">
                             <h4 style="margin-bottom:16px;font-size:0.93rem;color:var(--text-secondary);">⚡ Eficiencia de la Gerencia</h4>
                             <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding-top:12px;">
-                                <div id="ger-eficiencia-pct" style="font-size:3.5rem;font-weight:800;background:linear-gradient(135deg,#10b981,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">0%</div>
+                                <div id="ger-eficiencia-pct" style="font-size:3.5rem;font-weight:800;background:linear-gradient(135deg,#10b981,#3b82f6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">0%</div>
                                 <div style="font-size:0.8rem;color:var(--text-muted);">Tareas completadas a tiempo</div>
                                 <div style="width:100%;height:12px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden;margin-top:8px;">
                                     <div id="ger-barra-eficiencia-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#10b981,#3b82f6);border-radius:99px;transition:width 1s ease;"></div>
@@ -752,6 +752,45 @@
                         <p id="config-sin-gerencias" style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:16px;border:1px dashed var(--border-color);border-radius:8px;margin-top:8px;">Cargando gerencias...</p>
                         <div style="margin-top:16px;text-align:right;">
                             <button type="button" class="btn btn-primary" style="background:linear-gradient(135deg,#10b981,#059669);padding:10px 24px;" onclick="guardarGerenciasConfig()">💾 Guardar Gerencias</button>
+                        </div>
+                    </div>
+
+                    <!-- GPS Geofencing Config -->
+                    <div class="glass" style="padding:20px;border-radius:var(--radius-lg);margin-bottom:16px;">
+                        <h4 style="margin-bottom:14px;font-size:1rem;">🛰️ Control GPS y Perímetro de Trabajo</h4>
+                        <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:18px;">Configura el monitoreo GPS para empleados y supervisores. Si se activa, el sistema cerrará la sesión automáticamente cuando un usuario salga del perímetro.</p>
+
+                        <div style="display:flex;flex-direction:column;gap:16px;">
+                            <!-- Toggle Geofencing -->
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--glass-bg);border-radius:10px;border:1px solid var(--border-color);">
+                                <div>
+                                    <label style="font-weight:700;font-size:0.88rem;">🔒 Geofencing Activo</label>
+                                    <p style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Cierre automático de sesión al salir del área</p>
+                                </div>
+                                <label style="position:relative;width:50px;height:28px;cursor:pointer;">
+                                    <input type="checkbox" id="config-geofence-activo" checked style="opacity:0;width:0;height:0;">
+                                    <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#4b5563;transition:.3s;border-radius:28px;" onclick="this.previousElementSibling.checked=!this.previousElementSibling.checked;this.style.background=this.previousElementSibling.checked?'#10b981':'#4b5563'"></span>
+                                    <span style="position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:white;transition:.3s;border-radius:50%;pointer-events:none;" id="config-geofence-toggle-dot"></span>
+                                </label>
+                            </div>
+
+                            <!-- Radio Slider -->
+                            <div style="padding:12px 16px;background:var(--glass-bg);border-radius:10px;border:1px solid var(--border-color);">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                    <label style="font-weight:700;font-size:0.88rem;">📏 Radio del Perímetro</label>
+                                    <span id="config-geofence-radio-label" style="font-weight:800;color:#6366f1;font-size:1rem;">800m</span>
+                                </div>
+                                <input type="range" id="config-geofence-radio" min="100" max="2000" step="50" value="800" 
+                                    oninput="document.getElementById('config-geofence-radio-label').textContent=this.value+'m'"
+                                    style="width:100%;accent-color:#6366f1;">
+                                <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-muted);margin-top:4px;">
+                                    <span>100m</span><span>500m</span><span>1000m</span><span>1500m</span><span>2000m</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:16px;text-align:right;">
+                            <button type="button" class="btn btn-primary" style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:10px 24px;" onclick="guardarConfigGeofence()">🛰️ Guardar Configuración GPS</button>
                         </div>
                     </div>
                 </div>
