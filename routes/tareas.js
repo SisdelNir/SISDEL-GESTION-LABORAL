@@ -934,4 +934,45 @@ router.put('/:id/seguimiento-cliente', verificarToken, async (req, res) => {
 
 // (Moved: historial and limpiar routes are now before /:id)
 
+/**
+ * PUT /api/tareas/:id/respuesta-observacion
+ * El supervisor/Gerente/Admin responde a las observaciones de la tarea
+ */
+router.put('/:id/respuesta-observacion', verificarToken, async (req, res) => {
+    try {
+        if (!['ADMIN', 'ROOT', 'GERENTE', 'SUPERVISOR'].includes(req.usuario.rol)) {
+            return res.status(403).json({ error: 'No tienes permiso para responder observaciones' });
+        }
+        
+        const { respuesta_observacion } = req.body;
+        const tarea = await db.get('SELECT id_empresa, titulo, id_empleado, id_supervisor FROM tareas WHERE id_tarea = ?', req.params.id);
+        
+        if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+        if (req.usuario.rol !== 'ROOT' && req.usuario.id_empresa !== tarea.id_empresa) {
+            return res.status(403).json({ error: 'No tienes acceso' });
+        }
+
+        await db.run('UPDATE tareas SET respuesta_observacion = ? WHERE id_tarea = ?', respuesta_observacion || '', req.params.id);
+        
+        const { registrarAuditoria } = require('../middleware/auth');
+        registrarAuditoria(req.usuario.id_empresa, req.usuario.id_usuario, 'RESPUESTA_OBSERVACION', 
+            `Respondió a observación en tarea "${tarea.titulo}"`);
+
+        // Notificar al empleado
+        if (tarea.id_empleado) {
+            const io = req.app.get('io');
+            const mensaje = `Han respondido a tu observación en la tarea "${tarea.titulo}"`;
+            const { v4: uuidv4Local } = require('uuid');
+            await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'nueva_respuesta')`,
+                uuidv4Local(), tarea.id_empleado, '💬 Respuesta a Observación', mensaje);
+            if (io) io.to(`user_${tarea.id_empleado}`).emit('notificacion', { titulo: '💬 Respuesta a Observación', mensaje });
+        }
+
+        res.json({ mensaje: 'Respuesta guardada correctamente' });
+    } catch (err) {
+        console.error('Error guardando respuesta de observación:', err);
+        res.status(500).json({ error: 'Error al guardar respuesta' });
+    }
+});
+
 module.exports = router;

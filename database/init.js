@@ -474,6 +474,7 @@ async function inicializarDB() {
         "ALTER TABLE tareas ADD COLUMN fecha_seguimiento TEXT",
         "ALTER TABLE tareas ADD COLUMN cliente_concluido INTEGER DEFAULT 0",
         "ALTER TABLE tareas ADD COLUMN observaciones_tarea TEXT",
+        "ALTER TABLE tareas ADD COLUMN respuesta_observacion TEXT",
         "ALTER TABLE tareas ADD COLUMN notas_empleado TEXT"
     ];
     for (const mig of migracionesClientes) {

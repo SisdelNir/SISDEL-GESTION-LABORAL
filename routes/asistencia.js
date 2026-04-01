@@ -123,6 +123,24 @@ router.get('/', verificarToken, async (req, res) => {
         let query = `SELECT * FROM asistencia WHERE id_empresa = ?`;
         const params = [id_empresa];
 
+        if (req.usuario.rol === 'GERENTE') {
+            query += ` AND id_usuario IN (SELECT id_usuario FROM usuarios WHERE id_departamento = ?)`;
+            params.push(req.usuario.id_departamento);
+        } else if (req.usuario.rol === 'SUPERVISOR') {
+            const tieneAccesoGlobal = await db.get(`
+                SELECT 1 FROM permisos_usuario pu
+                JOIN permisos p ON pu.id_permiso = p.id_permiso
+                WHERE pu.id_usuario = ? AND p.codigo = 'VER_TODOS_EMPLEADOS' AND pu.concedido = 1
+            `, req.usuario.id_usuario);
+
+            if (!tieneAccesoGlobal) {
+                query += ` AND (id_usuario = ? OR id_usuario IN (
+                    SELECT id_empleado FROM supervisores_empleados WHERE id_supervisor = ?
+                ))`;
+                params.push(req.usuario.id_usuario, req.usuario.id_usuario);
+            }
+        }
+
         if (fecha) {
             query += ' AND fecha = ?';
             params.push(fecha);

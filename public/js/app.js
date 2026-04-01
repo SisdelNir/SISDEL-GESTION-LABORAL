@@ -342,6 +342,16 @@ function abrirPanelPorRol() {
                 userDeptoEl.style.display = 'none';
             }
         }
+        
+        // Asistencia Gerente
+        const gerCheckin = document.getElementById('ger-checkin-widget');
+        if (gerCheckin) {
+            gerCheckin.style.display = USUARIO.rol === 'GERENTE' ? 'flex' : 'none';
+        }
+        
+        if (USUARIO.rol === 'GERENTE') {
+            verificarEstadoCheckin();
+        }
 
         actualizarVisibilidadCreacion();
         // Gerente → panel de gráficas; Admin → panel de tareas
@@ -1635,6 +1645,7 @@ function cambiarPanelSupervisor(panel) {
 
     if (panel === 'sup-mis-tareas') cargarTareasEmpleado();
     if (panel === 'sup-notificaciones') cargarNotificaciones();
+    if (panel === 'sup-asistencia') cargarAsistenciaSup();
     if (panel === 'sup-modulo') { /* no auto-load, user picks section */ }
 }
 
@@ -2442,24 +2453,28 @@ async function cargarTareasEmpleado() {
                 }
             }
 
-            // Evidencia: mostrar botón de subir foto si la tarea lo requiere y está activa
+            // Evidencia: mostrar botón de subir foto con <label> nativo para iOS
             let evidenciaBtns = '';
             const reqEv = t.requiere_evidencia === 1 || t.requiere_evidencia === '1' || t.requiere_evidencia === true;
             if (reqEv && enProcesoActivo) {
                 const cantEv = t.total_evidencias || 0;
                 evidenciaBtns = `
-                    <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;">
-                        <button class="btn-crono" onclick="event.stopPropagation(); subirImagenRapida('${t.id_tarea}')" style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:8px;font-size:0.75rem;border:none;cursor:pointer;">
-                            📸 Subir Foto
-                        </button>
-                        <span style="font-size:0.7rem;color:${cantEv > 0 ? '#10b981' : '#ef4444'};font-weight:700;">
-                            ${cantEv > 0 ? '✅ ' + cantEv + ' foto(s)' : '⚠️ Sin fotos (obligatorio)'}
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:8px;">
+                        <label style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;margin:0;display:inline-flex;align-items:center;transition:all 0.2s;">
+                            📸 Tomar / Subir Foto
+                            <input type="file" accept="image/*" multiple style="display:none;" onchange="procesarFotosRapidasSwal('${t.id_tarea}', this)">
+                        </label>
+                        <span style="font-size:0.75rem;color:${cantEv > 0 ? '#10b981' : '#ef4444'};font-weight:700;">
+                            ${cantEv > 0 ? '✅ ' + cantEv + ' foto(s) guardadas' : '⚠️ Faltan fotos (obligatorio)'}
                         </span>
                     </div>
                 `;
             } else if (reqEv && esPendiente) {
+                const cantEv = t.total_evidencias || 0;
                 evidenciaBtns = `
-                    <div style="margin-top:6px;font-size:0.7rem;color:#f59e0b;font-weight:600;">📸 Esta tarea requiere fotos de constancia</div>
+                    <div style="margin-top:6px;font-size:0.75rem;font-weight:600;display:flex;align-items:center;gap:6px;color:${cantEv > 0 ? '#10b981' : '#f59e0b'};">
+                        ${cantEv > 0 ? '✅ ' + cantEv + ' foto(s) capturadas preventivamente' : '📸 Esta tarea requerirá fotos de constancia'}
+                    </div>
                 `;
             }
 
@@ -2625,12 +2640,17 @@ async function completarTareaEmpleado(idTarea) {
                 icon: 'warning',
                 title: 'Faltan Evidencias',
                 text: 'Esta tarea requiere que subas imágenes de constancia antes de poder finalizarla.',
-                confirmButtonText: '📸 Subir Imágen Ahora',
-                confirmButtonColor: '#3b82f6',
+                html: `
+                    <div style="margin-top:15px;display:flex;justify-content:center;">
+                        <label style="background:#3b82f6;color:white;padding:12px 20px;border-radius:8px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(59,130,246,0.3);transition:all 0.2s;">
+                            📸 Seleccionar Fotos Ahora
+                            <input type="file" accept="image/*" multiple style="display:none;" onchange="procesarFotosRapidasSwal('${idTarea}', this); Swal.close();">
+                        </label>
+                    </div>
+                `,
+                showConfirmButton: false,
                 showCancelButton: true,
                 cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) subirImagenRapida(idTarea);
             });
         } else {
             mostrarToast(err.message || 'Error al completar tarea', 'error');
@@ -3242,6 +3262,7 @@ async function abrirEditarUsuario(idUsuario) {
         document.getElementById('editar-usu-telefono').value = u.telefono || '';
         document.getElementById('editar-usu-correo').value = u.correo || '';
         document.getElementById('editar-usu-estado').value = u.estado ? '1' : '0';
+        document.getElementById('editar-usu-requiere-gps').checked = (u.requiere_gps === 1 || u.requiere_gps === '1');
         document.getElementById('editar-usu-titulo').textContent = `✏️ Editar ${u.rol === 'SUPERVISOR' ? 'Supervisor' : u.rol === 'GERENTE' ? 'Gerente' : 'Empleado'}: ${u.nombre}`;
         document.getElementById('modal-editar-usuario').style.display = 'flex';
     } catch(err) {
@@ -3261,7 +3282,8 @@ async function guardarEdicionUsuario(e) {
         identificacion: document.getElementById('editar-usu-identificacion').value.trim(),
         telefono: document.getElementById('editar-usu-telefono').value.trim(),
         correo: document.getElementById('editar-usu-correo').value.trim(),
-        estado: parseInt(document.getElementById('editar-usu-estado').value)
+        estado: parseInt(document.getElementById('editar-usu-estado').value),
+        requiere_gps: document.getElementById('editar-usu-requiere-gps').checked ? 1 : 0
     };
     if (!body.nombre) return mostrarToast('El nombre es requerido', 'error');
     try {
@@ -3518,7 +3540,8 @@ async function crearUsuario(e) {
         correo: document.getElementById('usu-correo').value.trim(),
         rol: document.getElementById('usu-rol').value,
         id_departamento: document.getElementById('usu-depto').value || undefined,
-        id_jefe: document.getElementById('usu-jefe').value || undefined
+        id_jefe: document.getElementById('usu-jefe').value || undefined,
+        requiere_gps: document.getElementById('usu-requiere-gps').checked ? 1 : 0
     };
 
     try {
@@ -3750,16 +3773,23 @@ async function toggleDetalleTarea(idTarea) {
             </div>`;
             // Lazy load: cargar cada evidencia individualmente después de renderizar
             setTimeout(() => {
-                t.evidencias.forEach(ev => {
+                t.evidencias.forEach((ev, idx) => {
                     fetchAPI(`/api/tareas/${idTarea}/evidencias/${ev.id_evidencia}`).then(evData => {
                         const thumb = document.getElementById(`ev-thumb-${ev.id_evidencia}`);
                         if (!thumb) return;
+                        
+                        // Store the loaded content back into the array so the custom gallery can use it
+                        t.evidencias[idx].contenido = evData.contenido || evData.texto || '';
+
                         const isImg = evData.tipo === 'imagen';
                         if (isImg && evData.contenido) {
                             thumb.innerHTML = `<img src="${evData.contenido}" alt="evidencia" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
-                                <div class="evidencia-overlay">🔍 Ver</div>`;
+                                <div class="evidencia-overlay">🔍 Ver Galería</div>`;
                             thumb.style.cursor = 'pointer';
-                            thumb.onclick = () => abrirImagenCompleta(evData.contenido);
+                            thumb.onclick = () => {
+                                // Launch gallery passing the array of evidences starting at this index
+                                abrirGaleriaEvidencias(encodeURIComponent(JSON.stringify(t.evidencias)), idx);
+                            };
                         } else if (evData.contenido) {
                             thumb.innerHTML = `<a href="${evData.contenido}" target="_blank" style="color:var(--accent-primary);">📎 ${evData.tipo || 'Archivo'}</a>`;
                         } else if (evData.texto) {
@@ -3796,11 +3826,45 @@ async function toggleDetalleTarea(idTarea) {
 
 
         // ── Sección: Observaciones del empleado ──
+        let respuestaHTML = '';
+        if (t.observaciones_tarea) {
+            const puedeResponder = ['ADMIN', 'GERENTE', 'SUPERVISOR', 'ROOT'].includes(USUARIO?.rol);
+            if (t.respuesta_observacion) {
+                respuestaHTML = `
+                    <div style="margin-top:10px;padding:10px;background:rgba(16,185,129,0.06);border-radius:8px;border-left:3px solid #10b981;">
+                        <div style="font-size:0.75rem;color:#10b981;font-weight:700;margin-bottom:4px;">💬 Respuesta del Supervisor/Gerente</div>
+                        <p style="font-size:0.82rem;color:var(--text-secondary);margin:0;line-height:1.5;">${t.respuesta_observacion.replace(/\\n/g, '<br>')}</p>
+                        ${puedeResponder ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:0.7rem;padding:4px 8px;color:#10b981;border:1px solid rgba(16,185,129,0.2);" onclick="habilitarEdicionRespuesta('${t.respuesta_observacion.replace(/'/g, "\\'")}')">Editar Respuesta</button>` : ''}
+                    </div>
+                `;
+            } else if (puedeResponder) {
+                respuestaHTML = `
+                    <div style="margin-top:10px;">
+                        <button class="btn btn-sm" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2);padding:6px 10px;" onclick="habilitarEdicionRespuesta('')">
+                            Responder a Observación
+                        </button>
+                    </div>
+                `;
+            }
+
+            if (puedeResponder) {
+                respuestaHTML += `
+                    <div id="form-respuesta-obs" style="display:none;margin-top:10px;background:rgba(255,255,255,0.03);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);">
+                        <textarea id="input-respuesta-obs" class="form-control" rows="2" placeholder="Escribe tu respuesta aquí..." style="font-size:0.8rem;margin-bottom:8px;"></textarea>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-primary btn-sm" style="background:#10b981;color:white;" onclick="guardarRespuestaObservacion('${t.id_tarea}')">Guardar</button>
+                            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('form-respuesta-obs').style.display='none'">Cancelar</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
         const obsHTML = `
             <div class="detalle-seccion" style="margin-top:12px;">
                 <div class="detalle-seccion-titulo">📝 Observaciones del Empleado</div>
                 ${t.observaciones_tarea
-                    ? `<p style="font-size:0.82rem;color:var(--text-secondary);margin:0;line-height:1.6;background:rgba(99,102,241,0.06);padding:10px;border-radius:8px;border-left:3px solid #6366f1;">${t.observaciones_tarea}</p>`
+                    ? `<p style="font-size:0.82rem;color:var(--text-secondary);margin:0;line-height:1.6;background:rgba(99,102,241,0.06);padding:10px;border-radius:8px;border-left:3px solid #6366f1;">${t.observaciones_tarea}</p>${respuestaHTML}`
                     : `<p style="font-size:0.78rem;color:var(--text-muted);margin:0;font-style:italic;">Sin observaciones</p>`
                 }
             </div>`;
@@ -3878,6 +3942,32 @@ async function toggleDetalleTarea(idTarea) {
         panel.innerHTML = '<div style="padding:12px;color:var(--accent-red);font-size:0.85rem;">Error al cargar detalles</div>';
     }
 }
+
+window.habilitarEdicionRespuesta = function(textoActual) {
+    document.getElementById('form-respuesta-obs').style.display = 'block';
+    const input = document.getElementById('input-respuesta-obs');
+    input.value = textoActual || '';
+    setTimeout(() => input.focus(), 50);
+};
+
+window.guardarRespuestaObservacion = async function(id_tarea) {
+    const respuesta = document.getElementById('input-respuesta-obs').value.trim();
+    if (!respuesta) return mostrarToast('Escribe una respuesta', 'error');
+    try {
+        await fetchAPI(`/api/tareas/${id_tarea}/respuesta-observacion`, {
+            method: 'PUT',
+            body: JSON.stringify({ respuesta_observacion: respuesta })
+        });
+        mostrarToast('Respuesta guardada', 'success');
+        
+        // Recargar el panel actual cerrando y abriendo
+        toggleDetalleTarea(id_tarea);
+        setTimeout(() => toggleDetalleTarea(id_tarea), 50);
+        
+    } catch(e) {
+        mostrarToast(e.message || 'Error al guardar respuesta', 'error');
+    }
+};
 
 // Abrir imagen a pantalla completa
 function abrirImagenCompleta(src) {
@@ -4238,6 +4328,141 @@ async function subirImagenRapida(idTarea) {
     fileInput.click();
 }
 
+window.procesarFotosRapidasSwal = async function(idTarea, inputElement) {
+    const files = Array.from(inputElement.files);
+    if (!files.length) return;
+    
+    // Reset file input value so same files can be selected again if needed
+    inputElement.value = '';
+
+    Swal.fire({ 
+        title: 'Procesando...', 
+        html: `<p>Comprimiendo ${files.length} imagen(es)...</p><p style="font-size:0.8rem;color:#999;">Esto ahorra tiempo de subida y datos</p>`, 
+        allowOutsideClick: false, 
+        didOpen: () => { Swal.showLoading() } 
+    });
+    
+    let subidas = 0;
+    let errores = 0;
+    let totalOriginalKB = 0;
+    let totalOptimizedKB = 0;
+    
+    for (const file of files) {
+        try {
+            const { base64, originalKB, optimizedKB } = await optimizarImagen(file, { maxSize: 1024, quality: 0.70 });
+            totalOriginalKB += originalKB;
+            totalOptimizedKB += optimizedKB;
+            
+            const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
+                method: 'POST', 
+                headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
+            });
+            if (!resp.ok) throw new Error('Error al subir');
+            subidas++;
+        } catch(err) { errores++; }
+    }
+    
+    Swal.close();
+    if (subidas > 0) {
+        const ahorro = totalOriginalKB > 0 ? Math.round((1 - totalOptimizedKB / totalOriginalKB) * 100) : 0;
+        mostrarToast(`📸 ${subidas} foto(s) guardadas ✅ (-${ahorro}%)`, 'success');
+    } else {
+        mostrarToast('Error al subir imágenes', 'error');
+    }
+    
+    if (typeof cargarTareasEmpleado === 'function') cargarTareasEmpleado();
+    if (USUARIO.rol === 'SUPERVISOR') cargarMisTareasAsignadasSupervisor();
+    if (TAREA_ACTUAL && TAREA_ACTUAL.id_tarea === idTarea) verDetalleTarea(idTarea);
+};
+
+// Galería Interactiva de Evidencias (Managers/Supervisors)
+window.abrirGaleriaEvidencias = function(evidenciasStr, startIndex) {
+    try {
+        const evidencias = JSON.parse(decodeURIComponent(evidenciasStr));
+        if (!evidencias || !evidencias.length) return;
+        
+        let currentIndex = startIndex || 0;
+        
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);user-select:none;flex-direction:column;';
+        
+        // Header (Close button & counter)
+        const header = document.createElement('div');
+        header.style.cssText = 'position:absolute;top:0;left:0;right:0;padding:20px;display:flex;justify-content:space-between;align-items:center;color:white;font-weight:700;background:linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);';
+        
+        const counter = document.createElement('div');
+        counter.innerHTML = `📸 <span id="gal-counter">${currentIndex + 1}</span> / ${evidencias.length}`;
+        
+        const closeBtn = document.createElement('div');
+        closeBtn.innerHTML = '❌ Cerrar';
+        closeBtn.style.cssText = 'cursor:pointer;background:rgba(255,255,255,0.1);padding:6px 12px;border-radius:20px;backdrop-filter:blur(4px);font-size:0.85rem;';
+        closeBtn.onclick = () => overlay.remove();
+        
+        header.appendChild(counter);
+        header.appendChild(closeBtn);
+        
+        // Image Container
+        const imgContainer = document.createElement('div');
+        imgContainer.style.cssText = 'position:relative;width:100%;height:80%;display:flex;align-items:center;justify-content:center;';
+        
+        const img = document.createElement('img');
+        img.style.cssText = 'max-width:96vw;max-height:85vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.9);object-fit:contain;transition:opacity 0.2s;';
+        imgContainer.appendChild(img);
+        
+        // Navigation Buttons (Left/Right)
+        const btnStyle = 'position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);color:white;border:none;border-radius:50%;width:50px;height:50px;font-size:1.5rem;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(4px);z-index:2;';
+        
+        const prevBtn = document.createElement('button');
+        prevBtn.innerHTML = '❮';
+        prevBtn.style.cssText = btnStyle + 'left:20px;';
+        
+        const nextBtn = document.createElement('button');
+        nextBtn.innerHTML = '❯';
+        nextBtn.style.cssText = btnStyle + 'right:20px;';
+        
+        const updateGallery = () => {
+            img.style.opacity = '0';
+            setTimeout(() => {
+                const evData = evidencias[currentIndex];
+                img.src = evData.contenido || '';
+                img.style.opacity = '1';
+                counter.innerHTML = `📸 ${currentIndex + 1} / ${evidencias.length}`;
+                
+                prevBtn.style.display = currentIndex > 0 ? 'flex' : 'none';
+                nextBtn.style.display = currentIndex < evidencias.length - 1 ? 'flex' : 'none';
+            }, 100);
+        };
+        
+        prevBtn.onclick = (e) => { e.stopPropagation(); if (currentIndex > 0) { currentIndex--; updateGallery(); } };
+        nextBtn.onclick = (e) => { e.stopPropagation(); if (currentIndex < evidencias.length - 1) { currentIndex++; updateGallery(); } };
+        
+        imgContainer.appendChild(prevBtn);
+        imgContainer.appendChild(nextBtn);
+        
+        overlay.appendChild(header);
+        overlay.appendChild(imgContainer);
+        
+        // Global Keyboard Navigation
+        const keydownHandler = (e) => {
+            if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updateGallery(); }
+            if (e.key === 'ArrowRight' && currentIndex < evidencias.length - 1) { currentIndex++; updateGallery(); }
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', keydownHandler); }
+        };
+        document.addEventListener('keydown', keydownHandler);
+        
+        // Prevent closing overlay if clicking buttons or image explicitly
+        img.onclick = (e) => e.stopPropagation();
+        overlay.onclick = () => { overlay.remove(); document.removeEventListener('keydown', keydownHandler); };
+        
+        document.body.appendChild(overlay);
+        updateGallery();
+        
+    } catch(err) {
+        console.error('Error abriendo galería:', err);
+    }
+};
+
 async function eliminarTarea(id) {
     if (!confirm('¿Eliminar esta tarea?')) return;
     try {
@@ -4335,14 +4560,20 @@ function renderizarEvidencias(evidencias) {
 
     // Lazy load each evidence
     if (TAREA_ACTUAL) {
-        evidencias.forEach(ev => {
+        evidencias.forEach((ev, idx) => {
             fetchAPI(`/api/tareas/${TAREA_ACTUAL.id_tarea}/evidencias/${ev.id_evidencia}`).then(evData => {
+                
+                // Conservar para la galería
+                evidencias[idx].contenido = evData.contenido || evData.texto || '';
+
                 const el = document.getElementById(`modal-ev-${ev.id_evidencia}`);
                 if (!el) return;
                 const contentDiv = el.querySelector('div[style*="min-height"]');
                 if (!contentDiv) return;
+                
                 if (evData.tipo === 'imagen' && evData.contenido) {
-                    contentDiv.innerHTML = `<img src="${evData.contenido}" alt="Evidencia" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid var(--border-color);cursor:pointer;" onclick="abrirImagenCompleta('${evData.contenido.replace(/'/g, "\\'")}')" >`;
+                    contentDiv.innerHTML = `<img src="${evData.contenido}" alt="Evidencia" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid var(--border-color);cursor:pointer;" onclick="abrirGaleriaEvidencias('${encodeURIComponent(JSON.stringify(evidencias))}', ${idx})" >
+                    <div style="font-size:0.75rem;color:var(--accent-primary);cursor:pointer;margin-top:4px;" onclick="abrirGaleriaEvidencias('${encodeURIComponent(JSON.stringify(evidencias))}', ${idx})">🔍 Ver Galería completa</div>`;
                 } else if (evData.contenido) {
                     contentDiv.innerHTML = `<p style="font-size:0.88rem;color:var(--text-secondary);margin:0;">${evData.contenido.substring(0, 200)}</p>`;
                 }
@@ -4968,8 +5199,8 @@ async function verificarEstadoCheckin() {
         } else {
             CHECKIN_ACTIVO = false;
             actualizarUICheckin(false);
-            // Mostrar overlay obligatorio para empleados
-            if (USUARIO && USUARIO.rol === 'EMPLEADO') {
+            // Mostrar overlay obligatorio para TODOS los roles de campo
+            if (USUARIO && (USUARIO.rol === 'EMPLEADO' || USUARIO.rol === 'SUPERVISOR' || USUARIO.rol === 'GERENTE')) {
                 mostrarOverlayPresente();
             }
         }
@@ -4977,6 +5208,8 @@ async function verificarEstadoCheckin() {
 }
 
 function mostrarOverlayPresente() {
+    // Solo mostrar el overlay si estamos en la vista correspondiente (para evitar que GERENTE lo vea antes de tiempo o bug visual)
+    if (!USUARIO) return;
     // Remover si ya existe
     let overlay = document.getElementById('overlay-presente');
     if (overlay) overlay.remove();
@@ -5400,14 +5633,19 @@ function cerrarSesionGeofence(motivo) {
 function actualizarUICheckin(presente) {
     const btnEmp = document.getElementById('emp-btn-checkin');
     const btnSup = document.getElementById('sup-btn-checkin');
+    const btnGer = document.getElementById('ger-btn-checkin');
+    
     const widgetEmp = document.getElementById('emp-checkin-widget');
     const widgetSup = document.getElementById('sup-checkin-widget');
+    const widgetGer = document.getElementById('ger-checkin-widget');
+    
     const labelEmp = document.getElementById('emp-checkin-label');
     const labelSup = document.getElementById('sup-checkin-label');
+    const labelGer = document.getElementById('ger-checkin-label');
 
-    const btns = [btnEmp, btnSup].filter(Boolean);
-    const widgets = [widgetEmp, widgetSup].filter(Boolean);
-    const labels = [labelEmp, labelSup].filter(Boolean);
+    const btns = [btnEmp, btnSup, btnGer].filter(Boolean);
+    const widgets = [widgetEmp, widgetSup, widgetGer].filter(Boolean);
+    const labels = [labelEmp, labelSup, labelGer].filter(Boolean);
 
     if (presente) {
         btns.forEach(btn => {
@@ -5525,7 +5763,7 @@ async function cargarAsistenciaAdmin() {
                         const estadoColor = r.estado === 'presente' ? '#10b981' : '#6366f1';
                         const estadoTexto = r.estado === 'presente' ? '✅ Presente' : '📤 Salió';
                         return `<tr style="border-bottom:1px solid var(--border-color);">
-                            <td style="padding:8px 6px;font-weight:500;">${r.nombre_usuario || '—'}</td>
+                            <td style="padding:8px 6px;font-weight:600;"><a href="#" onclick="event.preventDefault(); abrirHistorialAsistencia('${r.id_usuario}', '${r.nombre_usuario || ''}')" style="color:var(--accent-primary);text-decoration:none;">${r.nombre_usuario || '—'}</a></td>
                             <td style="padding:8px 6px;">${r.telefono || '—'}</td>
                             <td style="padding:8px 6px;">${formatearFecha(r.fecha)}</td>
                             <td style="padding:8px 6px;color:#10b981;">${horaEnt}</td>
@@ -5542,6 +5780,116 @@ async function cargarAsistenciaAdmin() {
         console.error('Error cargando asistencia:', err);
     }
 }
+
+async function cargarAsistenciaSup() {
+    try {
+        const fecha = document.getElementById('filtro-sup-asistencia-fecha')?.value || '';
+        let url = '/api/asistencia';
+        if (fecha) url += `?fecha=${fecha}`;
+
+        const registros = await fetchAPI(url);
+
+        const presentes = registros.filter(r => r.estado === 'presente').length;
+        const salieron = registros.filter(r => r.estado === 'salida').length;
+        const elP = document.getElementById('sup-ast-presentes'); if(elP) elP.textContent = presentes;
+        const elS = document.getElementById('sup-ast-salieron'); if(elS) elS.textContent = salieron;
+        const elT = document.getElementById('sup-ast-total'); if(elT) elT.textContent = registros.length;
+
+        const container = document.getElementById('tabla-sup-asistencia');
+        if (!registros.length) {
+            container.innerHTML = '<div class="empty-state"><p>No hay registros de asistencia</p></div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border-color);text-align:left;">
+                        <th style="padding:8px 6px;">👤 Nombre</th>
+                        <th style="padding:8px 6px;">📱 Teléfono</th>
+                        <th style="padding:8px 6px;">📅 Fecha</th>
+                        <th style="padding:8px 6px;">🟢 Entrada</th>
+                        <th style="padding:8px 6px;">🔴 Salida</th>
+                        <th style="padding:8px 6px;">⏱ Duración</th>
+                        <th style="padding:8px 6px;">📍 Ubicación</th>
+                        <th style="padding:8px 6px;">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${registros.map(r => {
+                        const horaEnt = r.hora_entrada ? new Date(r.hora_entrada).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) : '-';
+                        const horaSal = r.hora_salida ? new Date(r.hora_salida).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) : '-';
+                        const duracion = r.duracion_minutos ? `${Math.floor(r.duracion_minutos/60)}h ${r.duracion_minutos%60}m` : '—';
+                        const ubicacion = r.lat_entrada ? `<a href="https://maps.google.com/?q=${r.lat_entrada},${r.lng_entrada}" target="_blank" style="color:#3b82f6;text-decoration:none;">📍 Ver mapa</a>` : '—';
+                        const estadoColor = r.estado === 'presente' ? '#10b981' : '#6366f1';
+                        const estadoTexto = r.estado === 'presente' ? '✅ Presente' : '📤 Salió';
+                        return `<tr style="border-bottom:1px solid var(--border-color);">
+                            <td style="padding:8px 6px;font-weight:600;"><a href="#" onclick="event.preventDefault(); abrirHistorialAsistencia('${r.id_usuario}', '${r.nombre_usuario || ''}')" style="color:var(--accent-primary);text-decoration:none;">${r.nombre_usuario || '—'}</a></td>
+                            <td style="padding:8px 6px;">${r.telefono || '—'}</td>
+                            <td style="padding:8px 6px;">${formatearFecha(r.fecha)}</td>
+                            <td style="padding:8px 6px;color:#10b981;">${horaEnt}</td>
+                            <td style="padding:8px 6px;color:#ef4444;">${horaSal}</td>
+                            <td style="padding:8px 6px;font-weight:600;">${duracion}</td>
+                            <td style="padding:8px 6px;">${ubicacion}</td>
+                            <td style="padding:8px 6px;"><span style="color:${estadoColor};font-weight:600;font-size:0.72rem;">${estadoTexto}</span></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (err) {
+        console.error('Error cargando asistencia sup:', err);
+    }
+}
+
+async function abrirHistorialAsistencia(id_usuario, nombre) {
+    try {
+        const registros = await fetchAPI(`/api/asistencia?id_usuario=${id_usuario}`);
+        document.getElementById('historial-asistencia-titulo').textContent = `Historial Asistencia: ${nombre}`;
+        const container = document.getElementById('tabla-historial-asistencia');
+        
+        if (!registros.length) {
+            container.innerHTML = '<div class="empty-state"><p>No hay historial para este usuario</p></div>';
+        } else {
+            container.innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border-color);text-align:left;">
+                            <th style="padding:8px 6px;">📅 Fecha</th>
+                            <th style="padding:8px 6px;">🟢 Entrada</th>
+                            <th style="padding:8px 6px;">🔴 Salida</th>
+                            <th style="padding:8px 6px;">⏱ Duración</th>
+                            <th style="padding:8px 6px;">📍 Ubicación</th>
+                            <th style="padding:8px 6px;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${registros.map(r => {
+                            const horaEnt = r.hora_entrada ? new Date(r.hora_entrada).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) : '-';
+                            const horaSal = r.hora_salida ? new Date(r.hora_salida).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) : '-';
+                            const duracion = r.duracion_minutos ? `${Math.floor(r.duracion_minutos/60)}h ${r.duracion_minutos%60}m` : '—';
+                            const ubicacion = r.lat_entrada ? `<a href="https://maps.google.com/?q=${r.lat_entrada},${r.lng_entrada}" target="_blank" style="color:#3b82f6;text-decoration:none;">📍 Ver mapa</a>` : '—';
+                            const estadoColor = r.estado === 'presente' ? '#10b981' : '#6366f1';
+                            const estadoTexto = r.estado === 'presente' ? '✅ Presente' : '📤 Salió';
+                            return `<tr style="border-bottom:1px solid var(--border-color);">
+                                <td style="padding:8px 6px;font-weight:600;">${formatearFecha(r.fecha)}</td>
+                                <td style="padding:8px 6px;color:#10b981;">${horaEnt}</td>
+                                <td style="padding:8px 6px;color:#ef4444;">${horaSal}</td>
+                                <td style="padding:8px 6px;font-weight:600;">${duracion}</td>
+                                <td style="padding:8px 6px;">${ubicacion}</td>
+                                <td style="padding:8px 6px;"><span style="color:${estadoColor};font-weight:600;font-size:0.72rem;">${estadoTexto}</span></td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        document.getElementById('modal-historial-asistencia').style.display = 'flex';
+    } catch(e) {
+        mostrarToast('Error cargando historial', 'error');
+    }
+}
+
 
 // ═══════════════════════════════════════════
 // CONFIGURACIÓN EMPRESA Y PERMISOS
