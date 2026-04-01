@@ -90,14 +90,14 @@ router.post('/', verificarToken, verificarRol('ADMIN', 'SUPERVISOR', 'GERENTE'),
             await db.run(`
                 INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor,
                     id_creador, prioridad, estado, fecha_creacion,
-                    tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, 1, ?, ?, ?, ?)
+                    tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente, fecha_seguimiento)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, 1, ?, ?, ?, ?, ?)
             `, idSeguimiento, id_empresa, codSeg,
                `Seguimiento cliente: ${nombre_cliente}`,
                `Seguimiento programado para el ${fecha_seguimiento} con ${nombre_cliente}`,
                id_empleado || null, supervisorFinal, id_creador,
                prioridad || 'media', new Date().toISOString(),
-               codigoClienteFinal, nombre_cliente, telefono_cliente || null, correo_cliente || null);
+               codigoClienteFinal, nombre_cliente, telefono_cliente || null, correo_cliente || null, fecha_seguimiento);
             await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4(), idSeguimiento);
             if (id_empleado) {
                 await db.run(`INSERT INTO notificaciones (id_notificacion, id_usuario, titulo, mensaje, tipo) VALUES (?, ?, ?, ?, 'nueva_tarea')`,

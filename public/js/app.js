@@ -2291,7 +2291,9 @@ async function cargarTareasEmpleado() {
             if (['finalizada', 'finalizada_atrasada', 'cancelada'].includes(t.estado)) return false;
 
             // Pendientes: solo si son para hoy o ya pasaron
-            const fObj = parseFechaDBSeguro(t.fecha_programada || t.fecha_creacion);
+            // Prioridad: fecha_seguimiento > fecha_programada > fecha_creacion
+            const fechaRef = t.fecha_seguimiento || t.fecha_programada || t.fecha_creacion;
+            const fObj = parseFechaDBSeguro(fechaRef);
             if (!fObj) return true;
             if (fObj > hoySinHora) {
                 const esHoy = fObj.getFullYear() === hoySinHora.getFullYear() && fObj.getMonth() === hoySinHora.getMonth() && fObj.getDate() === hoySinHora.getDate();
