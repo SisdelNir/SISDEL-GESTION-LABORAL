@@ -906,13 +906,13 @@ router.put('/:id/seguimiento-cliente', verificarToken, async (req, res) => {
             const tituloSeguimiento = `Seguimiento cliente: ${nuevoNombre}`;
             await db.run(
                 `INSERT INTO tareas (id_tarea, id_empresa, codigo_tarea, titulo, descripcion, id_empleado, id_supervisor, id_creador, prioridad, estado, fecha_creacion,
-                    tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, 1, ?, ?, ?, ?)`,
+                    tiene_cliente, codigo_cliente, nombre_cliente, telefono_cliente, correo_cliente, fecha_seguimiento)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, 1, ?, ?, ?, ?, ?)`,
                 nuevaTareaId, req.usuario.id_empresa, codigo_tarea, tituloSeguimiento,
                 `Seguimiento programado para cliente ${nuevoNombre} a partir de la tarea "${tarea.titulo}"`,
                 tarea.id_empleado, tarea.id_supervisor, req.usuario.id_usuario,
                 tarea.prioridad || 'media', new Date().toISOString(),
-                nuevoCodigo, nuevoNombre, nuevoTel, nuevoCorreo
+                nuevoCodigo, nuevoNombre, nuevoTel, nuevoCorreo, fecha_seguimiento
             );
             await db.run(`INSERT INTO seguimiento_tiempo (id_seguimiento, id_tarea) VALUES (?, ?)`, uuidv4Local(), nuevaTareaId);
             if (tarea.id_empleado) {
