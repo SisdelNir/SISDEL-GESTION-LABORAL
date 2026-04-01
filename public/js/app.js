@@ -1015,6 +1015,65 @@ async function guardarObsInline(idTarea, silente = false) {
     }
 }
 
+// ═══════════════════════════════════════════
+// NOTAS TEXTO DEL EMPLEADO (inline en tarjetas)
+// ═══════════════════════════════════════════
+let _notasInlineTimers = {};
+
+function toggleNotasInline(idTarea) {
+    const panel = document.getElementById(`notas-inline-${idTarea}`);
+    if (!panel) return;
+    if (panel.style.display === 'none') {
+        document.querySelectorAll('.obs-inline-panel').forEach(p => {
+            if (p.id !== `notas-inline-${idTarea}`) p.style.display = 'none';
+        });
+        panel.style.display = 'block';
+        const textarea = document.getElementById(`notas-text-${idTarea}`);
+        if (textarea) textarea.focus();
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function autoguardarNotasInline(idTarea) {
+    clearTimeout(_notasInlineTimers[idTarea]);
+    const status = document.getElementById(`notas-status-${idTarea}`);
+    if (status) { status.textContent = '⏳ Guardando...'; status.style.color = '#f59e0b'; }
+    _notasInlineTimers[idTarea] = setTimeout(() => guardarNotasInline(idTarea, true), 2000);
+}
+
+async function guardarNotasInline(idTarea, silente = false) {
+    const textarea = document.getElementById(`notas-text-${idTarea}`);
+    if (!textarea) return;
+    const texto = textarea.value || '';
+    const status = document.getElementById(`notas-status-${idTarea}`);
+    try {
+        await fetchAPI(`/api/tareas/${idTarea}/notas`, {
+            method: 'PUT',
+            body: JSON.stringify({ notas_empleado: texto })
+        });
+        if (status) { status.textContent = '✅ Guardado'; status.style.color = '#10b981'; }
+        if (!silente) mostrarToast('✏️ Texto guardado', 'success');
+        // Actualizar badge del botón
+        const card = document.getElementById(`emp-card-${idTarea}`);
+        if (card) {
+            const btn = card.querySelector('[onclick*="toggleNotasInline"]');
+            if (btn) {
+                const hasBadge = btn.querySelector('span[style*="background:#f59e0b"]');
+                if (texto.trim() && !hasBadge) {
+                    btn.insertAdjacentHTML('beforeend', ' <span style="background:#f59e0b;color:white;font-size:0.6rem;padding:1px 6px;border-radius:99px;font-weight:700;">✓</span>');
+                } else if (!texto.trim() && hasBadge) {
+                    hasBadge.remove();
+                }
+            }
+        }
+        setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+    } catch(e) {
+        if (status) { status.textContent = '❌ Error'; status.style.color = '#ef4444'; }
+        if (!silente) mostrarToast(e.message || 'Error al guardar notas', 'error');
+    }
+}
+
 async function crearEmpresa(e) {
     if (e && e.preventDefault) e.preventDefault();
 
@@ -2460,6 +2519,20 @@ async function cargarTareasEmpleado() {
                     </button>
                 </div>`;
 
+            // Botón de notas/texto adicional del empleado
+            const tieneNotas = t.notas_empleado && t.notas_empleado.trim().length > 0;
+            const notasBtn = `
+                <div style="margin-top:8px;">
+                    <button onclick="event.stopPropagation(); toggleNotasInline('${t.id_tarea}')"
+                        style="width:100%;padding:7px 14px;border-radius:9px;border:none;cursor:pointer;font-size:0.78rem;font-weight:600;
+                               background:${tieneNotas ? 'linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.08))' : 'linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.04))'};
+                               color:${tieneNotas ? '#f59e0b' : '#fbbf24'};
+                               border:1px solid ${tieneNotas ? 'rgba(245,158,11,0.3)' : 'rgba(245,158,11,0.2)'};
+                               display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;">
+                        ✏️ Agregar Texto ${tieneNotas ? '<span style="background:#f59e0b;color:white;font-size:0.6rem;padding:1px 6px;border-radius:99px;font-weight:700;">✓</span>' : ''}
+                    </button>
+                </div>`;
+
             return `
                 <div class="emp-tarea-card" id="emp-card-${t.id_tarea}">
                     <div class="tarea-info">
@@ -2477,6 +2550,7 @@ async function cargarTareasEmpleado() {
                         ${evidenciaBtns}
                         ${clienteBtn}
                         ${obsBtn}
+                        ${notasBtn}
                     </div>
                     <div class="crono-container" style="flex-shrink:0;margin:0;padding:10px 14px;min-width:auto;flex-wrap:wrap;justify-content:center;">
                         <span style="font-size:1rem;">⏱</span>
@@ -2498,6 +2572,24 @@ async function cargarTareasEmpleado() {
                         <span style="font-size:0.68rem;color:var(--text-muted);">💡 Se guarda automáticamente</span>
                         <button class="btn btn-sm" onclick="guardarObsInline('${t.id_tarea}')"
                             style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;font-size:0.72rem;padding:5px 14px;border-radius:8px;">
+                            💾 Guardar
+                        </button>
+                    </div>
+                </div>
+                <!-- Panel de notas/texto del empleado inline -->
+                <div id="notas-inline-${t.id_tarea}" class="obs-inline-panel" style="display:none;margin:-6px 0 10px 0;padding:14px 16px;background:linear-gradient(135deg,rgba(245,158,11,0.06),rgba(245,158,11,0.03));border:1px solid rgba(245,158,11,0.2);border-radius:0 0 14px 14px;animation:slideDown 0.25s ease;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <span style="font-size:0.78rem;font-weight:700;color:#f59e0b;">✏️ Texto sobre la tarea</span>
+                        <span id="notas-status-${t.id_tarea}" style="font-size:0.65rem;color:var(--text-muted);"></span>
+                    </div>
+                    <textarea id="notas-text-${t.id_tarea}" rows="3"
+                        placeholder="Escribe información adicional, reportes, avances, hallazgos..."
+                        style="width:100%;resize:vertical;border:1px solid rgba(245,158,11,0.25);border-radius:8px;background:rgba(245,158,11,0.04);font-size:0.82rem;padding:10px;color:var(--text-main);font-family:inherit;"
+                        oninput="autoguardarNotasInline('${t.id_tarea}')">${t.notas_empleado || ''}</textarea>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                        <span style="font-size:0.68rem;color:var(--text-muted);">💡 Se guarda automáticamente</span>
+                        <button class="btn btn-sm" onclick="guardarNotasInline('${t.id_tarea}')"
+                            style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:0.72rem;padding:5px 14px;border-radius:8px;">
                             💾 Guardar
                         </button>
                     </div>

@@ -849,6 +849,25 @@ router.put('/:id/observaciones', verificarToken, async (req, res) => {
 });
 
 /**
+ * PUT /api/tareas/:id/notas
+ * El empleado guarda texto/notas adicionales sobre la tarea
+ */
+router.put('/:id/notas', verificarToken, async (req, res) => {
+    try {
+        const { notas_empleado } = req.body;
+        const tarea = await db.get('SELECT * FROM tareas WHERE id_tarea = ? AND eliminado = 0', req.params.id);
+        if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+        if (tarea.id_empleado !== req.usuario.id_usuario && req.usuario.rol !== 'ADMIN') {
+            return res.status(403).json({ error: 'Solo el empleado asignado puede agregar notas' });
+        }
+        await db.run('UPDATE tareas SET notas_empleado = ? WHERE id_tarea = ?', notas_empleado || '', req.params.id);
+        res.json({ mensaje: 'Notas guardadas' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
  * PUT /api/tareas/:id/seguimiento-cliente
  * Actualiza datos del cliente (obs, fecha seguimiento) y si se pone fecha,
  * crea automáticamente una nueva tarea programada para ese día.
