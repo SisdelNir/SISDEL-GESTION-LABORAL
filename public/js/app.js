@@ -1349,17 +1349,41 @@ async function eliminarEmpresa(id, nombre) {
         <div class="modal glass" style="max-width:400px;padding:2rem;text-align:center">
             <h3 style="color:#ff5252">⚠️ Eliminar Empresa</h3>
             <p style="margin:1rem 0">¿Estás seguro de eliminar <strong>"${nombre}"</strong>?</p>
-            <p style="font-size:0.8rem;color:var(--text-muted)">Se desactivarán todos los usuarios</p>
-            <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1.5rem">
+            <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">Se desactivarán todos los usuarios y grupos asociados.</p>
+            <div style="text-align:left;margin-bottom:1.5rem">
+                <label style="font-size:0.85rem;font-weight:600;color:var(--text-main);display:block;margin-bottom:5px">🔐 Clave de Programador</label>
+                <input type="password" id="input-clave-eliminar" placeholder="Ingresa la clave ROOT" class="input" style="width:100%;text-align:center" />
+            </div>
+            <div style="display:flex;gap:0.5rem;justify-content:center">
                 <button class="btn btn-ghost" onclick="document.getElementById('modal-confirmar-eliminar').remove()">Cancelar</button>
                 <button class="btn" style="background:#ff5252;color:white" id="btn-confirmar-eliminar">🗑️ Eliminar</button>
             </div>
         </div>
     `;
     document.body.appendChild(m);
+    
+    // Focus automatically on input
+    setTimeout(() => document.getElementById('input-clave-eliminar').focus(), 100);
+
     document.getElementById('btn-confirmar-eliminar').onclick = async function() {
-        const res = await fetchAPI(`/api/empresas/${id}`, { method:'DELETE' });
-        if (res.error) return mostrarToast(res.error, 'error');
+        const clave = document.getElementById('input-clave-eliminar').value.trim();
+        if (!clave) return mostrarToast('Debes ingresar la clave de programador', 'warning');
+
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Eliminando...';
+
+        const res = await fetchAPI(`/api/empresas/${id}`, { 
+            method: 'DELETE',
+            body: JSON.stringify({ codigo_root: clave })
+        });
+
+        if (res.error) {
+            btn.disabled = false;
+            btn.innerHTML = '🗑️ Eliminar';
+            return mostrarToast(res.error, 'error');
+        }
+
         mostrarToast('✅ Empresa eliminada', 'success');
         m.remove();
         cargarEmpresas();

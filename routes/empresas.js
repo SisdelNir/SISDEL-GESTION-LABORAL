@@ -314,6 +314,11 @@ router.get('/:id/departamentos', verificarToken, async (req, res) => {
  */
 router.delete('/:id', verificarToken, verificarRoot, async (req, res) => {
     try {
+        const { codigo_root } = req.body;
+        if (codigo_root !== process.env.ROOT_CODE) {
+            return res.status(401).json({ error: 'Clave de programador incorrecta' });
+        }
+        
         const idEmpresa = req.params.id;
         const ahora = new Date().toISOString();
         await db.run(`UPDATE empresas SET eliminado = 1, fecha_eliminacion = ? WHERE id_empresa = ?`, ahora, idEmpresa);
