@@ -4407,11 +4407,14 @@ window.tomarSubirFotoDirecto = function(idTarea) {
         }).join('');
 
         await Swal.fire({
-            title: `📸 Subiendo ${files.length} foto(s)`,
-            html: `<div id="fotos-lista" style="text-align:left;max-height:280px;overflow-y:auto;">${renderLista()}</div>`,
+            title: `📸 ${files.length} foto(s) listas`,
+            html: `<p style="font-size:0.9rem;margin-bottom:10px;">Presiona el botón de abajo para subirlas a la tarea.</p><div id="fotos-lista" style="text-align:left;max-height:280px;overflow-y:auto;">${renderLista()}</div>`,
             allowOutsideClick: false,
-            showConfirmButton: false,
-            didOpen: async () => {
+            showCancelButton: true,
+            showConfirmButton: true,
+            confirmButtonText: `☁️ Subir ${files.length} foto(s)`,
+            cancelButtonText: 'Cancelar',
+            preConfirm: async () => {
                 let subidas = 0;
                 let errores = 0;
 
@@ -4459,7 +4462,6 @@ window.tomarSubirFotoDirecto = function(idTarea) {
                 }
 
                 await new Promise(r => setTimeout(r, 800));
-                Swal.close();
                 
                 if (subidas > 0) {
                     mostrarToast(`📸 ${subidas} foto(s) subida(s) ✅`, 'success');
@@ -4710,83 +4712,7 @@ async function enviarEvidencia() {
 
 async function subirImagenEvidencia() {
     if (!TAREA_ACTUAL) return;
-    const idTarea = TAREA_ACTUAL.id_tarea;
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.multiple = true;
-
-    fileInput.onchange = async (e) => {
-        const files = Array.from(e.target.files);
-        if (!files.length) return;
-
-        // Estado por foto: { nombre, status: 'wait'|'ok'|'error' }
-        const estados = files.map(f => ({ nombre: f.name, status: 'wait' }));
-
-        const renderLista = () => estados.map((s, i) => {
-            const icono = s.status === 'ok' ? '✅' : s.status === 'error' ? '❌' : '⏳';
-            const color = s.status === 'ok' ? '#10b981' : s.status === 'error' ? '#ef4444' : '#f59e0b';
-            return `<div id="ev-row-${i}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:4px;">
-                <span style="font-size:1rem;min-width:24px;text-align:center;">${icono}</span>
-                <span style="font-size:0.8rem;color:${color};word-break:break-all;flex:1;">${s.nombre}</span>
-            </div>`;
-        }).join('');
-
-        await Swal.fire({
-            title: `📸 Subiendo ${files.length} foto(s)`,
-            html: `<div id="ev-lista" style="text-align:left;max-height:280px;overflow-y:auto;">${renderLista()}</div>`,
-            allowOutsideClick: false,
-            showConfirmButton: false,
-            didOpen: async () => {
-                let subidas = 0;
-                let errores = 0;
-
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    // Actualizar el DOM dentro del Swal
-                    const updateRow = (status) => {
-                        estados[i].status = status;
-                        const lista = document.getElementById('ev-lista');
-                        if (lista) lista.innerHTML = renderLista();
-                    };
-
-                    try {
-                        const { base64 } = await optimizarImagen(file, { maxSize: 1024, quality: 0.70 });
-                        const resp = await fetch(`/api/tareas/${idTarea}/evidencias/base64`, {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ tipo: 'imagen', contenido: base64 })
-                        });
-                        if (resp.ok) {
-                            updateRow('ok');
-                            subidas++;
-                        } else {
-                            const errData = await resp.json().catch(() => ({}));
-                            console.error(`❌ Error subiendo ${file.name}:`, errData);
-                            updateRow('error');
-                            errores++;
-                        }
-                    } catch (err) {
-                        console.error(`❌ Error procesando ${file.name}:`, err);
-                        updateRow('error');
-                        errores++;
-                    }
-                }
-
-                // Pequeña pausa para que el usuario vea el resultado
-                await new Promise(r => setTimeout(r, 700));
-                Swal.close();
-
-                if (subidas > 0) {
-                    mostrarToast(`📸 ${subidas} foto(s) subida(s)${errores > 0 ? ` · ${errores} fallida(s)` : ''} ✅`, 'success');
-                    verDetalleTarea(idTarea);
-                } else {
-                    mostrarToast('No se pudo subir ninguna imagen. Revisa tu conexión.', 'error');
-                }
-            }
-        });
-    };
-    fileInput.click();
+    tomarSubirFotoDirecto(TAREA_ACTUAL.id_tarea);
 }
 
 // Historial
