@@ -1458,26 +1458,31 @@ select {
         min-width: 0 !important;
     }
 
-    /* ═══ STATS GRID MOBILE — 2x2 ═══ */
+    /* ═══ STATS GRID MOBILE — 2x2 COMPACTO ═══ */
     #pantalla-empleado .stats-grid,
     #pantalla-supervisor .stats-grid {
         grid-template-columns: 1fr 1fr !important;
-        gap: 10px;
+        gap: 8px;
+        margin-bottom: 12px !important;
     }
     #pantalla-empleado .stat-card,
     #pantalla-supervisor .stat-card {
-        padding: 14px 12px;
-        gap: 10px;
+        padding: 10px 10px;
+        gap: 8px;
     }
     #pantalla-empleado .stat-icon,
     #pantalla-supervisor .stat-icon {
-        width: 38px;
-        height: 38px;
-        font-size: 1.1rem;
+        width: 30px;
+        height: 30px;
+        font-size: 0.9rem;
     }
     #pantalla-empleado .stat-number,
     #pantalla-supervisor .stat-number {
-        font-size: 1.3rem;
+        font-size: 1.1rem;
+    }
+    #pantalla-empleado .stat-label,
+    #pantalla-supervisor .stat-label {
+        font-size: 0.68rem;
     }
 
     /* ═══ EVIDENCE THUMBNAILS — BIGGER ON MOBILE ═══ */
