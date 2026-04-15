@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🛡️ Panel de Agente — SISDEL</title>
+<link rel="stylesheet" href="css/panel.css">
+<style>
+* { box-sizing:border-box; }
+body { min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:.5rem; margin:0; }
+.agent-wrap { max-width:500px; width:100%; }
+.agent-card { background:#111325; border:1px solid #2a2d45; border-radius:12px; padding:1rem; margin-bottom:.8rem; }
+.agent-header { text-align:center; margin-bottom:1.2rem; }
+.agent-header h1 { font-size:1.2rem; color:#ffa500; margin:0; }
+.agent-header p { font-size:.75rem; color:#6b7294; margin:.3rem 0 0; }
+.login-input { width:100%; padding:.7rem 1rem; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px;
+    color:#fff; font-size:1.1rem; font-family:monospace; text-align:center; letter-spacing:3px; }
+.login-input:focus { border-color:#ffa500; outline:none; }
+.login-btn { width:100%; padding:.7rem; background:linear-gradient(135deg,#ffa500,#ff8c00); color:#fff;
+    font-weight:700; font-size:.9rem; border:none; border-radius:8px; cursor:pointer; margin-top:.6rem; }
+
+/* Top bar del agente */
+.agent-topbar { display:flex; justify-content:space-between; align-items:center; padding:.5rem .7rem;
+    background:rgba(0,214,143,.06); border:1px solid rgba(0,214,143,.2); border-radius:10px; margin-bottom:.6rem; }
+.agent-name { font-weight:700; color:#00d68f; font-size:.82rem; }
+.agent-code { font-size:.62rem; color:#6b7294; font-family:monospace; }
+.topbar-btns { display:flex; gap:.3rem; }
+.topbar-btn { background:rgba(77,166,255,.1); border:1px solid rgba(77,166,255,.25); color:#4da6ff;
+    padding:.25rem .5rem; border-radius:6px; font-size:.65rem; font-weight:700; cursor:pointer; }
+.topbar-btn.danger { color:#ff3b3b; border-color:rgba(255,59,59,.25); background:rgba(255,59,59,.08); }
+
+/* Caso cards */
+.caso-card { background:#111325; border:1px solid #2a2d45; border-radius:10px; padding:.7rem; margin-bottom:.7rem;
+    transition: border-color .3s; }
+.caso-card.activa { border-color:rgba(255,59,59,.4); }
+.caso-card.en_camino { border-color:rgba(255,165,0,.4); }
+.caso-card.atendida { border-color:rgba(0,214,143,.3); opacity:.7; }
+.caso-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.4rem; }
+.caso-numero { font-family:monospace; font-weight:900; color:#4da6ff; font-size:.85rem; }
+.caso-field { margin-bottom:.3rem; }
+.caso-label { font-size:.58rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; }
+.caso-val { font-size:.8rem; color:#fff; font-weight:600; }
+
+/* Badges */
+.badge { padding:.15rem .45rem; border-radius:5px; font-size:.65rem; font-weight:700; }
+.badge-act { background:rgba(255,59,59,.15); color:#ff3b3b; border:1px solid rgba(255,59,59,.3); }
+.badge-cam { background:rgba(255,165,0,.15); color:#ffa500; border:1px solid rgba(255,165,0,.3); }
+.badge-ok  { background:rgba(0,214,143,.15); color:#00d68f; border:1px solid rgba(0,214,143,.3); }
+
+/* Action buttons per case */
+.caso-actions { display:flex; gap:.4rem; margin-top:.5rem; }
+.caso-btn { flex:1; padding:.4rem; border-radius:7px; font-weight:700; font-size:.72rem; cursor:pointer; border:none; }
+.caso-btn.camino { background:rgba(255,165,0,.15); color:#ffa500; border:1px solid rgba(255,165,0,.3); }
+.caso-btn.atender { background:rgba(0,214,143,.15); color:#00d68f; border:1px solid rgba(0,214,143,.3); }
+.caso-btn.maps { background:rgba(77,166,255,.12); color:#4da6ff; border:1px solid rgba(77,166,255,.3); }
+
+/* Alerta nueva */
+@keyframes pulseNew {
+    0%,100% { box-shadow: 0 0 0 0 rgba(255,59,59,0.4); }
+    50% { box-shadow: 0 0 15px 5px rgba(255,59,59,0.3); }
+}
+.caso-card.nueva { animation: pulseNew 1.5s infinite; border-color: #ff3b3b; }
+
+/* Stats bar */
+.stats-bar { display:flex; gap:.4rem; margin-bottom:.6rem; }
+.stat-chip { flex:1; text-align:center; padding:.3rem; border-radius:8px; background:#111325; border:1px solid #2a2d45; }
+.stat-num { font-weight:900; font-size:1rem; }
+.stat-lbl { font-size:.55rem; color:#6b7294; text-transform:uppercase; }
+
+/* Sin casos */
+.empty-state { text-align:center; padding:2rem 1rem; color:#6b7294; }
+.empty-state .icon { font-size:2.5rem; margin-bottom:.5rem; }
+
+/* Alerta full-screen */
+.alerta-overlay {
+    display:none; position:fixed; inset:0; z-index:9999;
+    background:rgba(255,0,0,.85); flex-direction:column; align-items:center; justify-content:center;
+    animation: flashRed 0.5s infinite;
+}
+@keyframes flashRed {
+    0%,100% { background:rgba(255,0,0,.85); }
+    50% { background:rgba(200,0,0,.95); }
+}
+.alerta-overlay h2 { color:#fff; font-size:1.8rem; margin:0; text-shadow:0 2px 10px rgba(0,0,0,.5); }
+.alerta-overlay p { color:#fff; font-size:1rem; margin:.5rem 0; }
+.alerta-overlay .dismiss-btn {
+    margin-top:1.5rem; padding:.8rem 2rem; background:#fff; color:#ff0000;
+    font-weight:900; font-size:1.1rem; border:none; border-radius:12px; cursor:pointer;
+}
+.activar-sonido { width:100%; padding:.5rem; background:rgba(255,165,0,.15); color:#ffa500;
+    border:1px solid rgba(255,165,0,.3); border-radius:8px; font-size:.72rem; font-weight:700;
+    cursor:pointer; margin-bottom:.5rem; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="agent-wrap" id="login-view">
+    <div class="agent-header" style="margin-top:3rem;">
+        <div style="font-size:2.5rem;">🛡️</div>
+        <h1>Panel de Agente</h1>
+        <p>Ingresa tu código de acceso o documento de identificación</p>
+    </div>
+    <div class="agent-card">
+        <input type="text" id="agent-id" class="login-input" placeholder="Ej: PSS110"
+               autocomplete="off" autofocus>
+        <button class="login-btn" onclick="loginAgente()">🔐 Ingresar</button>
+        <div id="login-error" style="display:none; margin-top:.5rem; text-align:center; color:#ff3b3b; font-size:.78rem;"></div>
+    </div>
+    <p style="text-align:center; font-size:.65rem; color:#6b7294;">Botón de Pánico SISDEL v1.0</p>
+</div>
+
+<!-- PANEL DE CASOS -->
+<div class="agent-wrap" id="casos-view" style="display:none;">
+    <div class="agent-topbar">
+        <div>
+            <div class="agent-name" id="agent-nombre">👮 Agente</div>
+            <div class="agent-code" id="agent-codigo">Código: ---</div>
+        </div>
+        <div class="topbar-btns">
+            <button class="topbar-btn" onclick="cargarMisCasos()">🔄</button>
+            <button class="topbar-btn danger" onclick="logout()">Salir</button>
+        </div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-chip"><div class="stat-num" style="color:#ff3b3b;" id="st-activas">0</div><div class="stat-lbl">Activas</div></div>
+        <div class="stat-chip"><div class="stat-num" style="color:#ffa500;" id="st-camino">0</div><div class="stat-lbl">En Camino</div></div>
+        <div class="stat-chip"><div class="stat-num" style="color:#00d68f;" id="st-atendidas">0</div><div class="stat-lbl">Atendidas</div></div>
+    </div>
+
+    <button class="activar-sonido" id="btn-activar-sonido" onclick="activarSonido()" style="display:none;">🔔 Toca aquí para activar alertas sonoras</button>
+    <div id="casos-lista"></div>
+</div>
+
+<!-- Overlay de alerta -->
+<div class="alerta-overlay" id="alerta-overlay">
+    <div style="font-size:4rem;">🚨</div>
+    <h2>¡NUEVA EMERGENCIA!</h2>
+    <p id="alerta-caso-info">Caso asignado</p>
+    <p style="font-size:.8rem; opacity:.8;">Toca para ver detalles</p>
+    <button class="dismiss-btn" id="btn-ver-caso" onclick="dismissAlertaYVerCaso()">VER CASO →</button>
+    <button style="margin-top:.8rem; padding:.5rem 1.5rem; background:transparent; color:#fff; font-weight:700; font-size:.85rem; border:2px solid rgba(255,255,255,.5); border-radius:8px; cursor:pointer;" onclick="dismissAlerta()">Cerrar</button>
+</div>
+
+<script>
+const API = (window.location.hostname === 'localhost' || window.location.protocol === 'file:')
+    ? 'http://localhost:8000' : 'https://boton-de-panico-sisdel.onrender.com';
+
+let _agentData = null;
+let _prevCasosIds = new Set();
+let _isFirstLoad = true;
+
+// ── LOGIN ──
+async function loginAgente() {
+    const identificador = document.getElementById('agent-id').value.trim();
+    if (!identificador) return;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+
+    try {
+        const res = await fetch(`${API}/api/agentes/login/${encodeURIComponent(identificador)}`);
+        if (!res.ok) {
+            errEl.textContent = '❌ No se encontró agente con ese código o documento';
+            errEl.style.display = 'block';
+            return;
+        }
+        _agentData = await res.json();
+        document.getElementById('agent-nombre').textContent = `👮 ${_agentData.agente.nombre}`;
+        document.getElementById('agent-codigo').textContent = `${_agentData.agente.codigo_agente} | Doc: ${_agentData.agente.num_identificacion}`;
+
+        // Guardar IDs actuales para detectar nuevos
+        _prevCasosIds = new Set(_agentData.casos.map(c => c.id_emergencia));
+        _isFirstLoad = true;
+
+        renderCasos(_agentData.casos);
+        document.getElementById('login-view').style.display = 'none';
+        document.getElementById('casos-view').style.display = 'block';
+
+        // Mostrar botón para activar sonido (requerido en móviles)
+        document.getElementById('btn-activar-sonido').style.display = 'block';
+
+        // Pedir permiso para notificaciones
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    } catch {
+        errEl.textContent = '⚠️ Error de conexión con el servidor';
+        errEl.style.display = 'block';
+    }
+}
+
+// ── CARGAR CASOS ──
+async function cargarMisCasos() {
+    if (!_agentData) return;
+    try {
+        const res = await fetch(`${API}/api/agentes/login/${encodeURIComponent(_agentData.agente.num_identificacion)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        _agentData.casos = data.casos;
+
+        // Detectar casos nuevos
+        const currentIds = new Set(data.casos.map(c => c.id_emergencia));
+        const nuevos = data.casos.filter(c => !_prevCasosIds.has(c.id_emergencia) && c.estatus !== 'ATENDIDA');
+
+        if (nuevos.length > 0 && !_isFirstLoad) {
+            alertaNuevoCaso(nuevos);
+        }
+
+        _prevCasosIds = currentIds;
+        _isFirstLoad = false;
+        renderCasos(data.casos);
+    } catch {}
+}
+
+// ── SISTEMA DE SONIDO (Web Audio API) ──
+let _audioCtx = null;
+let _sonidoActivado = false;
+let _sirenInterval = null;
+let _audioFallback = new Audio('https://www.soundjay.com/button/beep-07.mp3'); // Fallback
+
+function activarSonido() {
+    if (_sonidoActivado) return;
+    try {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Tocar un beep silencioso para desbloquear audio
+        const osc = _audioCtx.createOscillator();
+        const gain = _audioCtx.createGain();
+        gain.gain.value = 0.01;
+        osc.connect(gain); gain.connect(_audioCtx.destination);
+        osc.start(); osc.stop(_audioCtx.currentTime + 0.1);
+        _sonidoActivado = true;
+        
+        // Desbloquear también el fallback audio object
+        _audioFallback.play().then(() => _audioFallback.pause()).catch(()=>{});
+
+        const btn = document.getElementById('btn-activar-sonido');
+        if (btn) btn.style.display = 'none';
+        console.log("🔊 Audio desbloqueado");
+    } catch {}
+}
+
+// Auto-desbloquear audio en el primer tap en cualquier lado de la pantalla
+document.body.addEventListener('click', activarSonido, { once: true });
+document.body.addEventListener('touchstart', activarSonido, { once: true });
+
+function tocarSirena() {
+    if (!_audioCtx || !_sonidoActivado) {
+        // Fallback si no activaron (aunque la mayoría de browsers bloquearán esto tmb sin interacción)
+        _audioFallback.play().catch(()=>{});
+        return;
+    }
+    let repeticiones = 0;
+    _sirenInterval = setInterval(() => {
+        if (repeticiones >= 8) { clearInterval(_sirenInterval); _sirenInterval = null; return; }
+        const osc = _audioCtx.createOscillator();
+        const gain = _audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, _audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(1200, _audioCtx.currentTime + 0.15);
+        osc.frequency.linearRampToValueAtTime(800, _audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.3, _audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, _audioCtx.currentTime + 0.4);
+        osc.connect(gain); gain.connect(_audioCtx.destination);
+        osc.start(); osc.stop(_audioCtx.currentTime + 0.4);
+        repeticiones++;
+    }, 500);
+}
+
+function detenerSirena() {
+    if (_sirenInterval) { clearInterval(_sirenInterval); _sirenInterval = null; }
+    _audioFallback.pause();
+    _audioFallback.currentTime = 0;
+}
+
+// ── ALERTA NUEVO CASO ──
+let _ultimoCasoNuevoId = null;
+let _alertaAutoCloseTimer = null;
+
+function alertaNuevoCaso(nuevos) {
+    const c = nuevos[0];
+    _ultimoCasoNuevoId = c.id_emergencia;
+
+    // 1. Mostrar OVERLAY
+    const overlay = document.getElementById('alerta-overlay');
+    const info = document.getElementById('alerta-caso-info');
+    if (overlay && info) {
+        info.textContent = `📋 ${c.numero_caso || 'Nuevo'} — ${c.nombre_vecino}`;
+        overlay.style.display = 'flex';
+    }
+
+    // 2. SIRENA
+    tocarSirena();
+
+    // 3. VIBRACIÓN agresiva
+    if (navigator.vibrate) {
+        navigator.vibrate([500, 200, 500, 200, 500, 200, 800, 300, 800, 300, 1000]);
+    }
+
+    // 4. Notificación push del navegador
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🚨 ¡EMERGENCIA ASIGNADA!', {
+            body: `Caso ${c.numero_caso || ''} - ${c.nombre_vecino}\n📍 ${c.direccion_vecino || 'Sin dirección'}`,
+            tag: 'nuevo-caso',
+            requireInteraction: true,
+            vibrate: [500, 200, 500, 200, 500]
+        });
+    }
+
+    // 5. Marcar visualmente como nuevos
+    setTimeout(() => {
+        document.querySelectorAll('.caso-card.nueva').forEach(el => el.classList.remove('nueva'));
+    }, 15000);
+
+    // 6. AUTO-CERRAR overlay después de 15s (fix Android stuck)
+    if (_alertaAutoCloseTimer) clearTimeout(_alertaAutoCloseTimer);
+    _alertaAutoCloseTimer = setTimeout(() => dismissAlerta(), 15000);
+}
+
+function dismissAlerta() {
+    detenerSirena();
+    if (navigator.vibrate) navigator.vibrate(0);
+    document.getElementById('alerta-overlay').style.display = 'none';
+    if (_alertaAutoCloseTimer) { clearTimeout(_alertaAutoCloseTimer); _alertaAutoCloseTimer = null; }
+}
+
+function dismissAlertaYVerCaso() {
+    dismissAlerta();
+    // Scroll al caso nuevo
+    if (_ultimoCasoNuevoId) {
+        const casoEl = document.getElementById('caso-' + _ultimoCasoNuevoId);
+        if (casoEl) {
+            casoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            casoEl.style.transition = 'box-shadow .3s';
+            casoEl.style.boxShadow = '0 0 20px rgba(255,59,59,.6)';
+            setTimeout(() => { casoEl.style.boxShadow = ''; }, 3000);
+        }
+    }
+}
+
+// ── RENDER CASOS ──
+function renderCasos(casos) {
+    const el = document.getElementById('casos-lista');
+
+    // Stats
+    const activas = casos.filter(c => c.estatus === 'ACTIVA').length;
+    const camino = casos.filter(c => c.estatus === 'EN_CAMINO').length;
+    const atendidas = casos.filter(c => c.estatus === 'ATENDIDA' || c.estatus === 'FALSA_ALARMA').length;
+    document.getElementById('st-activas').textContent = activas;
+    document.getElementById('st-camino').textContent = camino;
+    document.getElementById('st-atendidas').textContent = atendidas;
+
+    if (!casos.length) {
+        el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Sin casos asignados</p><p style="font-size:.7rem;">Cuando te asignen un caso aparecerá aquí automáticamente</p></div>';
+        return;
+    }
+
+    // Ordenar: activas primero, luego en camino, luego atendidas
+    const orden = { 'ACTIVA':0, 'EN_CAMINO':1, 'ATENDIDA':2, 'FALSA_ALARMA':3 };
+    casos.sort((a,b) => (orden[a.estatus]||9) - (orden[b.estatus]||9));
+
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const isNuevo = (id) => !_isFirstLoad && !_prevCasosIds.has(id);
+
+    el.innerHTML = casos.map(c => {
+        const badgeCls = c.estatus === 'ACTIVA' ? 'badge-act' : c.estatus === 'EN_CAMINO' ? 'badge-cam' : 'badge-ok';
+        const cardCls = c.estatus === 'ACTIVA' ? 'activa' : c.estatus === 'EN_CAMINO' ? 'en_camino' : 'atendida';
+        const fecha = new Date(c.fecha_creacion + 'Z').toLocaleString([], {
+            day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:tz
+        });
+        const mUrl = c.gps_latitud ? `https://maps.google.com/?q=${c.gps_latitud},${c.gps_longitud}` : null;
+        const esNuevo = isNuevo(c.id_emergencia);
+        const mostrarBotones = c.estatus === 'ACTIVA' || c.estatus === 'EN_CAMINO';
+
+        // Cronómetro: tiempo transcurrido desde creación
+        let crono = '';
+        const creado = new Date(c.fecha_creacion + 'Z');
+        if (c.estatus === 'ATENDIDA' || c.estatus === 'FALSA_ALARMA') {
+            // Caso cerrado: mostrar tiempo final (creación → atención)
+            if (c.fecha_atencion) {
+                const atendido = new Date(c.fecha_atencion + 'Z');
+                const diff = Math.floor((atendido - creado) / 1000);
+                const m = Math.floor(diff / 60); const s = diff % 60;
+                crono = `<div style="font-size:.7rem; color:#00d68f; font-weight:700; margin-top:.3rem;">⏱️ Atendido en ${m}m ${s.toString().padStart(2,'0')}s</div>`;
+            }
+        } else {
+            // Caso activo: cronómetro vivo
+            crono = `<div style="font-size:.75rem; color:#ff3b3b; font-weight:900; margin-top:.3rem; font-family:monospace;" id="crono-${c.id_emergencia}" data-inicio="${creado.getTime()}">⏱️ --:--</div>`;
+        }
+
+        let gpsBlock = '';
+        if (c.gps_latitud && c.gps_longitud) {
+            gpsBlock = `
+                <div class="caso-field" style="margin-top:.5rem; background:rgba(0,214,143,.08); padding:.5rem; border-radius:8px; border:1px solid rgba(0,214,143,.3);">
+                    <div class="caso-label">UBICACIÓN GPS (TOCA PARA ABRIR WAZE)</div>
+                    <div class="caso-val" style="font-family:monospace; font-size:.82rem; font-weight:900; margin-top:.3rem;">
+                        <a href="https://waze.com/ul?ll=${c.gps_latitud},${c.gps_longitud}&navigate=yes" target="_blank" style="color:#00d68f; text-decoration:none; display:flex; align-items:center; gap:.4rem;">
+                           <span style="font-size:1.3rem;">🚗</span> 
+                           ${c.gps_latitud.toFixed(6)}, ${c.gps_longitud.toFixed(6)}
+                        </a>
+                    </div>
+                </div>`;
+        } else {
+            gpsBlock = `<div class="caso-field"><div class="caso-label">Dirección / Ref</div><div class="caso-val">📍 ${c.direccion_vecino || c.direccion_aproximada || '—'}</div></div>`;
+        }
+
+        return `
+        <div class="caso-card ${cardCls} ${esNuevo ? 'nueva' : ''}" id="caso-${c.id_emergencia}">
+            <div class="caso-header">
+                <span class="caso-numero">📋 ${c.numero_caso || '—'}</span>
+                <span class="badge ${badgeCls}">${c.estatus.replace('_',' ')}</span>
+            </div>
+            <div class="caso-field"><div class="caso-label">Vecino</div><div class="caso-val">👤 ${c.nombre_vecino}</div></div>
+            <div class="caso-field"><div class="caso-label">Teléfono</div><div class="caso-val">📱 <a href="tel:${c.telefono_vecino}" style="color:#4da6ff; text-decoration:none;">${c.telefono_vecino}</a></div></div>
+            
+            ${gpsBlock}
+
+            <div style="font-size:.6rem; color:#6b7294; margin-top:.2rem;">📅 ${fecha}</div>
+            ${crono}
+
+            ${mostrarBotones ? `
+            <div class="caso-actions">
+                ${mUrl ? `<a href="${mUrl}" target="_blank" class="caso-btn maps" style="text-decoration:none; text-align:center;">🗺️ Mapa</a>` : ''}
+                ${c.estatus === 'ACTIVA' ? `<button class="caso-btn camino" onclick="cambiarEstatusCaso('${c.id_emergencia}','EN_CAMINO',this)">🚓 En Camino</button>` : ''}
+                <button class="caso-btn atender" onclick="cambiarEstatusCaso('${c.id_emergencia}','ATENDIDA',this)">✅ Atendido</button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+
+    // Iniciar actualización de cronómetros activos
+    actualizarCronometros();
+}
+
+// ── CAMBIAR ESTATUS DESDE AGENTE ──
+async function cambiarEstatusCaso(idEmergencia, estatus, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+    try {
+        const res = await fetch(`${API}/api/emergencias/${idEmergencia}/estatus`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estatus })
+        });
+        if (res.ok) {
+            await cargarMisCasos();
+        } else {
+            alert('Error al actualizar estatus');
+            if (btn) { btn.disabled = false; btn.textContent = estatus === 'ATENDIDA' ? '✅ Atendido' : '🚓 En Camino'; }
+        }
+    } catch {
+        alert('Error de conexión');
+        if (btn) { btn.disabled = false; btn.textContent = estatus === 'ATENDIDA' ? '✅ Atendido' : '🚓 En Camino'; }
+    }
+}
+
+// ── LOGOUT ──
+function logout() {
+    _agentData = null;
+    _prevCasosIds = new Set();
+    _isFirstLoad = true;
+    document.getElementById('login-view').style.display = 'block';
+    document.getElementById('casos-view').style.display = 'none';
+    document.getElementById('agent-id').value = '';
+}
+// ── CRONÓMETROS ACTIVOS ──
+let _cronoInterval = null;
+
+function actualizarCronometros() {
+    if (_cronoInterval) clearInterval(_cronoInterval);
+    _cronoInterval = setInterval(() => {
+        document.querySelectorAll('[id^="crono-"]').forEach(el => {
+            const inicio = parseInt(el.dataset.inicio);
+            if (!inicio) return;
+            const diff = Math.floor((Date.now() - inicio) / 1000);
+            const h = Math.floor(diff / 3600);
+            const m = Math.floor((diff % 3600) / 60);
+            const s = diff % 60;
+            el.textContent = h > 0
+                ? `⏱️ ${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`
+                : `⏱️ ${m}m ${s.toString().padStart(2,'0')}s`;
+        });
+    }, 1000);
+}
+
+// ── AUTO REFRESH cada 10 segundos ──
+setInterval(() => { if (_agentData) cargarMisCasos(); }, 10000);
+
+// Login con Enter
+document.getElementById('agent-id').addEventListener('keypress', e => { if (e.key==='Enter') loginAgente(); });
+
+// Auto-login si viene de index.html
+const savedId = sessionStorage.getItem('sisdel_agente_id');
+if (savedId) {
+    document.getElementById('agent-id').value = savedId;
+    loginAgente();
+}
+</script>
+</body>
+</html>

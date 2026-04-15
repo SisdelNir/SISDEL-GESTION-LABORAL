@@ -1,0 +1,7 @@
+sisdel.db
+.env
+backend/.env
+BACKUP_22_MARZO_8AM/
+*node_modules
+*.pyc
+__pycache__

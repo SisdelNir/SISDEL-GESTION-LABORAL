@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Programador — Botón de Pánico SISDEL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/programador.css">
+</head>
+<body>
+
+<div class="prog-layout">
+
+    <!-- TOP BAR -->
+    <header class="prog-topbar">
+        <div class="prog-brand">
+            <span class="prog-brand-icon">🚨</span>
+            <div>
+                <div>Botón de Pánico SISDEL</div>
+                <div class="prog-subtitle">Panel de Programador</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            <span class="prog-badge">🔧 PROGRAMADOR</span>
+            <button class="btn-logout" onclick="logout()">Salir</button>
+        </div>
+    </header>
+
+    <!-- HERO -->
+    <div class="prog-hero">
+        <div>
+            <h1>Gestión de Instituciones</h1>
+            <p>Cree y administre las comunidades, colonias o municipios que usan el sistema</p>
+        </div>
+        <div class="hero-actions">
+            <button class="btn-new-inst" onclick="abrirModal()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                Nueva Institución
+            </button>
+            <button class="btn-list-inst" id="btn-toggle-list" onclick="toggleListado()">
+                📋 Ver Listado de Instituciones
+            </button>
+        </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="prog-stats">
+        <div class="prog-stat-pill total">
+            <span class="prog-stat-n" id="stat-total">0</span>
+            <span class="prog-stat-l">Total</span>
+        </div>
+        <div class="prog-stat-pill active">
+            <span class="prog-stat-n" id="stat-activas">0</span>
+            <span class="prog-stat-l">Activas</span>
+        </div>
+        <div class="prog-stat-pill inactive">
+            <span class="prog-stat-n" id="stat-inactivas">0</span>
+            <span class="prog-stat-l">Inactivas</span>
+        </div>
+    </div>
+
+    <!-- GRID DE CARDS (OCULTO POR DEFECTO) -->
+    <div class="prog-content" id="listado-container" style="display:none; margin-top: 1.5rem; border-top: 1px solid #2a2d45; padding-top: 2rem;">
+        <!-- Header -->
+        <div class="section-hdr" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+             <h2>Instituciones registradas</h2>
+             <span id="label-loading" style="display:none; color:#4da6ff; font-size:.8rem;">🔄 Actualizando...</span>
+        </div>
+        <!-- BUSCADOR -->
+        <div style="position:relative; margin-bottom:1.25rem;">
+            <svg style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#6b7294;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" id="buscador-inst" placeholder="Buscar por nombre, administrador o código de acceso..."
+                   oninput="filtrarGrid(this.value)"
+                   style="width:100%;padding:.7rem .9rem .7rem 2.6rem;background:#111325;border:1px solid #2a2d45;border-radius:10px;color:#e2e8f8;font-size:.85rem;outline:none;box-sizing:border-box;transition:border .2s;"
+                   onfocus="this.style.borderColor='#4da6ff'" onblur="this.style.borderColor='#2a2d45'">
+        </div>
+        <div class="inst-grid" id="inst-grid">
+            <div class="inst-empty">
+                <div class="empty-state"><p>Cargando datos...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ SECCIÓN EMPRESAS DE SEGURIDAD ═══════ -->
+    <div style="margin-top:2.5rem; border-top:2px solid rgba(255,165,0,.3); padding-top:2rem;">
+        <div class="prog-hero" style="background:linear-gradient(135deg,rgba(255,140,0,.15),rgba(255,59,59,.08));">
+            <div>
+                <h1 style="color:#ff8c00;">🛡️ Empresas de Seguridad</h1>
+                <p>Gestione empresas de transporte y seguridad con pilotos y botón de alerta</p>
+            </div>
+            <div class="hero-actions">
+                <button class="btn-new-inst" style="background:linear-gradient(135deg,#ff8c00,#ff6600);" onclick="abrirModalEmpresa()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    Nueva Empresa
+                </button>
+                <button class="btn-list-inst" id="btn-toggle-emp-list" onclick="toggleListadoEmpresas()">
+                    📋 Ver Empresas
+                </button>
+            </div>
+        </div>
+
+        <div class="prog-stats">
+            <div class="prog-stat-pill" style="border-color:rgba(255,140,0,.4);">
+                <span class="prog-stat-n" id="stat-emp-total" style="color:#ff8c00;">0</span>
+                <span class="prog-stat-l">Total</span>
+            </div>
+            <div class="prog-stat-pill active">
+                <span class="prog-stat-n" id="stat-emp-activas">0</span>
+                <span class="prog-stat-l">Activas</span>
+            </div>
+            <div class="prog-stat-pill inactive">
+                <span class="prog-stat-n" id="stat-emp-inactivas">0</span>
+                <span class="prog-stat-l">Inactivas</span>
+            </div>
+        </div>
+
+        <div id="emp-listado-container" style="display:none; margin-top:1.5rem; border-top:1px solid #2a2d45; padding-top:2rem;">
+            <div class="section-hdr" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h2>Empresas registradas</h2>
+            </div>
+            <div style="position:relative; margin-bottom:1.25rem;">
+                <svg style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#6b7294;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" id="buscador-emp" placeholder="Buscar empresa..."
+                       oninput="filtrarGridEmpresas(this.value)"
+                       style="width:100%;padding:.7rem .9rem .7rem 2.6rem;background:#111325;border:1px solid #2a2d45;border-radius:10px;color:#e2e8f8;font-size:.85rem;outline:none;box-sizing:border-box;transition:border .2s;"
+                       onfocus="this.style.borderColor='#ff8c00'" onblur="this.style.borderColor='#2a2d45'">
+            </div>
+            <div class="inst-grid" id="emp-grid">
+                <div class="inst-empty"><div class="empty-state"><p>Cargando datos...</p></div></div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /prog-layout -->
+
+<!-- MODAL NUEVA EMPRESA -->
+<div class="modal-overlay" id="modal-nueva-emp" style="display:none;" onclick="cerrarModalEmpresa(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-hdr" style="background:linear-gradient(135deg,rgba(255,140,0,.2),rgba(255,100,0,.1));">
+            <h3>🛡️ Nueva Empresa de Seguridad</h3>
+            <button class="modal-close" onclick="cerrarModalEmpresa()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-grid">
+                <div class="modal-full form-field">
+                    <label class="form-field label">Nombre de la Empresa</label>
+                    <input class="form-input" type="text" id="fe-nombre" placeholder="Ej: Seguridad ABC, Transporte XYZ...">
+                </div>
+                <div class="form-field">
+                    <label>Nombre del Administrador</label>
+                    <input class="form-input" type="text" id="fe-admin" placeholder="Nombre completo">
+                </div>
+                <div class="form-field">
+                    <label>Teléfono</label>
+                    <input class="form-input" type="tel" id="fe-tel" placeholder="5551234567">
+                </div>
+                <div class="form-field">
+                    <label>Correo Electrónico</label>
+                    <input class="form-input" type="email" id="fe-email" placeholder="admin@empresa.com">
+                </div>
+                <div class="form-field">
+                    <label>Dirección</label>
+                    <input class="form-input" type="text" id="fe-dir" placeholder="Dirección de la empresa">
+                </div>
+                <div class="form-field">
+                    <label>País / Región</label>
+                    <select class="form-input" id="fe-pais">
+                        <option value="502">🇬🇹 Guatemala (+502)</option>
+                        <option value="52">🇲🇽 México (+52)</option>
+                        <option value="503">🇸🇻 El Salvador (+503)</option>
+                        <option value="504">🇭🇳 Honduras (+504)</option>
+                        <option value="505">🇳🇮 Nicaragua (+505)</option>
+                        <option value="506">🇨🇷 Costa Rica (+506)</option>
+                        <option value="507">🇵🇦 Panamá (+507)</option>
+                        <option value="1">🇺🇸 Estados Unidos (+1)</option>
+                        <option value="34">🇪🇸 España (+34)</option>
+                        <option value="57">🇨🇴 Colombia (+57)</option>
+                    </select>
+                </div>
+            </div>
+            <p style="font-size:.78rem;color:#6b7294;margin-top:.5rem;">
+                ✨ La <strong>clave de acceso</strong> de 6 caracteres se genera automáticamente.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="crearEmpresa()" style="flex:1;background:linear-gradient(135deg,#ff8c00,#ff6600)">Crear Empresa</button>
+            <button class="btn btn-neutral" onclick="cerrarModalEmpresa()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CLAVE EMPRESA -->
+<div class="modal-overlay" id="modal-clave-emp" style="display:none;" onclick="cerrarClaveEmpresa(event)">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:400px;">
+        <div class="modal-hdr"><h3>✅ Empresa Creada</h3><button class="modal-close" onclick="cerrarClaveEmpresa()">✕</button></div>
+        <div class="modal-body" style="text-align:center;">
+            <p style="margin-bottom:1rem;font-size:.88rem;">Clave de acceso del administrador:</p>
+            <div style="background:#111325;border:1px solid #2a2d45;border-radius:12px;padding:1.25rem;">
+                <p style="font-size:.7rem;color:#6b7294;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem;">Clave de acceso</p>
+                <div id="emp-nueva-clave" style="font-family:'JetBrains Mono',monospace;font-size:2.5rem;font-weight:900;letter-spacing:14px;color:#ff8c00;"></div>
+            </div>
+            <p id="emp-nueva-nombre" style="margin-top:.9rem;font-size:.85rem;color:#6b7294;"></p>
+            <button class="btn btn-primary" onclick="copyValue(document.getElementById('emp-nueva-clave').textContent)" style="width:100%;margin-top:1rem;background:linear-gradient(135deg,#ff8c00,#ff6600)">📋 Copiar Clave</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR EMPRESA -->
+<div class="modal-overlay" id="modal-editar-emp" style="display:none;" onclick="cerrarEditarEmpresa(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-hdr" style="background:linear-gradient(135deg,rgba(255,140,0,.2),rgba(255,100,0,.1));">
+            <h3>✏️ Editar Empresa</h3><button class="modal-close" onclick="cerrarEditarEmpresa()">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="ee-id">
+            <div class="modal-grid">
+                <div class="modal-full form-field"><label>Nombre de la Empresa</label><input class="form-input" type="text" id="ee-nombre"></div>
+                <div class="form-field"><label>Administrador</label><input class="form-input" type="text" id="ee-admin"></div>
+                <div class="form-field"><label>Teléfono</label><input class="form-input" type="tel" id="ee-tel"></div>
+                <div class="form-field"><label>Correo</label><input class="form-input" type="email" id="ee-email"></div>
+                <div class="form-field"><label>Dirección</label><input class="form-input" type="text" id="ee-dir"></div>
+                <div class="form-field"><label>País / Región</label>
+                    <select class="form-input" id="ee-pais">
+                        <option value="502">🇬🇹 Guatemala (+502)</option>
+                        <option value="52">🇲🇽 México (+52)</option>
+                        <option value="503">🇸🇻 El Salvador (+503)</option>
+                        <option value="504">🇭🇳 Honduras (+504)</option>
+                        <option value="505">🇳🇮 Nicaragua (+505)</option>
+                        <option value="506">🇨🇷 Costa Rica (+506)</option>
+                        <option value="507">🇵🇦 Panamá (+507)</option>
+                        <option value="1">🇺🇸 Estados Unidos (+1)</option>
+                        <option value="34">🇪🇸 España (+34)</option>
+                        <option value="57">🇨🇴 Colombia (+57)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="guardarEdicionEmpresa()" style="flex:1;background:linear-gradient(135deg,#ff8c00,#ff6600)">Guardar Cambios</button>
+            <button class="btn btn-neutral" onclick="cerrarEditarEmpresa()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL NUEVA INSTITUCIÓN -->
+<div class="modal-overlay" id="modal-nueva" style="display:none;" onclick="cerrarModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+            <h3>🏛️ Nueva Institución</h3>
+            <button class="modal-close" onclick="cerrarModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-grid">
+                <div class="modal-full form-field">
+                    <label class="form-field label">Nombre de la Institución / Comunidad</label>
+                    <input class="form-input" type="text" id="f-nombre" placeholder="Ej: Colonia Las Flores, Municipio de ABC...">
+                </div>
+                <div class="form-field">
+                    <label>Nombre del Administrador</label>
+                    <input class="form-input" type="text" id="f-admin" placeholder="Nombre completo">
+                </div>
+                <div class="form-field">
+                    <label>Teléfono</label>
+                    <input class="form-input" type="tel" id="f-tel" placeholder="5551234567">
+                </div>
+                <div class="form-field">
+                    <label>Correo Electrónico</label>
+                    <input class="form-input" type="email" id="f-email" placeholder="admin@ejemplo.com">
+                </div>
+                <div class="form-field">
+                    <label>Dirección</label>
+                    <input class="form-input" type="text" id="f-dir" placeholder="Calle, Número, Ciudad">
+                </div>
+                <div class="form-field">
+                    <label>País / Región</label>
+                    <select class="form-input" id="f-pais">
+                        <option value="502">🇬🇹 Guatemala (+502)</option>
+                        <option value="52">🇲🇽 México (+52)</option>
+                        <option value="503">🇸🇻 El Salvador (+503)</option>
+                        <option value="504">🇭🇳 Honduras (+504)</option>
+                        <option value="505">🇳🇮 Nicaragua (+505)</option>
+                        <option value="506">🇨🇷 Costa Rica (+506)</option>
+                        <option value="507">🇵🇦 Panamá (+507)</option>
+                        <option value="1">🇺🇸 Estados Unidos (+1)</option>
+                        <option value="34">🇪🇸 España (+34)</option>
+                        <option value="57">🇨🇴 Colombia (+57)</option>
+                    </select>
+                </div>
+            </div>
+            <p style="font-size:.78rem;color:#6b7294;margin-top:.5rem;">
+                ✨ La <strong>clave de acceso</strong> de 6 caracteres se genera automáticamente al crear la institución.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="crearInstitucion()" style="flex:1">Crear Institución</button>
+            <button class="btn btn-neutral" onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CLAVE GENERADA -->
+<div class="modal-overlay" id="modal-clave" style="display:none;" onclick="cerrarModalClave(event)">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:400px;">
+        <div class="modal-hdr">
+            <h3>✅ Institución Creada</h3>
+            <button class="modal-close" onclick="cerrarModalClave()">✕</button>
+        </div>
+        <div class="modal-body" style="text-align:center;">
+            <p style="margin-bottom:1rem;font-size:.88rem;">
+                Esta es la <strong>clave de acceso</strong> del administrador.<br>
+                Compártala de forma segura — solo se muestra una vez aquí.
+            </p>
+            <div style="background:#111325;border:1px solid #2a2d45;border-radius:12px;padding:1.25rem;">
+                <p style="font-size:.7rem;color:#6b7294;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem;">Clave de acceso</p>
+                <div id="nueva-clave" style="font-family:'JetBrains Mono',monospace;font-size:2.5rem;font-weight:900;letter-spacing:14px;color:#fff;"></div>
+            </div>
+            <p id="nueva-inst-nombre" style="margin-top:.9rem;font-size:.85rem;color:#6b7294;"></p>
+            <button class="btn btn-primary" onclick="copiarNuevaClave()" style="width:100%;margin-top:1rem;">📋 Copiar Clave</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR INSTITUCIÓN -->
+<div class="modal-overlay" id="modal-editar" style="display:none;" onclick="cerrarModalEditar(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+            <h3>✏️ Editar Institución</h3>
+            <button class="modal-close" onclick="cerrarModalEditar()">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="e-id">
+            <div class="modal-grid">
+                <div class="modal-full form-field">
+                    <label>Nombre de la Institución / Comunidad</label>
+                    <input class="form-input" type="text" id="e-nombre">
+                </div>
+                <div class="form-field">
+                    <label>Nombre del Administrador</label>
+                    <input class="form-input" type="text" id="e-admin">
+                </div>
+                <div class="form-field">
+                    <label>Teléfono</label>
+                    <input class="form-input" type="tel" id="e-tel">
+                </div>
+                <div class="form-field">
+                    <label>Correo Electrónico</label>
+                    <input class="form-input" type="email" id="e-email">
+                </div>
+                <div class="form-field">
+                    <label>Dirección</label>
+                    <input class="form-input" type="text" id="e-dir">
+                </div>
+                <div class="form-field">
+                    <label>País / Región</label>
+                    <select class="form-input" id="e-pais">
+                        <option value="502">🇬🇹 Guatemala (+502)</option>
+                        <option value="52">🇲🇽 México (+52)</option>
+                        <option value="503">🇸🇻 El Salvador (+503)</option>
+                        <option value="504">🇭🇳 Honduras (+504)</option>
+                        <option value="505">🇳🇮 Nicaragua (+505)</option>
+                        <option value="506">🇨🇷 Costa Rica (+506)</option>
+                        <option value="507">🇵🇦 Panamá (+507)</option>
+                        <option value="1">🇺🇸 Estados Unidos (+1)</option>
+                        <option value="34">🇪🇸 España (+34)</option>
+                        <option value="57">🇨🇴 Colombia (+57)</option>
+                    </select>
+                </div>
+            </div>
+            <p style="font-size:.75rem;color:#6b7294;margin-top:.6rem;">ℹ️ El código de acceso no cambia al editar. Use "Nueva clave" para regenerarlo.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="guardarEdicion()" style="flex:1">Guardar Cambios</button>
+            <button class="btn btn-neutral" onclick="cerrarModalEditar()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = (window.location.hostname === 'localhost' || window.location.protocol === 'file:') ? 'http://localhost:8000' : 'https://boton-de-panico-sisdel.onrender.com';  // Local o Render
+
+let listadoVisible = false;
+let pollingInterval = null;
+let todasInstituciones = [];  // cache para búsqueda
+
+function logout() {
+    sessionStorage.clear();
+    window.location.href = 'index.html';
+}
+
+function toggleListado() {
+    const container = document.getElementById('listado-container');
+    const btn = document.getElementById('btn-toggle-list');
+    
+    listadoVisible = !listadoVisible;
+    
+    if (listadoVisible) {
+        container.style.display = 'block';
+        btn.innerHTML = '📂 Ocultar Listado';
+        cargarInstituciones(); // Carga inmediata
+        // Iniciar polling si no existe
+        if (!pollingInterval) {
+            pollingInterval = setInterval(cargarInstituciones, 10000);
+        }
+    } else {
+        container.style.display = 'none';
+        btn.innerHTML = '📋 Ver Listado de Instituciones';
+        // Detener polling para ahorrar recursos
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    }
+}
+
+async function cargarInstituciones() {
+    if (!listadoVisible) return;
+    const loadingEl = document.getElementById('label-loading');
+    if (loadingEl) loadingEl.style.display = 'inline';
+    
+    try {
+        const res = await fetch(`${API}/api/programador/instituciones`);
+        if (!res.ok) throw new Error('error');
+        const insts = await res.json();
+        todasInstituciones = insts;  // cache para el buscador
+        renderCards(insts);
+        actualizarBadges(insts);
+    } catch {
+        const grid = document.getElementById('inst-grid');
+        if (grid.innerHTML.includes('Cargando')) {
+             grid.innerHTML = `
+                <div class="inst-empty">
+                    <div class="empty-state">
+                        <span style="font-size:2.5rem">⚠️</span>
+                        <p style="color:#ff8c00;font-weight:700;margin-top:.5rem;">El servidor no está activo</p>
+                        <p style="font-size:.8rem;margin-top:.4rem;">Para gestionar instituciones, inicie el backend:</p>
+                        <code style="display:block;background:#111325;border:1px solid #2a2d45;border-radius:8px;padding:.6rem 1rem;margin-top:.6rem;font-size:.78rem;color:#4da6ff;">
+                            cd backend<br>
+                            python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+                        </code>
+                        <p style="font-size:.75rem;margin-top:.5rem;color:#6b7294;">Luego acceda desde: <strong>http://localhost:8000</strong></p>
+                    </div>
+                </div>`;
+        }
+    } finally {
+        if (loadingEl) loadingEl.style.display = 'none';
+    }
+}
+
+function actualizarBadges(insts) {
+    document.getElementById('stat-total').textContent    = insts.length;
+    document.getElementById('stat-activas').textContent  = insts.filter(i=>i.activo).length;
+    document.getElementById('stat-inactivas').textContent= insts.filter(i=>!i.activo).length;
+}
+
+function renderCards(insts) {
+    const grid = document.getElementById('inst-grid');
+    if (!insts.length) {
+        grid.innerHTML = `<div class="inst-empty"><div class="empty-state"><span style="font-size:2.5rem">🏛️</span><p>No hay instituciones registradas</p><p style="font-size:.78rem;margin-top:.25rem;">Presione "Nueva Institución" para comenzar</p></div></div>`;
+        return;
+    }
+    const baseUrl = window.location.origin + window.location.pathname.replace('programador.html','');
+    grid.innerHTML = insts.map(inst => `
+    <div class="inst-card ${inst.activo ? '' : 'inactiva'}" data-id="${inst.id_institucion}">
+        <div class="inst-card-header">
+            <div>
+                <div class="inst-nombre">${inst.nombre_institucion}</div>
+                <div class="inst-tipo">👤 ${inst.nombre_admin}</div>
+            </div>
+            <span class="${inst.activo ? 'badge badge-activa-inst' : 'badge badge-inactiva-inst'}">${inst.activo ? 'Activa' : 'Inactiva'}</span>
+        </div>
+
+        <div class="inst-info">
+            <div class="inst-info-item"><div class="inst-info-label">País</div>${inst.pais ? '+'+inst.pais : '—'}</div>
+            <div class="inst-info-item"><div class="inst-info-label">Teléfono</div>${inst.telefono || '—'}</div>
+            <div class="inst-info-item"><div class="inst-info-label">Correo</div>${inst.correo || '—'}</div>
+            <div class="inst-info-item" style="grid-column:1/-1"><div class="inst-info-label">Dirección</div>${inst.direccion || '—'}</div>
+        </div>
+
+        <div class="inst-clave-row" style="background:#0b0d17; border-left: 2px solid #4da6ff;">
+            <div style="flex:1">
+               <span class="inst-clave-label">🔐 CÓDIGO DE ACCESO</span>
+               <div class="inst-clave-val" style="font-size: 1.4rem; letter-spacing: 4px;">${inst.clave_acceso}</div>
+            </div>
+            <button class="btn-copy-clave" onclick="copyValue('${inst.clave_acceso}')">Copiar</button>
+        </div>
+
+        <div class="link-vecino-box" style="margin-top:0.75rem; background:rgba(77,166,255,0.05);">
+            <p>🔗 Link Directo para Vecinos:</p>
+            <span class="link-val" style="font-size:.7rem; display:block; overflow:hidden; text-overflow:ellipsis;">${baseUrl}vecino.html?inst=${inst.id_institucion}</span>
+            <button class="btn-copy-clave" style="margin-top:.4rem; width:100%" onclick="copyValue('${baseUrl}vecino.html?inst=${inst.id_institucion}')">Copiar Link Directo</button>
+        </div>
+
+        <div class="inst-actions">
+            <button class="inst-btn ${inst.activo ? 'inst-btn-toggle-on' : 'inst-btn-toggle-off'}"
+                    onclick="toggleInst('${inst.id_institucion}')">
+                ${inst.activo ? '🔴 Desactivar' : '🟢 Activar'}
+            </button>
+            <button class="inst-btn inst-btn-regen" onclick="regenClave('${inst.id_institucion}')">🔄 Nueva clave</button>
+            <button class="inst-btn" style="background:rgba(77,166,255,.15);color:#4da6ff;border:1px solid rgba(77,166,255,.3);" onclick="abrirEditar('${inst.id_institucion}')">✏️ Editar</button>
+            <button class="inst-btn" style="background:rgba(255,59,59,.12);color:#ff3b3b;border:1px solid rgba(255,59,59,.3);" onclick="eliminarInstitucion('${inst.id_institucion}')">🗑 Eliminar</button>
+        </div>
+    </div>`).join('');
+}
+
+function copyValue(val) {
+    navigator.clipboard.writeText(val).then(() => {
+        const temp = document.createElement('div');
+        temp.style = "position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#00d68f; color:#fff; padding:10px 20px; border-radius:30px; z-index:9999; font-size:.8rem; box-shadow:0 10px 30px rgba(0,0,0,0.5);";
+        temp.innerHTML = "✅ Copiado al portapapeles";
+        document.body.appendChild(temp);
+        setTimeout(() => temp.remove(), 2500);
+    }).catch(() => prompt('Copie valor:', val));
+}
+
+// ── BUSCADOR ──────────────────────────────────────────────────
+function filtrarGrid(q) {
+    q = q.trim().toLowerCase();
+    const filtradas = q
+        ? todasInstituciones.filter(i =>
+            i.nombre_institucion.toLowerCase().includes(q) ||
+            i.nombre_admin.toLowerCase().includes(q) ||
+            i.clave_acceso.toLowerCase().includes(q)
+          )
+        : todasInstituciones;
+    renderCards(filtradas);
+}
+
+// ── EDITAR ─────────────────────────────────────────────────────
+function abrirEditar(id) {
+    const inst = todasInstituciones.find(i => i.id_institucion === id);
+    if (!inst) return;
+    document.getElementById('e-id').value     = inst.id_institucion;
+    document.getElementById('e-nombre').value = inst.nombre_institucion;
+    document.getElementById('e-admin').value  = inst.nombre_admin;
+    document.getElementById('e-tel').value    = inst.telefono;
+    document.getElementById('e-email').value  = inst.correo;
+    document.getElementById('e-dir').value    = inst.direccion;
+    if (inst.pais) document.getElementById('e-pais').value = inst.pais;
+    document.getElementById('modal-editar').style.display = 'flex';
+}
+function cerrarModalEditar(e) {
+    if (e && e.target !== document.getElementById('modal-editar')) return;
+    document.getElementById('modal-editar').style.display = 'none';
+}
+async function guardarEdicion() {
+    const id = document.getElementById('e-id').value;
+    const payload = {
+        nombre_institucion: document.getElementById('e-nombre').value.trim(),
+        nombre_admin:       document.getElementById('e-admin').value.trim(),
+        telefono:           document.getElementById('e-tel').value.trim(),
+        correo:             document.getElementById('e-email').value.trim(),
+        direccion:          document.getElementById('e-dir').value.trim(),
+        pais:               document.getElementById('e-pais').value,
+    };
+    if (!payload.nombre_institucion || !payload.nombre_admin) {
+        alert('Nombre de institución y administrador son obligatorios'); return;
+    }
+    try {
+        const res = await fetch(`${API}/api/programador/instituciones/${id}`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error();
+        cerrarModalEditar();
+        cargarInstituciones();
+    } catch { alert('Error al guardar los cambios.'); }
+}
+
+// ── ELIMINAR ───────────────────────────────────────────────────
+async function eliminarInstitucion(id, nombre) {
+    if (!confirm(`⚠️ ¿Eliminar definitivamente "${nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
+    try {
+        const res = await fetch(`${API}/api/programador/instituciones/${id}`, { method: 'DELETE' });
+        if (res.ok || res.status === 204) {
+            cargarInstituciones();
+        } else { throw new Error(); }
+    } catch { alert('Error al eliminar la institución.'); }
+}
+
+function abrirModal() {
+    ['f-nombre','f-admin','f-tel','f-email','f-dir'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('modal-nueva').style.display = 'flex';
+}
+function cerrarModal(e) {
+    if (e && e.target !== document.getElementById('modal-nueva')) return;
+    document.getElementById('modal-nueva').style.display = 'none';
+}
+
+async function crearInstitucion() {
+    const nombre = document.getElementById('f-nombre').value.trim();
+    const admin  = document.getElementById('f-admin').value.trim();
+    if (!nombre || !admin) { alert('Nombre de institución y administrador son obligatorios'); return; }
+
+    try {
+        const res = await fetch(`${API}/api/programador/instituciones`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                nombre_institucion: nombre,
+                nombre_admin: admin,
+                telefono: document.getElementById('f-tel').value.trim(),
+                correo:   document.getElementById('f-email').value.trim(),
+                direccion:document.getElementById('f-dir').value.trim(),
+                pais:     document.getElementById('f-pais').value
+            })
+        });
+        const inst = await res.json();
+        document.getElementById('modal-nueva').style.display  = 'none';
+        document.getElementById('nueva-clave').textContent    = inst.clave_acceso;
+        document.getElementById('nueva-inst-nombre').textContent = inst.nombre_institucion;
+        document.getElementById('modal-clave').style.display  = 'flex';
+        
+        // Abrir listado automáticamente 
+        if (!listadoVisible) toggleListado();
+        else cargarInstituciones();
+    } catch { alert('Error al crear institución. Verifique conexión.'); }
+}
+
+function cerrarModalClave(e) {
+    if (e && e.target !== document.getElementById('modal-clave')) return;
+    document.getElementById('modal-clave').style.display = 'none';
+}
+
+function copiarNuevaClave() {
+    const val = document.getElementById('nueva-clave').textContent;
+    copyValue(val);
+}
+
+async function toggleInst(id) {
+    try {
+        await fetch(`${API}/api/programador/instituciones/${id}/toggle`, {method:'PATCH'});
+        cargarInstituciones();
+    } catch { alert('Error al cambiar estado.'); }
+}
+
+async function regenClave(id) {
+    if (!confirm('¿Regenerar la clave de acceso? La clave anterior dejará de funcionar.')) return;
+    try {
+        const res = await fetch(`${API}/api/programador/instituciones/${id}/regenerar-clave`, {method:'PATCH'});
+        const inst = await res.json();
+        document.getElementById('nueva-clave').textContent     = inst.clave_acceso;
+        document.getElementById('nueva-inst-nombre').textContent = `Nueva clave para: ${inst.nombre_institucion}`;
+        document.getElementById('modal-clave').style.display   = 'flex';
+        cargarInstituciones();
+    } catch { alert('Error al regenerar clave.'); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem('sisdel_tipo') !== 'programador') {
+        window.location.href = 'index.html'; return;
+    }
+});
+
+// ══════════════════════════════════════════════════════════════
+// ██  EMPRESAS DE SEGURIDAD  ██
+// ══════════════════════════════════════════════════════════════
+
+let empListadoVisible = false;
+let empPolling = null;
+let todasEmpresas = [];
+
+function toggleListadoEmpresas() {
+    const c = document.getElementById('emp-listado-container');
+    const btn = document.getElementById('btn-toggle-emp-list');
+    empListadoVisible = !empListadoVisible;
+    if (empListadoVisible) {
+        c.style.display = 'block'; btn.innerHTML = '📂 Ocultar Empresas';
+        cargarEmpresas();
+        if (!empPolling) empPolling = setInterval(cargarEmpresas, 10000);
+    } else {
+        c.style.display = 'none'; btn.innerHTML = '📋 Ver Empresas';
+        if (empPolling) { clearInterval(empPolling); empPolling = null; }
+    }
+}
+
+async function cargarEmpresas() {
+    if (!empListadoVisible) return;
+    try {
+        const res = await fetch(`${API}/api/programador/empresas`);
+        todasEmpresas = await res.json();
+        renderEmpresas(todasEmpresas);
+        document.getElementById('stat-emp-total').textContent = todasEmpresas.length;
+        document.getElementById('stat-emp-activas').textContent = todasEmpresas.filter(e=>e.activo).length;
+        document.getElementById('stat-emp-inactivas').textContent = todasEmpresas.filter(e=>!e.activo).length;
+    } catch {}
+}
+
+function renderEmpresas(list) {
+    const grid = document.getElementById('emp-grid');
+    if (!list.length) { grid.innerHTML = '<div class="inst-empty"><div class="empty-state"><span style="font-size:2.5rem">🛡️</span><p>No hay empresas registradas</p></div></div>'; return; }
+    const baseUrl = window.location.origin + window.location.pathname.replace('programador.html','');
+    grid.innerHTML = list.map(e => `
+    <div class="inst-card ${e.activo?'':'inactiva'}" style="border-color:rgba(255,140,0,.25);">
+        <div class="inst-card-header">
+            <div><div class="inst-nombre" style="color:#ff8c00;">🛡️ ${e.nombre_empresa}</div><div class="inst-tipo">👤 ${e.nombre_admin}</div></div>
+            <span class="${e.activo?'badge badge-activa-inst':'badge badge-inactiva-inst'}">${e.activo?'Activa':'Inactiva'}</span>
+        </div>
+        <div class="inst-info">
+            <div class="inst-info-item"><div class="inst-info-label">País</div>${e.pais ? '+'+e.pais : '—'}</div>
+            <div class="inst-info-item"><div class="inst-info-label">Teléfono</div>${e.telefono||'—'}</div>
+            <div class="inst-info-item"><div class="inst-info-label">Correo</div>${e.correo||'—'}</div>
+            <div class="inst-info-item" style="grid-column:1/-1"><div class="inst-info-label">Dirección</div>${e.direccion||'—'}</div>
+        </div>
+        <div class="inst-clave-row" style="background:#0b0d17; border-left:2px solid #ff8c00;">
+            <div style="flex:1"><span class="inst-clave-label" style="color:#ff8c00;">🔐 CÓDIGO DE ACCESO</span><div class="inst-clave-val" style="font-size:1.4rem;letter-spacing:4px;color:#ff8c00;">${e.clave_acceso}</div></div>
+            <button class="btn-copy-clave" onclick="copyValue('${e.clave_acceso}')">Copiar</button>
+        </div>
+        <div class="link-vecino-box" style="margin-top:.75rem;background:rgba(255,140,0,.05);">
+            <p>🔗 Link para Pilotos:</p>
+            <span class="link-val" style="font-size:.7rem;display:block;overflow:hidden;text-overflow:ellipsis;">${baseUrl}piloto.html?emp=${e.id_empresa}</span>
+            <button class="btn-copy-clave" style="margin-top:.4rem;width:100%" onclick="copyValue('${baseUrl}piloto.html?emp=${e.id_empresa}')">Copiar Link Piloto</button>
+        </div>
+        <div class="inst-actions">
+            <button class="inst-btn ${e.activo?'inst-btn-toggle-on':'inst-btn-toggle-off'}" onclick="toggleEmpresa('${e.id_empresa}')">${e.activo?'🔴 Desactivar':'🟢 Activar'}</button>
+            <button class="inst-btn inst-btn-regen" onclick="regenClaveEmpresa('${e.id_empresa}')">🔄 Nueva clave</button>
+            <button class="inst-btn" style="background:rgba(255,140,0,.15);color:#ff8c00;border:1px solid rgba(255,140,0,.3);" onclick="abrirEditarEmpresa('${e.id_empresa}')">✏️ Editar</button>
+            <button class="inst-btn" style="background:rgba(255,59,59,.12);color:#ff3b3b;border:1px solid rgba(255,59,59,.3);" onclick="eliminarEmpresa('${e.id_empresa}')">🗑 Eliminar</button>
+        </div>
+    </div>`).join('');
+}
+
+function filtrarGridEmpresas(q) {
+    q = q.trim().toLowerCase();
+    const f = q ? todasEmpresas.filter(e => e.nombre_empresa.toLowerCase().includes(q) || e.nombre_admin.toLowerCase().includes(q) || e.clave_acceso.toLowerCase().includes(q)) : todasEmpresas;
+    renderEmpresas(f);
+}
+
+function abrirModalEmpresa() {
+    ['fe-nombre','fe-admin','fe-tel','fe-email','fe-dir'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('modal-nueva-emp').style.display = 'flex';
+}
+function cerrarModalEmpresa(e) { if (e && e.target !== document.getElementById('modal-nueva-emp')) return; document.getElementById('modal-nueva-emp').style.display = 'none'; }
+
+async function crearEmpresa() {
+    const nombre = document.getElementById('fe-nombre').value.trim();
+    const admin = document.getElementById('fe-admin').value.trim();
+    if (!nombre || !admin) { alert('Nombre y administrador son obligatorios'); return; }
+    try {
+        const res = await fetch(`${API}/api/programador/empresas`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                nombre_empresa: nombre, nombre_admin: admin,
+                telefono: document.getElementById('fe-tel').value.trim(),
+                correo: document.getElementById('fe-email').value.trim(),
+                direccion: document.getElementById('fe-dir').value.trim(),
+                pais: document.getElementById('fe-pais').value
+            })
+        });
+        const emp = await res.json();
+        cerrarModalEmpresa();
+        document.getElementById('emp-nueva-clave').textContent = emp.clave_acceso;
+        document.getElementById('emp-nueva-nombre').textContent = emp.nombre_empresa;
+        document.getElementById('modal-clave-emp').style.display = 'flex';
+        if (!empListadoVisible) toggleListadoEmpresas(); else cargarEmpresas();
+    } catch { alert('Error al crear empresa.'); }
+}
+
+function cerrarClaveEmpresa(e) { if (e && e.target !== document.getElementById('modal-clave-emp')) return; document.getElementById('modal-clave-emp').style.display = 'none'; }
+
+async function toggleEmpresa(id) { try { await fetch(`${API}/api/programador/empresas/${id}/toggle`, {method:'PATCH'}); cargarEmpresas(); } catch { alert('Error.'); } }
+
+async function regenClaveEmpresa(id) {
+    if (!confirm('¿Regenerar la clave de acceso?')) return;
+    try {
+        const res = await fetch(`${API}/api/programador/empresas/${id}/regenerar-clave`, {method:'PATCH'});
+        const emp = await res.json();
+        document.getElementById('emp-nueva-clave').textContent = emp.clave_acceso;
+        document.getElementById('emp-nueva-nombre').textContent = `Nueva clave: ${emp.nombre_empresa}`;
+        document.getElementById('modal-clave-emp').style.display = 'flex';
+        cargarEmpresas();
+    } catch { alert('Error.'); }
+}
+
+function abrirEditarEmpresa(id) {
+    const e = todasEmpresas.find(x => x.id_empresa === id);
+    if (!e) return;
+    document.getElementById('ee-id').value = e.id_empresa;
+    document.getElementById('ee-nombre').value = e.nombre_empresa;
+    document.getElementById('ee-admin').value = e.nombre_admin;
+    document.getElementById('ee-tel').value = e.telefono;
+    document.getElementById('ee-email').value = e.correo;
+    document.getElementById('ee-dir').value = e.direccion;
+    if (e.pais) document.getElementById('ee-pais').value = e.pais;
+    document.getElementById('modal-editar-emp').style.display = 'flex';
+}
+function cerrarEditarEmpresa(e) { if (e && e.target !== document.getElementById('modal-editar-emp')) return; document.getElementById('modal-editar-emp').style.display = 'none'; }
+
+async function guardarEdicionEmpresa() {
+    const id = document.getElementById('ee-id').value;
+    try {
+        await fetch(`${API}/api/programador/empresas/${id}`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                nombre_empresa: document.getElementById('ee-nombre').value.trim(),
+                nombre_admin: document.getElementById('ee-admin').value.trim(),
+                telefono: document.getElementById('ee-tel').value.trim(),
+                correo: document.getElementById('ee-email').value.trim(),
+                direccion: document.getElementById('ee-dir').value.trim(),
+                pais: document.getElementById('ee-pais').value
+            })
+        });
+        cerrarEditarEmpresa(); cargarEmpresas();
+    } catch { alert('Error al guardar.'); }
+}
+
+async function eliminarEmpresa(id) {
+    if (!confirm('⚠️ ¿Eliminar esta empresa y todos sus datos?')) return;
+    try { await fetch(`${API}/api/programador/empresas/${id}`, {method:'DELETE'}); cargarEmpresas(); }
+    catch { alert('Error al eliminar.'); }
+}
+</script>
+</body>
+</html>

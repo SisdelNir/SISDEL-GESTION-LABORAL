@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 Panel Central — Botón de Pánico SISDEL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/panel.css">
+</head>
+<body>
+
+<div class="panel-layout" id="panel-layout">
+
+    <!-- TOPBAR -->
+    <header class="panel-topbar">
+        <div class="panel-brand">
+            <div class="pulse-dot"></div>
+            <div>
+                <div class="panel-inst-name" id="inst-name-label" style="font-size: 1.5rem; color: #ffffff; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; text-shadow: 0 0 10px rgba(255,255,255,0.2);">—</div>
+                <div style="font-size: 0.72rem; color: #4da6ff; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 3px;">🚨 Panel Central SISDEL</div>
+            </div>
+        </div>
+        <div class="topbar-stats">
+            <div class="stat-pill sp-red">  <span class="sn" id="sp-activas">0</span><span>Activas</span></div>
+            <div class="stat-pill sp-orange"><span class="sn" id="sp-camino">0</span><span>En Camino</span></div>
+            <div class="stat-pill sp-green"> <span class="sn" id="sp-atend">0</span><span>Atendidas</span></div>
+            <div class="stat-pill sp-blue">  <span class="sn" id="sp-vec">0</span><span>Vecinos</span></div>
+        </div>
+        <div class="topbar-right">
+            <span class="clock" id="clock"></span>
+            <!-- Búsqueda rápida -->
+            <div style="position:relative; display:flex; align-items:center;">
+                <div style="display:flex; background:#111325; border:1px solid #2a2d45; border-radius:8px; padding:.3rem .5rem; align-items:center; gap:.3rem; min-width:200px;">
+                    <span style="font-size:.75rem;">🔍</span>
+                    <input type="text" id="panel-busqueda" placeholder="Buscar vecino..."
+                           oninput="buscarVecinoPanel(this.value)"
+                           style="flex:1; background:transparent; border:none; color:#fff; font-size:.78rem; outline:none; width:100%;">
+                </div>
+                <div id="panel-busqueda-resultados" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#111325; border:1px solid #2a2d45; border-radius:8px; max-height:250px; overflow-y:auto; z-index:999; box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+            </div>
+            <button class="btn-sm-icon" style="background:rgba(0,214,143,.12);border-color:rgba(0,214,143,.35);color:#00d68f;" onclick="abrirRegistroVecino()">📋 Registrar Vecino</button>
+            <button class="btn-sm-icon" style="background:rgba(255,165,0,.12);border-color:rgba(255,165,0,.35);color:#ffa500;" onclick="abrirRegistroAgente()">👮 Registrar Agente</button>
+            <button class="btn-sm-icon" style="background:rgba(124,92,252,.12);border-color:rgba(124,92,252,.35);color:#7c5cfc;" onclick="abrirHistorial()">📜 Historial</button>
+        </div>
+        <!-- Salir: esquina superior derecha -->
+        <button class="btn-sm-icon btn-sm-red" onclick="logout()" style="position:fixed; top:48px; right:12px; z-index:9999; font-size:.75rem; padding:.3rem .8rem;">Salir</button>
+    </header>
+
+    <!-- BODY -->
+    <div class="panel-body">
+
+        <!-- ALERTAS -->
+        <div class="alerts-col">
+            <div class="section-hdr">
+                <h2>⚡ Alertas de Emergencia</h2>
+                <div class="filter-tabs">
+                    <button class="ftab active" onclick="setFiltro('todas',this)">Todas</button>
+                    <button class="ftab" onclick="setFiltro('ACTIVA',this)">Activas</button>
+                    <button class="ftab" onclick="setFiltro('EN_CAMINO',this)">En Camino</button>
+                </div>
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Caso</th><th>Estado</th><th>Vecino</th><th>Teléfono</th>
+                            <th>Identificación</th><th>Dirección</th><th>GPS</th><th>Hora</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertas-tbody">
+                        <tr><td colspan="9"><div class="empty-state"><span style="font-size:2rem">🛡️</span><p>Sin emergencias — sistema monitoreando</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+
+    </div><!-- /panel-body -->
+
+
+
+</div><!-- /panel-layout -->
+
+<!-- MODAL DETALLE EMERGENCIA -->
+<div class="modal-overlay" id="modal-det" style="display:none;" onclick="closeDet(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-hdr"><h3>🚨 Detalle de Emergencia</h3><button class="modal-close" onclick="closeDet()">✕</button></div>
+        <div class="modal-body" id="det-body"></div>
+        <div class="modal-footer" style="flex-wrap:wrap; gap:.4rem;">
+            <button class="accion-btn" style="background:rgba(77,166,255,.15); color:#4da6ff; border:1px solid rgba(77,166,255,.3); flex:1 1 100%;" onclick="guardarAsignaciones()">💾 Guardar Agentes</button>
+            <button class="accion-btn a-camino"  onclick="cambiarEstatus('EN_CAMINO')">🚓 En Camino</button>
+            <button class="accion-btn a-atender" onclick="cambiarEstatus('ATENDIDA')">✅ Atendida</button>
+            <button class="accion-btn a-falsa"   onclick="cambiarEstatus('FALSA_ALARMA')">❌ Falsa Alarma</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CLAVES VECINOS -->
+<div class="modal-overlay" id="modal-claves" style="display:none;" onclick="closeClaves(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-hdr"><h3>🔑 Claves de Acceso para Vecinos</h3><button class="modal-close" onclick="closeClaves()">✕</button></div>
+        <div class="modal-body">
+            <p style="font-size:.82rem;color:#6b7294;margin-bottom:1.1rem;">
+                Genere claves de 6 caracteres y distribúyalas a sus vecinos. También puede compartir el <strong>link directo</strong> que se muestra abajo.
+            </p>
+
+            <!-- Link directo para vecinos -->
+            <div class="link-vecino-box" id="link-vecino-box">
+                <p>🔗 Link directo para vecinos (sin clave):</p>
+                <span class="link-val" id="link-vecino-val">—</span>
+                <button class="btn-copy" style="margin-top:.5rem" onclick="copiarLink()">📋 Copiar link</button>
+            </div>
+
+            <div class="clave-gen-row" style="margin-top:1.25rem;">
+                <input class="form-input" type="text" id="clave-desc" placeholder="Descripción (ej: Casa #15 Calle Rosal)" style="flex:1">
+                <button class="btn btn-primary" onclick="generarClave()">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    Generar
+                </button>
+            </div>
+
+            <div class="clave-box" id="clave-box" style="display:none;">
+                <p>✅ Clave generada — comparta con el vecino:</p>
+                <div class="clave-display" id="clave-val"></div>
+                <button class="btn-copy" onclick="copiarClave()">📋 Copiar clave</button>
+            </div>
+
+            <h4 style="font-size:.8rem;color:#6b7294;text-transform:uppercase;letter-spacing:.4px;margin:1.25rem 0 .6rem;">Claves existentes</h4>
+            <div class="claves-list" id="claves-list"><p style="color:#6b7294;font-size:.82rem;">Cargando...</p></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL MAPA -->
+<div class="modal-overlay" id="modal-mapa" style="display:none;" onclick="cerrarMapa(event)">
+    <div class="modal-box" style="width:90%; max-width:1100px; height:85vh; display:flex; flex-direction:column; padding:0;" onclick="event.stopPropagation()">
+        <div class="modal-hdr" style="padding:1rem 1.5rem; border-bottom:1px solid #2a2d45;">
+            <div style="display:flex; gap:1rem; align-items:center;">
+                <h3 style="margin:0;">🗺️ Mapa de Emergencias</h3>
+                <button class="btn-center" onclick="centrarMapa()">Centrar en Ciudad</button>
+            </div>
+            <button class="modal-close" onclick="cerrarMapa()">✕</button>
+        </div>
+        <div class="modal-body" style="padding:0; flex:1; display:flex;">
+            <div id="mapa" style="flex:1; width:100%; border-radius:0 0 16px 16px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL AVISAR FAMILIAS -->
+<div class="modal-overlay" id="modal-avisar" style="display:none;" onclick="cerrarAvisar(event)">
+    <div class="modal-box" style="width:90%; max-width:400px;" onclick="event.stopPropagation()">
+        <div class="modal-hdr"><h3>💬 Avisar a Familiares</h3><button class="modal-close" onclick="cerrarAvisar()">✕</button></div>
+        <div class="modal-body" id="avisar-body" style="display:flex; flex-direction:column; gap:.5rem;">
+            <!-- Buttons dynamically inserted here -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL HISTORIAL -->
+<div class="modal-overlay" id="modal-historial" style="display:none;" onclick="cerrarHistorial(event)">
+    <div class="modal-box" style="width:95%; max-width:1100px; max-height:90vh; display:flex; flex-direction:column;" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+            <h3>📜 Historial de Alertas Atendidas</h3>
+            <button class="modal-close" onclick="cerrarHistorial()">✕</button>
+        </div>
+        <div style="padding:.75rem 1.5rem; border-bottom:1px solid #1a1f3e; display:flex; gap:.5rem; align-items:center;">
+            <div style="display:flex; flex:1; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.4rem .6rem; align-items:center; gap:.4rem;">
+                <span style="font-size:.8rem;">🔍</span>
+                <input type="text" id="historial-busqueda" placeholder="Buscar por nombre, teléfono o documento..."
+                       oninput="filtrarHistorial(this.value)"
+                       style="flex:1; background:transparent; border:none; color:#fff; font-size:.82rem; outline:none;">
+            </div>
+            <span id="historial-count" style="font-size:.75rem; color:#6b7294; white-space:nowrap;"></span>
+        </div>
+        <div class="modal-body" style="flex:1; overflow-y:auto; padding:0;">
+            <table class="tbl" style="font-size:.8rem;">
+                <thead><tr>
+                    <th>Caso</th><th>Estado</th><th>Vecino</th><th>Teléfono</th>
+                    <th>Identificación</th><th>Fecha / Hora</th><th>⏱️ Respuesta</th><th></th>
+                </tr></thead>
+                <tbody id="historial-tbody">
+                    <tr><td colspan="8" style="text-align:center; padding:2rem; color:#6b7294;">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL REGISTRAR AGENTE -->
+<div class="modal-overlay" id="modal-agente" style="display:none;" onclick="cerrarModalAgente(event)">
+    <div class="modal-box" style="width:95%; max-width:600px; max-height:92vh; display:flex; flex-direction:column;" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+            <h3>👮 Registrar Agente de Seguridad</h3>
+            <button class="modal-close" onclick="cerrarModalAgente()">✕</button>
+        </div>
+        <div class="modal-body" style="flex:1; overflow-y:auto;">
+            <form id="form-agente" onsubmit="guardarAgente(event)">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:.7rem;">
+                    <!-- Documento -->
+                    <div style="grid-column:1/-1;">
+                        <label style="font-size:.72rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:.3rem;">Número de Documento (Llave primaria) *</label>
+                        <input type="text" id="ag-doc" required class="form-input" style="width:100%; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.5rem .7rem; color:#fff; font-size:.85rem;">
+                    </div>
+                    <!-- Nombre -->
+                    <div style="grid-column:1/-1;">
+                        <label style="font-size:.72rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:.3rem;">Nombre Completo *</label>
+                        <input type="text" id="ag-nombre" required class="form-input" style="width:100%; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.5rem .7rem; color:#fff; font-size:.85rem;">
+                    </div>
+                    <!-- Teléfono -->
+                    <div>
+                        <label style="font-size:.72rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:.3rem;">Teléfono *</label>
+                        <input type="tel" id="ag-tel" required class="form-input" style="width:100%; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.5rem .7rem; color:#fff; font-size:.85rem;">
+                    </div>
+                    <!-- Edad -->
+                    <div>
+                        <label style="font-size:.72rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:.3rem;">Edad</label>
+                        <input type="number" id="ag-edad" min="0" max="150" value="0" class="form-input" style="width:100%; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.5rem .7rem; color:#fff; font-size:.85rem;">
+                    </div>
+                    <!-- Sexo -->
+                    <div>
+                        <label style="font-size:.72rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:.3rem;">Sexo</label>
+                        <select id="ag-sexo" class="form-input" style="width:100%; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.5rem .7rem; color:#fff; font-size:.85rem;">
+                            <option value="">Seleccionar</option>
+                            <option value="M">Masculino</option>
+                            <option value="F">Femenino</option>
+                        </select>
+                    </div>
+                    <!-- País -->
+                    <div>
+                        <label style="font-size:.72rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:.3rem;">País</label>
+                        <input type="text" id="ag-pais" value="Guatemala" class="form-input" style="width:100%; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.5rem .7rem; color:#fff; font-size:.85rem;">
+                    </div>
+                    <!-- Puesto -->
+                    <div>
+                        <label style="font-size:.72rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:.3rem;">Puesto / Cargo</label>
+                        <input type="text" id="ag-puesto" class="form-input" style="width:100%; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.5rem .7rem; color:#fff; font-size:.85rem;">
+                    </div>
+                    <!-- Jefe Inmediato -->
+                    <div>
+                        <label style="font-size:.72rem; color:#6b7294; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:.3rem;">Jefe Inmediato</label>
+                        <input type="text" id="ag-jefe" class="form-input" style="width:100%; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.5rem .7rem; color:#fff; font-size:.85rem;">
+                    </div>
+                </div>
+                <!-- Código generado -->
+                <div id="ag-codigo-box" style="display:none; margin-top:1rem; padding:.7rem 1rem; background:rgba(0,214,143,.08); border:1px solid rgba(0,214,143,.3); border-radius:10px; text-align:center;">
+                    <span style="font-size:.72rem; color:#6b7294; text-transform:uppercase;">Código de Acceso Generado</span>
+                    <div id="ag-codigo-val" style="font-size:1.5rem; font-weight:900; color:#00d68f; font-family:monospace; letter-spacing:3px; margin-top:.3rem;"></div>
+                </div>
+                <!-- Botones -->
+                <div style="display:flex; gap:.5rem; margin-top:1.2rem;">
+                    <button type="submit" id="ag-btn-guardar" style="flex:1; background:linear-gradient(135deg,#ffa500,#ff8c00); color:#fff; font-weight:700; font-size:.85rem; padding:.6rem; border:none; border-radius:8px; cursor:pointer;">💾 Guardar Agente</button>
+                    <button type="button" onclick="verListaAgentes()" style="flex:1; background:rgba(124,92,252,.12); color:#7c5cfc; font-weight:700; font-size:.85rem; padding:.6rem; border:1px solid rgba(124,92,252,.3); border-radius:8px; cursor:pointer;">👥 Ver Agentes</button>
+                </div>
+            </form>
+            <!-- Lista de agentes -->
+            <div id="ag-lista" style="display:none; margin-top:1rem;">
+                <div style="display:flex; align-items:center; gap:.5rem; margin-bottom:.5rem;">
+                    <h4 style="font-size:.8rem; color:#ffa500; text-transform:uppercase; margin:0;">👮 Agentes Registrados</h4>
+                    <span id="ag-count" style="font-size:.72rem; color:#6b7294;"></span>
+                </div>
+                <div style="display:flex; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; padding:.3rem .5rem; align-items:center; gap:.3rem; margin-bottom:.5rem;">
+                    <span style="font-size:.75rem;">🔍</span>
+                    <input type="text" id="ag-busqueda" placeholder="Buscar agente..." oninput="filtrarAgentes(this.value)" style="flex:1; background:transparent; border:none; color:#fff; font-size:.78rem; outline:none;">
+                </div>
+                <div id="ag-lista-body" style="max-height:250px; overflow-y:auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/panel.js"></script>
+</body>
+</html>

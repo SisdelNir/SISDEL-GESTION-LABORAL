@@ -1,0 +1,8 @@
+fastapi==0.128.8
+uvicorn==0.39.0
+pydantic==2.12.5
+python-multipart==0.0.20
+psycopg2==2.9.10
+twilio
+python-dotenv
+requests

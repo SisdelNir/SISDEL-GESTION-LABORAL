@@ -897,10 +897,10 @@
                     <div class="vista-header"><h3>🛡️ Modo Supervisor</h3></div>
 
                     <!-- Layout: columna izquierda de botones + contenido a la derecha -->
-                    <div style="display:flex;gap:20px;align-items:flex-start;">
+                    <div class="sup-modulo-layout" style="display:flex;gap:20px;align-items:flex-start;">
 
                         <!-- Columna izquierda de botones -->
-                        <div style="display:flex;flex-direction:column;gap:10px;min-width:190px;flex-shrink:0;">
+                        <div class="sup-modulo-sidebar" style="display:flex;flex-direction:column;gap:10px;min-width:190px;flex-shrink:0;">
                             <button class="btn btn-sm" id="sup-mod-btn-empleados" style="background:transparent;color:#60a5fa;font-weight:700;padding:12px 20px;border-radius:10px;width:100%;text-align:left;border:1px solid rgba(96,165,250,0.3);" onclick="cambiarSeccionModSup('empleados')">
                                 👥 Empleados
                             </button>
@@ -921,7 +921,7 @@
                         </div>
 
                         <!-- Contenido a la derecha -->
-                        <div style="flex:1;min-width:0;">
+                        <div class="sup-modulo-content" style="flex:1;min-width:0;">
                             <!-- Sección Empleados -->
                             <div id="sup-mod-sec-empleados" style="display:none;">
                                 <div class="vista-header">

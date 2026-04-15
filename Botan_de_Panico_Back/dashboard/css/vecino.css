@@ -1,0 +1,224 @@
+/* ══════════════════════════════════════════════════
+   VECINO — CSS
+   Página móvil del vecino — Botón de Pánico v2.0
+══════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:     #0b0d17;
+    --card:   #151829;
+    --border: #23263d;
+    --red:    #ff3b3b;
+    --text:   #e8eaf0;
+    --muted:  #6b7294;
+    --green:  #00d68f;
+    --blue:   #4da6ff;
+}
+
+html, body {
+    height: 100%; font-family: 'Inter', sans-serif;
+    background: var(--bg); color: var(--text);
+    overflow-x: hidden; -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+/* ── PASOS ───────────────────────────────────────── */
+.paso { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 1.5rem 1rem 2rem; }
+.vcenter { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; padding-top: 2rem; }
+
+/* ── LOGO ────────────────────────────────────────── */
+.v-logo { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.v-icon { width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; background: rgba(255,59,59,0.1); border-radius: 50%; border: 2px solid rgba(255,59,59,0.3); }
+.v-logo h1 { font-size: 1.6rem; font-weight: 900; color: #fff; }
+.v-logo h2 { font-size: 1.3rem; font-weight: 700; color: #fff; }
+.v-logo p  { font-size: 0.85rem; color: var(--muted); }
+
+/* ── CARD ────────────────────────────────────────── */
+.v-card {
+    width: 100%; background: var(--card);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 1.75rem 1.5rem;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+}
+.v-card h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.5rem; }
+.v-desc { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.5; }
+
+/* Input compartido */
+.v-card input[type=text],
+.v-card input[type=tel] {
+    width: 100%; background: var(--bg); border: 2px solid var(--border);
+    border-radius: 12px; padding: 0.9rem 1rem; color: var(--text);
+    font-family: 'Inter', sans-serif; font-size: 1rem;
+    transition: border-color 0.2s;
+    -webkit-appearance: none; appearance: none;
+}
+.v-card input:focus { outline: none; border-color: var(--red); }
+.v-card input::placeholder { color: var(--muted); }
+
+/* ── CLAVE INPUT ─────────────────────────────────── */
+.btn-clave-ok {
+    display: block; width: 100%; margin-top: 1.25rem;
+    background: linear-gradient(135deg, var(--red), #ff6b35);
+    border: none; border-radius: 12px; padding: 0.95rem;
+    color: #fff; font-size: 1.05rem; font-weight: 800; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(255,59,59,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn-clave-ok:active { transform: scale(0.97); }
+
+/* ── REGISTRO ────────────────────────────────────── */
+.v-field { margin-bottom: 1rem; }
+.v-field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.btn-registrar {
+    display: block; width: 100%; margin-top: 0.5rem;
+    background: linear-gradient(135deg, #7c3aed, #4da6ff);
+    border: none; border-radius: 12px; padding: 0.95rem;
+    color: #fff; font-size: 1.05rem; font-weight: 800; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(124,58,237,0.4);
+    transition: transform 0.15s;
+}
+.btn-registrar:active { transform: scale(0.97); }
+
+/* ── FORM GRID (2 columnas) ─────────────────────── */
+.v-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem 1.1rem;
+    margin-bottom: 1.25rem;
+}
+.v-field-full { grid-column: 1 / -1; }
+
+.v-select,
+.v-card input[type=email],
+.v-card input[type=number] {
+    width: 100%; background: var(--bg); border: 2px solid var(--border);
+    border-radius: 12px; padding: 0.9rem 1rem; color: var(--text);
+    font-family: 'Inter', sans-serif; font-size: 1rem;
+    transition: border-color 0.2s; -webkit-appearance: none; appearance: none;
+}
+.v-select:focus,
+.v-card input[type=email]:focus,
+.v-card input[type=number]:focus { outline: none; border-color: var(--red); }
+.v-select option { background: var(--bg); color: var(--text); }
+
+.v-hint {
+    display: block; margin-top: 0.3rem;
+    font-size: 0.72rem; font-weight: 600;
+}
+.v-hint.found { color: var(--green); }
+.v-hint.notfound { color: var(--muted); }
+
+@media (max-width: 520px) {
+    .v-form-grid { grid-template-columns: 1fr; }
+}
+
+.v-error { margin-top: 0.75rem; background: rgba(255,59,59,0.12); border: 1px solid rgba(255,59,59,0.35); border-radius: 10px; padding: 0.65rem 1rem; color: var(--red); font-size: 0.83rem; text-align: center; }
+
+.link-admin { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); text-decoration: none; font-size: 0.8rem; }
+.link-admin:hover { color: var(--text); }
+
+/* ── PASO PÁNICO ─────────────────────────────────── */
+.paso-panico {
+    justify-content: flex-start; padding: 0;
+    background: radial-gradient(ellipse at center bottom, rgba(255,59,59,0.08) 0%, transparent 70%), var(--bg);
+}
+
+.vecino-info-bar {
+    width: 100%; display: flex; align-items: center; gap: 0.6rem;
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 0.8rem 1.25rem; font-size: 0.85rem; color: var(--text);
+}
+.btn-editar-datos { margin-left: auto; background: rgba(77,166,255,0.12); border: 1.5px solid rgba(77,166,255,0.45); border-radius: 10px; padding: 0.45rem 1rem; color: #4da6ff; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+.btn-editar-datos:active { background: rgba(77,166,255,0.25); }
+
+.gps-bar {
+    width: 100%; display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.55rem 1.25rem; background: rgba(0,214,143,0.05); border-bottom: 1px solid rgba(0,214,143,0.15); font-size: 0.78rem; color: var(--muted);
+}
+.gps-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); animation: gpsBlink 2s infinite; }
+.gps-dot.ok { background: var(--green); }
+@keyframes gpsBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.panico-area {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 2rem 1rem;
+    gap: 1rem;
+}
+
+.instruccion { font-size: 1rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); }
+.instruccion-sub { font-size: 1rem; color: var(--muted); }
+
+/* ── BOTÓN PÁNICO ────────────────────────────────── */
+.panic-btn-container { position: relative; display: flex; align-items: center; justify-content: center; margin: 1.5rem 0; }
+
+.panic-ring {
+    position: absolute; border-radius: 50%; border: 2px solid var(--red); pointer-events: none;
+    animation: ringPulse 3s ease-out infinite;
+}
+.ring1 { width: 200px; height: 200px; opacity: 0.5; animation-delay: 0s; }
+.ring2 { width: 240px; height: 240px; opacity: 0.3; animation-delay: 0.5s; }
+.ring3 { width: 280px; height: 280px; opacity: 0.15; animation-delay: 1s; }
+@keyframes ringPulse { 0% { transform: scale(0.85); opacity: 0.5; } 100% { transform: scale(1.15); opacity: 0; } }
+
+.btn-panico {
+    position: relative; z-index: 10;
+    width: 180px; height: 180px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ff5555, #cc0000, #880000);
+    border: 4px solid rgba(255,100,100,0.5);
+    box-shadow:
+        0 0 40px rgba(255,59,59,0.5),
+        0 0 80px rgba(255,59,59,0.2),
+        inset 0 -8px 20px rgba(0,0,0,0.4),
+        inset 0 4px 10px rgba(255,150,150,0.3);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem;
+    color: #fff; cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s;
+    touch-action: none;
+}
+.btn-panico span { font-size: 1.6rem; font-weight: 900; letter-spacing: 4px; }
+.btn-panico:active,
+.btn-panico.pressing {
+    transform: scale(0.93);
+    box-shadow:
+        0 0 60px rgba(255,59,59,0.8),
+        0 0 120px rgba(255,59,59,0.4),
+        inset 0 -4px 10px rgba(0,0,0,0.5),
+        inset 0 2px 6px rgba(255,150,150,0.2);
+}
+
+/* Hold progress bar */
+.hold-bar-wrap { width: 180px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+.hold-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--orange), var(--red)); border-radius: 4px; transition: width 0.1s linear; }
+
+.hint-panico { font-size: 0.92rem; color: var(--muted); text-align: center; max-width: 240px; line-height: 1.4; }
+
+/* ── MIS ALERTAS ─────────────────────────────────── */
+.mis-alertas { width: 100%; padding: 0 1rem 1.5rem; }
+.mis-alertas h3 { font-size: 0.82rem; font-weight: 700; color: var(--muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.alerta-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; font-size: 0.8rem; }
+.alerta-item .al-hora { color: var(--muted); font-size: 0.72rem; margin-top: 0.25rem; }
+
+/* ── OVERLAY ENVIADO ─────────────────────────────── */
+.overlay-enviado {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(8px);
+}
+.enviado-card {
+    background: linear-gradient(135deg, #0e1a2e, #1a2540);
+    border: 2px solid rgba(0,214,143,0.5);
+    border-radius: 24px; padding: 2.5rem 2rem; text-align: center;
+    width: min(360px, 90vw);
+    animation: popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+@keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.enviado-icon { font-size: 4rem; margin-bottom: 1rem; animation: bounce 0.8s infinite alternate; }
+@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+.enviado-card h2 { font-size: 1.6rem; font-weight: 900; color: var(--green); margin-bottom: 1rem; }
+.enviado-card p { color: var(--text); font-size: 0.9rem; line-height: 1.6; margin-bottom: 0.5rem; }
+.enviado-coords { font-size: 0.78rem; color: var(--muted); font-family: monospace; }
+.btn-ok-enviado { display: block; width: 100%; margin-top: 1.5rem; background: rgba(0,214,143,0.2); border: 1px solid rgba(0,214,143,0.5); border-radius: 12px; padding: 0.85rem; color: var(--green); font-size: 1rem; font-weight: 700; cursor: pointer; }
+.btn-ok-enviado:active { opacity: 0.8; }

@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ Panel Empresa — Botón de Alerta SISDEL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/panel.css">
+    <style>
+        .panel-topbar { background: linear-gradient(135deg, #1a0f00 0%, #0d1117 100%) !important; border-bottom: 1px solid rgba(255,140,0,.25) !important; }
+        .stat-pill.sp-orange { background: rgba(255,140,0,.12); border-color: rgba(255,140,0,.35); color: #ff8c00; }
+        .pulse-dot { background: #ff8c00 !important; box-shadow: 0 0 0 4px rgba(255,140,0,.3) !important; }
+        .badge-activa { background: rgba(255,59,59,.15); color:#ff3b3b; border:1px solid rgba(255,59,59,.3); }
+        .badge-camino { background: rgba(255,140,0,.15); color:#ff8c00; border:1px solid rgba(255,140,0,.3); }
+        .badge-atendida { background: rgba(0,214,143,.15); color:#00d68f; border:1px solid rgba(0,214,143,.3); }
+        .badge-falsa { background: rgba(107,114,148,.15); color:#6b7294; border:1px solid rgba(107,114,148,.3); }
+        .vehiculo-card { background: rgba(255,140,0,.05); border: 1px solid rgba(255,140,0,.2); border-radius: 12px; padding: .75rem; margin-top: .5rem; }
+        /* ═══ TOAST & CONFIRM ═══ */
+        .sisdel-toast-container { position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:.5rem;pointer-events:none; }
+        .sisdel-toast { pointer-events:auto;display:flex;align-items:center;gap:.7rem;padding:.75rem 1.2rem;border-radius:14px;font-size:.85rem;font-weight:600;color:#fff;min-width:280px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.45);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:toastIn .4s cubic-bezier(.23,1,.32,1);transition:all .3s; }
+        .sisdel-toast.toast-success { background:linear-gradient(135deg,rgba(0,214,143,.92),rgba(0,168,112,.92));border:1px solid rgba(0,214,143,.5); }
+        .sisdel-toast.toast-error { background:linear-gradient(135deg,rgba(255,59,59,.92),rgba(200,30,30,.92));border:1px solid rgba(255,59,59,.5); }
+        .sisdel-toast.toast-info { background:linear-gradient(135deg,rgba(77,166,255,.92),rgba(40,120,220,.92));border:1px solid rgba(77,166,255,.5); }
+        .sisdel-toast.toast-warning { background:linear-gradient(135deg,rgba(255,140,0,.92),rgba(220,120,0,.92));border:1px solid rgba(255,140,0,.5); }
+        .sisdel-toast .toast-icon { font-size:1.3rem;flex-shrink:0; }
+        .sisdel-toast .toast-msg { flex:1; }
+        .sisdel-toast .toast-close { cursor:pointer;opacity:.7;font-size:1rem;padding:0 .2rem; }
+        .sisdel-toast .toast-close:hover { opacity:1; }
+        .sisdel-toast.toast-out { animation:toastOut .3s ease forwards; }
+        @keyframes toastIn { from { opacity:0;transform:translateX(60px) scale(.9); } to { opacity:1;transform:translateX(0) scale(1); } }
+        @keyframes toastOut { from { opacity:1;transform:translateX(0); } to { opacity:0;transform:translateX(60px) scale(.9); } }
+        .sisdel-confirm-overlay { position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);z-index:99998;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s; }
+        .sisdel-confirm-box { background:linear-gradient(145deg,#151829,#111325);border:1px solid rgba(255,140,0,.25);border-radius:18px;padding:2rem;max-width:400px;width:90%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.5);animation:scaleIn .3s cubic-bezier(.23,1,.32,1); }
+        .sisdel-confirm-box .cf-icon { font-size:2.5rem;margin-bottom:.8rem; }
+        .sisdel-confirm-box .cf-title { font-size:1.1rem;font-weight:800;color:#fff;margin-bottom:.5rem; }
+        .sisdel-confirm-box .cf-msg { font-size:.85rem;color:#9da3c0;margin-bottom:1.2rem;line-height:1.5; }
+        .sisdel-confirm-box .cf-btns { display:flex;gap:.5rem; }
+        .sisdel-confirm-box .cf-btn { flex:1;padding:.6rem;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;border:none;transition:all .2s; }
+        .sisdel-confirm-box .cf-btn-cancel { background:rgba(107,114,148,.15);border:1px solid rgba(107,114,148,.3);color:#9da3c0; }
+        .sisdel-confirm-box .cf-btn-cancel:hover { background:rgba(107,114,148,.25); }
+        .sisdel-confirm-box .cf-btn-ok { background:linear-gradient(135deg,#ff8c00,#ff6600);color:#fff; }
+        .sisdel-confirm-box .cf-btn-ok:hover { transform:scale(1.03);box-shadow:0 4px 16px rgba(255,140,0,.4); }
+        .sisdel-confirm-box .cf-btn-danger { background:linear-gradient(135deg,#ff3b3b,#cc2020);color:#fff; }
+        .sisdel-confirm-box .cf-btn-danger:hover { transform:scale(1.03);box-shadow:0 4px 16px rgba(255,59,59,.4); }
+        @keyframes fadeIn { from{opacity:0}to{opacity:1} }
+        @keyframes scaleIn { from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)} }
+    </style>
+</head>
+<body>
+<div class="sisdel-toast-container" id="toast-container"></div>
+
+<div class="panel-layout" id="panel-layout">
+    <header class="panel-topbar">
+        <div class="panel-brand">
+            <div class="pulse-dot"></div>
+            <div>
+                <div class="panel-inst-name" id="emp-name-label" style="font-size:1.5rem;color:#ff8c00;font-weight:900;letter-spacing:.5px;text-transform:uppercase;">—</div>
+                <div style="font-size:.72rem;color:#ff8c00;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-top:3px;">🛡️ Panel Empresa — Botón de Alerta</div>
+            </div>
+        </div>
+        <div class="topbar-stats">
+            <div class="stat-pill sp-red"><span class="sn" id="sp-activas">0</span><span>Activas</span></div>
+            <div class="stat-pill sp-orange"><span class="sn" id="sp-camino">0</span><span>En Camino</span></div>
+            <div class="stat-pill sp-green"><span class="sn" id="sp-atend">0</span><span>Atendidas</span></div>
+            <div class="stat-pill sp-blue"><span class="sn" id="sp-pilotos">0</span><span>Pilotos</span></div>
+        </div>
+        <div class="topbar-right">
+            <span class="clock" id="clock"></span>
+            <div style="position:relative;display:flex;align-items:center;">
+                <div style="display:flex;background:#111325;border:1px solid #2a2d45;border-radius:8px;padding:.3rem .5rem;align-items:center;gap:.3rem;min-width:200px;">
+                    <span style="font-size:.75rem;">🔍</span>
+                    <input type="text" id="panel-busqueda" placeholder="Buscar piloto o placas..."
+                           oninput="buscarPiloto(this.value)"
+                           style="flex:1;background:transparent;border:none;color:#fff;font-size:.78rem;outline:none;width:100%;">
+                </div>
+                <div id="panel-busqueda-resultados" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#111325;border:1px solid #2a2d45;border-radius:8px;max-height:250px;overflow-y:auto;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+            </div>
+            <button class="btn-sm-icon" style="background:rgba(0,214,143,.12);border-color:rgba(0,214,143,.35);color:#00d68f;" onclick="abrirRegistroPiloto()">🚗 Registrar Piloto</button>
+            <button class="btn-sm-icon" style="background:rgba(255,165,0,.12);border-color:rgba(255,165,0,.35);color:#ffa500;" onclick="abrirRegistroAgente()">👮 Registrar Agente</button>
+            <button class="btn-sm-icon" style="background:rgba(124,92,252,.12);border-color:rgba(124,92,252,.35);color:#7c5cfc;" onclick="abrirHistorial()">📜 Historial</button>
+        </div>
+        <button class="btn-sm-icon btn-sm-red" onclick="logout()" style="position:fixed;top:48px;right:12px;z-index:9999;font-size:.75rem;padding:.3rem .8rem;">Salir</button>
+    </header>
+
+    <div class="panel-body">
+        <div class="alerts-col">
+            <div class="section-hdr">
+                <h2>⚡ Alertas de Pilotos</h2>
+                <div class="filter-tabs">
+                    <button class="ftab active" onclick="setFiltro('todas',this)">Todas</button>
+                    <button class="ftab" onclick="setFiltro('ACTIVA',this)">Activas</button>
+                    <button class="ftab" onclick="setFiltro('EN_CAMINO',this)">En Camino</button>
+                </div>
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Caso</th><th>Estado</th><th>Piloto</th><th>Placas</th>
+                            <th>Vehículo</th><th>GPS</th><th>Hora</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertas-tbody">
+                        <tr><td colspan="8"><div class="empty-state"><span style="font-size:2rem">🛡️</span><p>Sin alertas — sistema monitoreando</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DETALLE ALERTA -->
+<div class="modal-overlay" id="modal-det" style="display:none;" onclick="closeDet(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-hdr" style="background:linear-gradient(135deg,rgba(255,140,0,.15),rgba(0,0,0,0));"><h3>🛡️ Detalle de Alerta</h3><button class="modal-close" onclick="closeDet()">✕</button></div>
+        <div class="modal-body" id="det-body"></div>
+        <div class="modal-footer" style="flex-wrap:wrap;gap:.4rem;">
+            <button class="accion-btn" style="background:rgba(255,140,0,.15);color:#ff8c00;border:1px solid rgba(255,140,0,.3);flex:1 1 100%;" onclick="guardarAsignaciones()">💾 Guardar Agentes</button>
+            <button class="accion-btn a-camino" onclick="cambiarEstatus('EN_CAMINO')">🚓 En Camino</button>
+            <button class="accion-btn a-atender" onclick="cambiarEstatus('ATENDIDA')">✅ Atendida</button>
+            <button class="accion-btn a-falsa" onclick="cambiarEstatus('FALSA_ALARMA')">❌ Falsa Alarma</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL MAPA -->
+<div class="modal-overlay" id="modal-mapa" style="display:none;" onclick="cerrarMapa(event)">
+    <div class="modal-box" style="width:90%;max-width:1100px;height:85vh;display:flex;flex-direction:column;padding:0;" onclick="event.stopPropagation()">
+        <div class="modal-hdr" style="padding:1rem 1.5rem;border-bottom:1px solid #2a2d45;">
+            <h3>🗺️ Mapa de Alertas</h3>
+            <button class="modal-close" onclick="cerrarMapa()">✕</button>
+        </div>
+        <div class="modal-body" style="padding:0;flex:1;display:flex;">
+            <div id="mapa" style="flex:1;width:100%;border-radius:0 0 16px 16px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL AVISAR CONTACTOS -->
+<div class="modal-overlay" id="modal-avisar" style="display:none;" onclick="cerrarAvisar(event)">
+    <div class="modal-box" style="width:90%;max-width:400px;" onclick="event.stopPropagation()">
+        <div class="modal-hdr"><h3>💬 Avisar Contactos</h3><button class="modal-close" onclick="cerrarAvisar()">✕</button></div>
+        <div class="modal-body" id="avisar-body" style="display:flex;flex-direction:column;gap:.5rem;"></div>
+    </div>
+</div>
+
+<!-- MODAL HISTORIAL -->
+<div class="modal-overlay" id="modal-historial" style="display:none;" onclick="cerrarHistorial(event)">
+    <div class="modal-box" style="width:95%;max-width:1100px;max-height:90vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+        <div class="modal-hdr"><h3>📜 Historial de Alertas</h3><button class="modal-close" onclick="cerrarHistorial()">✕</button></div>
+        <div style="padding:.75rem 1.5rem;border-bottom:1px solid #1a1f3e;display:flex;gap:.5rem;align-items:center;">
+            <div style="display:flex;flex:1;background:#0b0d17;border:1px solid #2a2d45;border-radius:8px;padding:.4rem .6rem;align-items:center;gap:.4rem;">
+                <span style="font-size:.8rem;">🔍</span>
+                <input type="text" id="historial-busqueda" placeholder="Buscar por nombre, placas..."
+                       oninput="filtrarHistorial(this.value)"
+                       style="flex:1;background:transparent;border:none;color:#fff;font-size:.82rem;outline:none;">
+            </div>
+            <span id="historial-count" style="font-size:.75rem;color:#6b7294;white-space:nowrap;"></span>
+        </div>
+        <div class="modal-body" style="flex:1;overflow-y:auto;padding:0;">
+            <table class="tbl" style="font-size:.8rem;">
+                <thead><tr>
+                    <th>Caso</th><th>Estado</th><th>Piloto</th><th>Placas</th>
+                    <th>Vehículo</th><th>Fecha / Hora</th><th></th>
+                </tr></thead>
+                <tbody id="historial-tbody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:#6b7294;">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL REGISTRAR PILOTO -->
+<div class="modal-overlay" id="modal-piloto" style="display:none;" onclick="cerrarModalPiloto(event)">
+    <div class="modal-box" style="width:95%;max-width:750px;max-height:92vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+        <div class="modal-hdr" style="background:linear-gradient(135deg,rgba(255,140,0,.15),rgba(0,0,0,0));">
+            <h3>🚗 Registrar Piloto</h3>
+            <button class="modal-close" onclick="cerrarModalPiloto()">✕</button>
+        </div>
+        <div class="modal-body" style="flex:1;overflow-y:auto;">
+            <!-- BUSCADOR SUPERIOR -->
+            <div style="background:#0b0d17;border:1px solid #1a1f3e;border-radius:10px;padding:.8rem;margin-bottom:1rem;position:relative;">
+                <label style="color:#ff8c00;font-size:.75rem;font-weight:700;text-transform:uppercase;display:block;margin-bottom:.4rem;">🔍 Buscar para Editar / Ver</label>
+                <input type="text" id="pl-busqueda-top" placeholder="Buscar por Nombre, DPI, Teléfono o Placas..." oninput="buscarPilotoRapido(this.value)" class="form-input" style="width:100%;font-size:.9rem;" autocomplete="off">
+                <div id="pl-busqueda-res" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:#111325;border:1px solid #2a2d45;border-radius:8px;z-index:999;box-shadow:0 8px 16px rgba(0,0,0,.5);margin-top:4px;"></div>
+            </div>
+
+            <form id="form-piloto" onsubmit="guardarOModificarPiloto(event)">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+                    <!-- DPI LLAVE PRIMARIA -->
+                    <div style="grid-column:1/-1;">
+                        <label class="lbl-sm">🪨 Documento de Identificación <span style="color:#ff3b3b;font-size:.65rem;font-weight:900;">(LLAVE PRIMARIA)</span></label>
+                        <input type="text" id="pl-dpi" required class="form-input inp-sm field-piloto" placeholder="DPI / INE / Cédula — Ingrese primero este dato" style="border-color:#ff8c00;font-size:1.1rem;font-weight:700;" autocomplete="off" onblur="buscarPilotoPorDPI()">
+                        <span id="pl-hint-dpi" style="display:none;font-size:.78rem;margin-top:.3rem;padding:.3rem .6rem;border-radius:6px;font-weight:600;"></span>
+                    </div>
+                    <!-- PAÍS -->
+                    <div style="grid-column:1/-1;">
+                        <label class="lbl-sm">🌎 País <span style="color:#6b7294;font-size:.6rem;">(se añade automáticamente al teléfono)</span></label>
+                        <select id="pl-pais" class="form-input inp-sm field-piloto" onchange="actualizarLadaPiloto()">
+                            <option value="502">🇬🇹 Guatemala (+502)</option>
+                            <option value="52">🇲🇽 México (+52)</option>
+                            <option value="503">🇸🇻 El Salvador (+503)</option>
+                            <option value="504">🇭🇳 Honduras (+504)</option>
+                            <option value="505">🇳🇮 Nicaragua (+505)</option>
+                            <option value="506">🇨🇷 Costa Rica (+506)</option>
+                            <option value="507">🇵🇦 Panamá (+507)</option>
+                            <option value="57">🇨🇴 Colombia (+57)</option>
+                            <option value="1">🇺🇸 USA / Canadá (+1)</option>
+                            <option value="34">🇪🇸 España (+34)</option>
+                        </select>
+                    </div>
+                    <!-- Nombre -->
+                    <div style="grid-column:1/-1;"><label class="lbl-sm">👤 Nombre Completo *</label><input type="text" id="pl-nombre" required class="form-input inp-sm field-piloto" placeholder="Nombre completo del piloto"></div>
+                    <!-- Teléfono con lada -->
+                    <div>
+                        <label class="lbl-sm">📱 Teléfono *</label>
+                        <div style="display:flex;gap:.4rem;align-items:center;">
+                            <span id="pl-lada-badge" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .7rem;font-size:.85rem;color:#ff8c00;font-weight:700;white-space:nowrap;">+502</span>
+                            <input type="tel" id="pl-tel" required class="form-input inp-sm field-piloto" placeholder="12345678" style="flex:1;">
+                        </div>
+                    </div>
+                    <!-- Correo -->
+                    <div><label class="lbl-sm">📧 Correo <span style="color:#6b7294;font-size:.6rem;">(opcional)</span></label><input type="email" id="pl-correo" class="form-input inp-sm field-piloto" placeholder="correo@ejemplo.com"></div>
+                    <!-- Sexo -->
+                    <div><label class="lbl-sm">⚥ Sexo</label>
+                        <select id="pl-sexo" class="form-input inp-sm field-piloto">
+                            <option value="">— Seleccionar —</option><option value="M">Masculino</option><option value="F">Femenino</option>
+                        </select>
+                    </div>
+                    <!-- Edad -->
+                    <div><label class="lbl-sm">🎂 Edad</label><input type="number" id="pl-edad" min="1" max="150" class="form-input inp-sm field-piloto" placeholder="Ej: 35"></div>
+                    <!-- Licencia -->
+                    <div><label class="lbl-sm">🪨 No. Licencia</label><input type="text" id="pl-licencia" class="form-input inp-sm field-piloto" placeholder="Número de licencia"></div>
+                    <!-- Empresa -->
+                    <div><label class="lbl-sm">🏢 Empresa para la que labora</label><input type="text" id="pl-empresa-labora" class="form-input inp-sm field-piloto"></div>
+                    <!-- Placas -->
+                    <div><label class="lbl-sm">🚗 Placas del Vehículo</label><input type="text" id="pl-placas" class="form-input inp-sm field-piloto" placeholder="Ej: P-123ABC"></div>
+                    <!-- Tipo -->
+                    <div><label class="lbl-sm">🚛 Tipo de Vehículo</label>
+                        <select id="pl-tipo" class="form-input inp-sm field-piloto">
+                            <option value="">Seleccionar</option>
+                            <option value="Sedan">Sedán</option><option value="Pickup">Pickup</option>
+                            <option value="Camion">Camión</option><option value="Motocicleta">Motocicleta</option>
+                            <option value="Panel">Panel</option><option value="Microbus">Microbús</option>
+                            <option value="Bus">Bus</option><option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <!-- Color -->
+                    <div><label class="lbl-sm">🎨 Color del Vehículo</label><input type="text" id="pl-color" class="form-input inp-sm field-piloto" placeholder="Ej: Rojo, Blanco..."></div>
+                    <!-- Foto -->
+                    <div style="grid-column:1/-1;"><label class="lbl-sm">📷 Foto del Vehículo</label>
+                        <input type="file" id="pl-foto" accept="image/*" class="form-input inp-sm field-piloto" onchange="previsualizarFoto(event)">
+                        <div id="pl-foto-preview" style="display:none;margin-top:.5rem;text-align:center;"><img id="pl-foto-img" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #2a2d45;"></div>
+                    </div>
+                    <!-- Dirección -->
+                    <div style="grid-column:1/-1;"><label class="lbl-sm">🏠 Dirección <span style="color:#6b7294;font-size:.6rem;">(opcional)</span></label><input type="text" id="pl-dir" class="form-input inp-sm" placeholder="Calle, Número, Zona, Ciudad"></div>
+                </div>
+                <!-- CONTACTOS EMERGENCIA con lada -->
+                <h4 style="font-size:.78rem;color:#ff8c00;text-transform:uppercase;letter-spacing:.5px;margin:1rem 0 .5rem;font-weight:800;">🆘 CONTACTOS DE EMERGENCIA (hasta 5)</h4>
+                <div style="display:flex;flex-direction:column;gap:.5rem;">
+                    <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                        <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 1</label>
+                        <div style="display:flex;gap:.4rem;"><input type="text" id="pl-c1n" placeholder="Nombre" class="form-input inp-sm" style="flex:1.2;"><span class="pl-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="pl-c1t" placeholder="Teléfono" class="form-input inp-sm" style="flex:1;"></div>
+                    </div>
+                    <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                        <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 2</label>
+                        <div style="display:flex;gap:.4rem;"><input type="text" id="pl-c2n" placeholder="Nombre" class="form-input inp-sm" style="flex:1.2;"><span class="pl-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="pl-c2t" placeholder="Teléfono" class="form-input inp-sm" style="flex:1;"></div>
+                    </div>
+                    <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                        <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 3</label>
+                        <div style="display:flex;gap:.4rem;"><input type="text" id="pl-c3n" placeholder="Nombre" class="form-input inp-sm" style="flex:1.2;"><span class="pl-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="pl-c3t" placeholder="Teléfono" class="form-input inp-sm" style="flex:1;"></div>
+                    </div>
+                    <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                        <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 4</label>
+                        <div style="display:flex;gap:.4rem;"><input type="text" id="pl-c4n" placeholder="Nombre" class="form-input inp-sm" style="flex:1.2;"><span class="pl-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="pl-c4t" placeholder="Teléfono" class="form-input inp-sm" style="flex:1;"></div>
+                    </div>
+                    <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                        <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 5</label>
+                        <div style="display:flex;gap:.4rem;"><input type="text" id="pl-c5n" placeholder="Nombre" class="form-input inp-sm" style="flex:1.2;"><span class="pl-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="pl-c5t" placeholder="Teléfono" class="form-input inp-sm" style="flex:1;"></div>
+                    </div>
+                </div>
+                <div id="pl-codigo-box" style="display:none;margin-top:1rem;padding:.7rem 1rem;background:rgba(255,140,0,.08);border:1px solid rgba(255,140,0,.3);border-radius:10px;text-align:center;">
+                    <span style="font-size:.72rem;color:#6b7294;text-transform:uppercase;">Código de Acceso del Piloto</span>
+                    <div id="pl-codigo-val" style="font-size:1.5rem;font-weight:900;color:#ff8c00;font-family:monospace;letter-spacing:3px;margin-top:.3rem;"></div>
+                </div>
+                <div id="pl-form-botones" style="display:flex;gap:.5rem;margin-top:1.2rem;flex-wrap:wrap;">
+                    <button type="submit" id="pl-btn-guardar" style="flex:2;background:linear-gradient(135deg,#ff8c00,#ff6600);color:#fff;font-weight:700;font-size:.85rem;padding:.6rem;border:none;border-radius:8px;cursor:pointer;">💾 Guardar Piloto</button>
+                    <button type="button" id="pl-btn-modificar" onclick="modificarPiloto()" style="flex:1;background:linear-gradient(135deg,#4da6ff,#4da6ff80);color:#fff;font-weight:700;font-size:.85rem;padding:.6rem;border:none;border-radius:8px;cursor:pointer;display:none;">✏️ Modificar</button>
+                    <button type="button" id="pl-btn-eliminar" onclick="eliminarPiloto()" style="flex:1;background:rgba(255,59,59,.15);border:1px solid rgba(255,59,59,.5);color:#ff3b3b;font-weight:700;font-size:.85rem;padding:.6rem;border-radius:8px;cursor:pointer;display:none;">🗑️ Eliminar</button>
+                    <button type="button" onclick="limpiarFormPiloto()" style="flex:1;background:rgba(107,114,148,.12);border:1px solid rgba(107,114,148,.3);color:#6b7294;font-weight:700;font-size:.85rem;padding:.6rem;border-radius:8px;cursor:pointer;">🔄 Nuevo</button>
+                    <button type="button" onclick="verListaPilotos()" style="flex:1;background:rgba(124,92,252,.12);color:#7c5cfc;font-weight:700;font-size:.85rem;padding:.6rem;border:1px solid rgba(124,92,252,.3);border-radius:8px;cursor:pointer;">👥 Ver Pilotos</button>
+                </div>
+            </form>
+            <div id="pl-lista" style="display:none;margin-top:1rem;">
+                <h4 style="font-size:.8rem;color:#ff8c00;text-transform:uppercase;margin:0 0 .5rem;">🚗 Pilotos Registrados</h4>
+                <div id="pl-lista-body" style="max-height:250px;overflow-y:auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL REGISTRAR AGENTE -->
+<div class="modal-overlay" id="modal-agente" style="display:none;" onclick="cerrarModalAgente(event)">
+    <div class="modal-box" style="width:95%;max-width:600px;max-height:92vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+        <div class="modal-hdr"><h3>👮 Registrar Agente</h3><button class="modal-close" onclick="cerrarModalAgente()">✕</button></div>
+        <div class="modal-body" style="flex:1;overflow-y:auto;">
+            <form id="form-agente" onsubmit="guardarAgente(event)">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+                    <div style="grid-column:1/-1;"><label class="lbl-sm">🪨 No. Documento * <span style="color:#ff3b3b;font-size:.65rem;font-weight:900;">(LLAVE PRIMARIA)</span></label><input type="text" id="ag-doc" required class="form-input inp-sm" autocomplete="off" onblur="buscarAgentePorDoc()" style="border-color:#ffa500;font-size:1.05rem;font-weight:700;" placeholder="DPI — Ingrese primero este dato"><span id="ag-hint-doc" style="display:none;font-size:.78rem;margin-top:.3rem;padding:.3rem .6rem;border-radius:6px;font-weight:600;"></span></div>
+                    <div style="grid-column:1/-1;"><label class="lbl-sm">👤 Nombre Completo *</label><input type="text" id="ag-nombre" required class="form-input inp-sm"></div>
+                    <div><label class="lbl-sm">📱 Teléfono *</label><input type="tel" id="ag-tel" required class="form-input inp-sm"></div>
+                    <div><label class="lbl-sm">🎂 Edad</label><input type="number" id="ag-edad" min="0" max="150" value="0" class="form-input inp-sm"></div>
+                    <div><label class="lbl-sm">⚥ Sexo</label><select id="ag-sexo" class="form-input inp-sm"><option value="">—</option><option value="M">M</option><option value="F">F</option></select></div>
+                    <div><label class="lbl-sm">🌎 País</label><input type="text" id="ag-pais" value="Guatemala" class="form-input inp-sm"></div>
+                    <div><label class="lbl-sm">💼 Puesto</label><input type="text" id="ag-puesto" class="form-input inp-sm"></div>
+                    <div><label class="lbl-sm">👨‍💼 Jefe Inmediato</label><input type="text" id="ag-jefe" class="form-input inp-sm"></div>
+                </div>
+                <div id="ag-codigo-box" style="display:none;margin-top:1rem;padding:.7rem 1rem;background:rgba(0,214,143,.08);border:1px solid rgba(0,214,143,.3);border-radius:10px;text-align:center;">
+                    <span style="font-size:.72rem;color:#6b7294;text-transform:uppercase;">Código de Acceso</span>
+                    <div id="ag-codigo-val" style="font-size:1.5rem;font-weight:900;color:#00d68f;font-family:monospace;letter-spacing:3px;margin-top:.3rem;"></div>
+                </div>
+                <div style="display:flex;gap:.5rem;margin-top:1.2rem;flex-wrap:wrap;">
+                    <button type="submit" id="ag-btn-guardar" style="flex:2;background:linear-gradient(135deg,#ffa500,#ff8c00);color:#fff;font-weight:700;font-size:.85rem;padding:.6rem;border:none;border-radius:8px;cursor:pointer;">💾 Guardar Agente</button>
+                    <button type="button" id="ag-btn-modificar" onclick="modificarAgente()" style="flex:1;background:linear-gradient(135deg,#4da6ff,#4da6ff80);color:#fff;font-weight:700;font-size:.85rem;padding:.6rem;border:none;border-radius:8px;cursor:pointer;display:none;">✏️ Modificar</button>
+                    <button type="button" onclick="limpiarFormAgente()" style="flex:1;background:rgba(107,114,148,.12);border:1px solid rgba(107,114,148,.3);color:#6b7294;font-weight:700;font-size:.85rem;padding:.6rem;border-radius:8px;cursor:pointer;">🔄 Nuevo</button>
+                    <button type="button" onclick="verListaAgentes()" style="flex:1;background:rgba(124,92,252,.12);color:#7c5cfc;font-weight:700;font-size:.85rem;padding:.6rem;border:1px solid rgba(124,92,252,.3);border-radius:8px;cursor:pointer;">👥 Ver Agentes</button>
+                </div>
+            </form>
+            <div id="ag-lista" style="display:none;margin-top:1rem;">
+                <h4 style="font-size:.8rem;color:#ffa500;text-transform:uppercase;margin:0 0 .5rem;">👮 Agentes Registrados</h4>
+                <div id="ag-lista-body" style="max-height:250px;overflow-y:auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API = (window.location.hostname==='localhost'||window.location.protocol==='file:') ? 'http://localhost:8000' : 'https://boton-de-panico-sisdel.onrender.com';
+let EMP = null;
+let mapaL = null;
+let marcadores = {};
+let alertaActual = null;
+let filtro = 'todas';
+let _alertasVistas = new Set();
+let _audioCtx = null;
+let todosLosPilotos = [];
+let todosLosAgentes = [];
+let todasLasAlertas = [];
+
+// ══ TOAST & CONFIRM ══════════════════
+function showToast(msg, type='success', duration=3500) {
+    const icons = {success:'✅',error:'❌',info:'💡',warning:'⚠️'};
+    const container = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `sisdel-toast toast-${type}`;
+    t.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span class="toast-msg">${msg}</span><span class="toast-close" onclick="this.parentElement.classList.add('toast-out');setTimeout(()=>this.parentElement.remove(),300)">✕</span>`;
+    container.appendChild(t);
+    setTimeout(() => { t.classList.add('toast-out'); setTimeout(() => t.remove(), 300); }, duration);
+}
+
+function showConfirm(title, msg, {icon='⚠️', okText='Confirmar', cancelText='Cancelar', danger=false} = {}) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'sisdel-confirm-overlay';
+        overlay.innerHTML = `
+            <div class="sisdel-confirm-box">
+                <div class="cf-icon">${icon}</div>
+                <div class="cf-title">${title}</div>
+                <div class="cf-msg">${msg}</div>
+                <div class="cf-btns">
+                    <button class="cf-btn cf-btn-cancel" id="cf-cancel">${cancelText}</button>
+                    <button class="cf-btn ${danger?'cf-btn-danger':'cf-btn-ok'}" id="cf-ok">${okText}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#cf-cancel').onclick = () => { overlay.remove(); resolve(false); };
+        overlay.querySelector('#cf-ok').onclick = () => { overlay.remove(); resolve(true); };
+        overlay.addEventListener('click', e => { if(e.target===overlay) { overlay.remove(); resolve(false); } });
+    });
+}
+
+// ── INIT ──────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem('sisdel_tipo') !== 'empresa') {
+        window.location.href = 'index.html'; return;
+    }
+    EMP = JSON.parse(sessionStorage.getItem('sisdel_empresa'));
+    cargarInfoEmpresa();
+    iniciarReloj();
+    iniciarMapa();
+    pedirPermisoNotificacion();
+    cargarAlertas();
+    cargarPilotos();
+    setInterval(cargarAlertas, 5000);
+    setInterval(() => { fetch(`${API}/health`).catch(()=>{}); }, 4*60*1000);
+});
+
+async function cargarInfoEmpresa() {
+    try {
+        const emp = await (await fetch(`${API}/api/programador/empresas`)).json();
+        const e = emp.find(x => x.id_empresa === EMP.id_empresa);
+        if (e) {
+            document.getElementById('emp-name-label').textContent = e.nombre_empresa;
+            document.title = `🛡️ ${e.nombre_empresa} — Panel Empresa`;
+        }
+    } catch {}
+}
+
+function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+
+// ── RELOJ ──────────────────
+function iniciarReloj() {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const tick = () => { document.getElementById('clock').textContent = new Date().toLocaleTimeString([], {hour12:false, timeZone:tz}); };
+    tick(); setInterval(tick, 1000);
+}
+
+// ── MAPA ──────────────────
+function iniciarMapa() {
+    mapaL = L.map('mapa').setView([14.6349, -90.5069], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(mapaL);
+}
+function centrarMapa() { if(mapaL) mapaL.setView([14.6349,-90.5069],12); }
+function abrirMapa() { document.getElementById('modal-mapa').style.display='flex'; if(mapaL) setTimeout(()=>{ mapaL.invalidateSize(); centrarMapa(); },100); }
+function cerrarMapa(e) { if(e&&e.target!==document.getElementById('modal-mapa')) return; document.getElementById('modal-mapa').style.display='none'; }
+function verMapaRapido(lat, lon) { document.getElementById('modal-mapa').style.display='flex'; if(mapaL) setTimeout(()=>{ mapaL.invalidateSize(); mapaL.setView([lat,lon],16); },100); }
+
+// ── NOTIFICACIONES ──────────────────
+function pedirPermisoNotificacion() { if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }
+function mostrarFlashAlerta(nombre) {
+    const prev = document.getElementById('sisdel-flash-alerta');
+    if (prev) prev.remove();
+    const flash = document.createElement('div');
+    flash.id = 'sisdel-flash-alerta';
+    flash.innerHTML = `
+        <div style="position:fixed;inset:0;z-index:99999;pointer-events:none;display:flex;align-items:center;justify-content:center;background:rgba(255,140,0,.08);animation:flashBg 3s ease forwards;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;animation:flashPop .4s cubic-bezier(.175,.885,.32,1.275);">
+                <div style="width:180px;height:180px;border-radius:50%;background:rgba(255,140,0,.9);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 0 rgba(255,140,0,.9);animation:flashRing 1s ease-out 3;font-size:4rem;">🛡️</div>
+                <div style="background:rgba(255,140,0,.9);color:#fff;font-size:1.4rem;font-weight:900;padding:.6rem 2rem;border-radius:14px;letter-spacing:3px;text-shadow:0 2px 6px rgba(0,0,0,.4);box-shadow:0 4px 24px rgba(255,140,0,.5);">⚠️ ALERTA DE PILOTO</div>
+                <div style="color:#fff;font-size:1rem;font-weight:700;background:rgba(0,0,0,.45);padding:.35rem 1rem;border-radius:8px;">${nombre}</div>
+            </div>
+        </div>`;
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 3000);
+    if (!document.getElementById('sisdel-flash-style')) {
+        const s = document.createElement('style');
+        s.id = 'sisdel-flash-style';
+        s.textContent = `
+            @keyframes flashRing { 0%{box-shadow:0 0 0 0 rgba(255,140,0,.9);}70%{box-shadow:0 0 0 60px rgba(255,140,0,0);}100%{box-shadow:0 0 0 0 rgba(255,140,0,0);} }
+            @keyframes flashPop  { 0%{transform:scale(0);opacity:0;}70%{transform:scale(1.08);}100%{transform:scale(1);opacity:1;} }
+            @keyframes flashBg   { 0%{background:rgba(255,140,0,.12);}100%{background:rgba(255,140,0,0);} }`;
+        document.head.appendChild(s);
+    }
+}
+function notificarAlerta(a) {
+    if ('Notification' in window && Notification.permission==='granted') {
+        new Notification('🛡️ Alerta de Piloto', { body: `${a.nombre_piloto} — ${a.placas_vehiculo||'Sin placas'}`, icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🛡️</text></svg>', tag:a.id_alerta });
+    }
+    mostrarFlashAlerta(`${a.nombre_piloto} — ${a.placas_vehiculo||''}`);
+    // Alarma sonora 3 beeps
+    try {
+        if (!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        [0, 0.35, 0.7].forEach(t => {
+            const o = _audioCtx.createOscillator();
+            const g = _audioCtx.createGain();
+            o.type = 'square'; o.frequency.setValueAtTime(880, _audioCtx.currentTime + t);
+            g.gain.setValueAtTime(0.4, _audioCtx.currentTime + t);
+            g.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + t + 0.28);
+            o.connect(g); g.connect(_audioCtx.destination);
+            o.start(_audioCtx.currentTime + t); o.stop(_audioCtx.currentTime + t + 0.28);
+        });
+    } catch {}
+}
+
+// ── ALERTAS ──────────────────
+async function cargarAlertas() {
+    try {
+        const res = await fetch(`${API}/api/empresa/alertas/${EMP.id_empresa}`);
+        todasLasAlertas = await res.json();
+        renderAlertas();
+        // Nuevas alertas
+        todasLasAlertas.forEach(a => {
+            if (a.estatus === 'ACTIVA' && !_alertasVistas.has(a.id_alerta)) {
+                _alertasVistas.add(a.id_alerta);
+                notificarAlerta(a);
+            }
+        });
+        // Stats
+        const activas = todasLasAlertas.filter(a => a.estatus==='ACTIVA').length;
+        const camino = todasLasAlertas.filter(a => a.estatus==='EN_CAMINO').length;
+        const atend = todasLasAlertas.filter(a => ['ATENDIDA','FALSA_ALARMA','CANCELADA'].includes(a.estatus)).length;
+        document.getElementById('sp-activas').textContent = activas;
+        document.getElementById('sp-camino').textContent = camino;
+        document.getElementById('sp-atend').textContent = atend;
+        // Update map
+        const activos = todasLasAlertas.filter(a => a.estatus==='ACTIVA'||a.estatus==='EN_CAMINO');
+        Object.keys(marcadores).forEach(k => { if(!activos.find(a=>a.id_alerta===k)) { mapaL.removeLayer(marcadores[k]); delete marcadores[k]; } });
+        activos.forEach(a => {
+            if (a.gps_latitud && a.gps_longitud) {
+                if (!marcadores[a.id_alerta]) {
+                    const icon = L.divIcon({className:'',html:`<div style="width:28px;height:28px;background:${a.estatus==='ACTIVA'?'#ff3b3b':'#ff8c00'};border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 12px ${a.estatus==='ACTIVA'?'rgba(255,59,59,.6)':'rgba(255,140,0,.6)'};">🚗</div>`,iconSize:[28,28],iconAnchor:[14,14]});
+                    marcadores[a.id_alerta] = L.marker([a.gps_latitud,a.gps_longitud],{icon}).addTo(mapaL).bindPopup(`<b>${a.nombre_piloto}</b><br>${a.placas_vehiculo||''} — ${a.tipo_vehiculo||''}`);
+                }
+            }
+        });
+    } catch {}
+}
+
+function renderAlertas() {
+    const tbody = document.getElementById('alertas-tbody');
+    // Filtrar casos cerrados para que no aparezcan en el panel principal
+    const activas = todasLasAlertas.filter(a => a.estatus === 'ACTIVA' || a.estatus === 'EN_CAMINO');
+    let list = activas;
+    if (filtro !== 'todas') list = list.filter(a => a.estatus === filtro);
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><span style="font-size:2rem">🛡️</span><p>Sin alertas</p></div></td></tr>'; return; }
+    tbody.innerHTML = list.map(a => {
+        const badgeClass = a.estatus==='ACTIVA'?'badge-activa':a.estatus==='EN_CAMINO'?'badge-camino':a.estatus==='ATENDIDA'?'badge-atendida':'badge-falsa';
+        const gpsBtn = a.gps_latitud ? `<button class="btn-gps" onclick="verMapaRapido(${a.gps_latitud},${a.gps_longitud})">📍</button>` : '—';
+        const fechaUTC = a.fecha_creacion ? (a.fecha_creacion.endsWith('Z') ? a.fecha_creacion : a.fecha_creacion+'Z') : null;
+        const hora = fechaUTC ? new Date(fechaUTC).toLocaleTimeString('es-GT', {hour:'2-digit',minute:'2-digit'}) : '';
+        return `<tr onclick="verDetalle('${a.id_alerta}')" style="cursor:pointer;">
+            <td><strong>${a.numero_caso||''}</strong></td>
+            <td><span class="badge ${badgeClass}">${a.estatus}</span></td>
+            <td>${a.nombre_piloto}</td>
+            <td><strong style="color:#ff8c00;">${a.placas_vehiculo||'—'}</strong></td>
+            <td>${a.tipo_vehiculo||'—'} ${a.color_vehiculo?'('+a.color_vehiculo+')':''}</td>
+            <td>${gpsBtn}</td>
+            <td>${hora}</td>
+            <td><button class="btn-det" onclick="event.stopPropagation();verDetalle('${a.id_alerta}')">Ver</button></td>
+        </tr>`;
+    }).join('');
+}
+
+function setFiltro(f, btn) {
+    filtro = f;
+    document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderAlertas();
+}
+
+// ── DETALLE ──────────────────
+let _modalCronoInterval = null;
+
+let _slotsAsignados = {};    // {1: {doc, nombre, ...}, 2: {...}, ...}
+
+async function verDetalle(id) {
+    alertaActual = todasLasAlertas.find(a => a.id_alerta === id);
+    if (!alertaActual) return;
+    const a = alertaActual;
+    const loc = a.gps_latitud ? `<a href="https://waze.com/ul?ll=${a.gps_latitud},${a.gps_longitud}&navigate=yes" target="_blank" style="color:#ff8c00;">📍 Ver Mapa (Waze)</a>` : 'Sin GPS';
+    
+    // Reset asignaciones actuales en memoria
+    _slotsAsignados = {};
+
+    // Asignación UI (4 slots)
+    const agentesHtml = [1,2,3,4].map(s => `
+        <div id="slot-${s}" style="margin-bottom:.4rem; padding:.4rem .6rem; background:#0b0d17; border:1px solid #2a2d45; border-radius:8px; display:flex; align-items:center; gap:.4rem; position:relative;">
+            <span style="background:rgba(255,165,0,.2); color:#ffa500; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:900; flex-shrink:0;">${s}</span>
+            <div id="slot-${s}-info" style="flex:1; display:none;">
+                <div style="font-weight:700; color:#00d68f; font-size:.78rem;" id="slot-${s}-nombre"></div>
+                <div style="font-size:.62rem; color:#6b7294;" id="slot-${s}-detalle"></div>
+            </div>
+            <input type="text" id="slot-${s}-buscar" placeholder="Buscar agente..."
+                   oninput="buscarParaSlot(${s}, this.value)"
+                   style="flex:1; background:transparent; border:none; color:#fff; font-size:.78rem; outline:none;">
+            <div id="slot-${s}-resultados" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:2px; background:#111325; border:1px solid #2a2d45; border-radius:8px; max-height:160px; overflow-y:auto; z-index:999; box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+        </div>
+    `).join('');
+
+    // Lógica del Cronómetro en Modal
+    const creado = new Date((a.fecha_alerta || a.fecha_creacion) + ((a.fecha_alerta || a.fecha_creacion).endsWith('Z') ? '' : 'Z'));
+    let cronoHTML = '';
+    if (a.estatus === 'ATENDIDA' || a.estatus === 'FALSA_ALARMA' || a.estatus === 'CANCELADA') {
+        const att = a.fecha_atencion || a.fecha_actualizacion;
+        if (att) {
+            const atendido = new Date(att + (att.endsWith('Z') ? '' : 'Z'));
+            const diff = Math.floor((atendido - creado) / 1000);
+            const m = Math.floor(diff / 60); const s = diff % 60;
+            cronoHTML = `<div style="font-size:.85rem; color:#00d68f; font-weight:700; margin-top:.5rem; text-align:right;">⏱️ Atendido en ${m}m ${s.toString().padStart(2,'0')}s</div>`;
+        }
+    } else {
+        cronoHTML = `<div style="font-size:1.1rem; color:#ff8c00; font-weight:900; margin-top:.5rem; font-family:monospace; text-align:right;" id="modal-crono" data-inicio="${creado.getTime()}">⏱️ --:--</div>`;
+    }
+
+    document.getElementById('det-body').innerHTML = `
+        <div style="margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span class="badge ${a.estatus==='ACTIVA'?'badge-activa':a.estatus==='EN_CAMINO'?'badge-camino':'badge-atendida'}" style="font-size:.9rem;padding:.3rem .8rem;">${a.estatus}</span>
+                <span style="font-family:monospace; font-weight:900; color:#8892b0; font-size:.85rem; background:rgba(255,255,255,.05); padding:.3rem .8rem; border-radius:6px; border:1px solid rgba(255,255,255,.1);">📋 CASO ${a.numero_caso||''}</span>
+            </div>
+            ${cronoHTML}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem .8rem;font-size:.85rem;">
+            <div><span style="color:#6b7294;font-size:.72rem;text-transform:uppercase;display:block;">Piloto</span>${a.nombre_piloto}</div>
+            <div><span style="color:#6b7294;font-size:.72rem;text-transform:uppercase;display:block;">Teléfono</span><a href="tel:${a.telefono_piloto}" style="color:#4da6ff;">${a.telefono_piloto||'—'}</a></div>
+            <div><span style="color:#6b7294;font-size:.72rem;text-transform:uppercase;display:block;">DPI</span>${a.num_identificacion||'—'}</div>
+            <div><span style="color:#6b7294;font-size:.72rem;text-transform:uppercase;display:block;">Ubicación</span>${loc}</div>
+        </div>
+        <div class="vehiculo-card">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;font-size:.82rem;">
+                <div><span style="color:#6b7294;font-size:.7rem;text-transform:uppercase;display:block;">Placas</span><strong style="color:#ff8c00;font-size:1rem;">${a.placas_vehiculo||'—'}</strong></div>
+                <div><span style="color:#6b7294;font-size:.7rem;text-transform:uppercase;display:block;">Tipo</span>${a.tipo_vehiculo||'—'}</div>
+                <div><span style="color:#6b7294;font-size:.7rem;text-transform:uppercase;display:block;">Color</span>${a.color_vehiculo||'—'}</div>
+            </div>
+        </div>
+        <div style="margin-top:1rem; padding:.8rem; background:rgba(255,165,0,.06); border:1px solid rgba(255,165,0,.2); border-radius:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.7rem;">
+                <div style="color:#ffa500; font-weight:700; font-size:.78rem; text-transform:uppercase;">👮 ASIGNACIÓN DE AGENTES</div>
+            </div>
+            ${agentesHtml}
+        </div>
+        <div style="margin-top:.8rem;">
+            <button class="btn-sm-icon" style="background:rgba(77,166,255,.12);border-color:rgba(77,166,255,.35);color:#4da6ff;width:100%;" onclick="avisarContactosPiloto('${a.id_piloto}','${a.nombre_piloto}',${a.gps_latitud||0},${a.gps_longitud||0})">💬 Avisar Contactos del Piloto</button>
+        </div>
+    `;
+
+    // Cargar asignaciones guardadas asincronamente
+    cargarAsignacionesExistentes(a.id_alerta);
+
+    document.getElementById('modal-det').style.display = 'flex';
+
+    if (_modalCronoInterval) clearInterval(_modalCronoInterval);
+    _modalCronoInterval = setInterval(() => {
+        const el = document.getElementById('modal-crono');
+        if (!el) return;
+        const inicio = parseInt(el.dataset.inicio);
+        if (!inicio) return;
+        const diff = Math.floor((Date.now() - inicio) / 1000);
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
+        el.textContent = h > 0 
+            ? `⏱️ ${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`
+            : `⏱️ ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
+    }, 1000);
+}
+
+// ── BÚSQUEDA Y ASIGNACIÓN ───────────────────────
+async function buscarParaSlot(slot, texto) {
+    const container = document.getElementById(`slot-${slot}-resultados`);
+    if (!container) return;
+
+    texto = texto.trim().toLowerCase();
+    if (texto.length < 2) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    if (!todosLosAgentes || !todosLosAgentes.length) {
+        try { todosLosAgentes = await (await fetch(`${API}/api/empresa/agentes/lista/${EMP.id_empresa}`)).json(); } catch {}
+    }
+
+    const resultados = (todosLosAgentes || []).filter(a => {
+        return (a.nombre || '').toLowerCase().includes(texto)
+            || (a.num_identificacion || '').toLowerCase().includes(texto)
+            || (a.telefono || '').toLowerCase().includes(texto);
+    });
+
+    if (!resultados.length) {
+        container.innerHTML = '<div style="padding:.5rem .7rem; color:#6b7294; font-size:.75rem;">No encontrado</div>';
+        container.style.display = 'block';
+        return;
+    }
+
+    container.innerHTML = resultados.slice(0, 5).map(ag => `
+        <div onclick="asignarEnSlot(${slot}, '${ag.nombre}', '${ag.telefono}', '${ag.num_identificacion}', '${ag.puesto || ''}', '${ag.codigo_agente}')"
+             style="padding:.4rem .7rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1a1f3e; transition:background .15s;"
+             onmouseover="this.style.background='rgba(255,165,0,.1)'" onmouseout="this.style.background='transparent'">
+            <div>
+                <span style="font-weight:700; color:#fff; font-size:.75rem;">${ag.nombre}</span>
+                <span style="font-size:.62rem; color:#6b7294; margin-left:.2rem;">${ag.puesto || ''}</span>
+            </div>
+            <span style="font-family:monospace; color:#ffa500; font-size:.7rem; font-weight:700;">${ag.codigo_agente}</span>
+        </div>
+    `).join('');
+    container.style.display = 'block';
+}
+
+async function asignarEnSlot(slot, nombre, telefono, doc, puesto, codigo) {
+    const container = document.getElementById(`slot-${slot}-resultados`);
+    const input = document.getElementById(`slot-${slot}-buscar`);
+    if (container) container.style.display = 'none';
+    if (input) input.style.display = 'none';
+
+    _slotsAsignados[slot] = { nombre, telefono, doc, puesto, codigo };
+
+    const info = document.getElementById(`slot-${slot}-info`);
+    const nombreEl = document.getElementById(`slot-${slot}-nombre`);
+    const detalleEl = document.getElementById(`slot-${slot}-detalle`);
+    if (info && nombreEl && detalleEl) {
+        info.style.display = 'block';
+        nombreEl.textContent = `✅ ${nombre}`;
+        detalleEl.textContent = `${codigo} | 📱 ${telefono} | ${puesto}`;
+    }
+
+    const slotDiv = document.getElementById(`slot-${slot}`);
+    if (slotDiv) slotDiv.style.borderColor = 'rgba(0,214,143,.4)';
+
+    if (!alertaActual) return;
+    try {
+        await fetch(`${API}/api/empresa/agentes/asignar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id_alerta: alertaActual.id_alerta,
+                id_empresa: EMP.id_empresa,
+                num_identificacion: doc,
+                slot: slot
+            })
+        });
+    } catch {}
+}
+
+async function cargarAsignacionesExistentes(id_alerta) {
+    try {
+        const asig = await (await fetch(`${API}/api/empresa/agentes/asignaciones/${id_alerta}`)).json();
+        for (const a of (asig || [])) {
+            const input = document.getElementById(`slot-${a.slot}-buscar`);
+            const info = document.getElementById(`slot-${a.slot}-info`);
+            const nombreEl = document.getElementById(`slot-${a.slot}-nombre`);
+            const detalleEl = document.getElementById(`slot-${a.slot}-detalle`);
+            const slotDiv = document.getElementById(`slot-${a.slot}`);
+            if (input) input.style.display = 'none';
+            if (info && nombreEl && detalleEl) {
+                info.style.display = 'block';
+                nombreEl.textContent = `✅ ${a.nombre}`;
+                detalleEl.textContent = `${a.codigo_agente} | 📱 ${a.telefono} | ${a.puesto}`;
+            }
+            if (slotDiv) slotDiv.style.borderColor = 'rgba(0,214,143,.4)';
+        }
+    } catch {}
+}
+
+function closeDet(e) { 
+    if(e && e.target !== document.getElementById('modal-det')) return; 
+    document.getElementById('modal-det').style.display = 'none'; 
+    if (_modalCronoInterval) clearInterval(_modalCronoInterval);
+}
+
+async function cambiarEstatus(estatus) {
+    if (!alertaActual) return;
+    try {
+        for (const slot of Object.keys(_slotsAsignados)) {
+            const ag = _slotsAsignados[slot];
+            await fetch(`${API}/api/empresa/agentes/asignar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_alerta: alertaActual.id_alerta,
+                    id_empresa: EMP.id_empresa,
+                    num_identificacion: ag.doc,
+                    slot: parseInt(slot)
+                })
+            });
+        }
+        await fetch(`${API}/api/empresa/alertas/${alertaActual.id_alerta}/estatus`, {
+            method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({estatus})
+        });
+        closeDet(); cargarAlertas();
+    } catch { showToast('Error al cambiar estatus.','error'); }
+}
+
+async function guardarAsignaciones() {
+    if (!alertaActual) return;
+    const slots = Object.keys(_slotsAsignados);
+    if (!slots.length) {
+        showToast('No hay agentes nuevos para guardar','info');
+        return;
+    }
+    try {
+        for (const slot of slots) {
+            const ag = _slotsAsignados[slot];
+            await fetch(`${API}/api/empresa/agentes/asignar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_alerta: alertaActual.id_alerta,
+                    id_empresa: EMP.id_empresa,
+                    num_identificacion: ag.doc,
+                    slot: parseInt(slot)
+                })
+            });
+        }
+        showToast('Agentes asignados correctamente.','success');
+    } catch { showToast('Error al guardar.','error'); }
+}
+
+// ── PILOTOS ──────────────────
+async function cargarPilotos() {
+    try {
+        todosLosPilotos = await (await fetch(`${API}/api/pilotos/${EMP.id_empresa}`)).json();
+        document.getElementById('sp-pilotos').textContent = todosLosPilotos.length;
+    } catch {}
+}
+
+let _pilotoEditId = null;
+
+function actualizarLadaPiloto() {
+    const codigo = document.getElementById('pl-pais')?.value || '502';
+    const badge = document.getElementById('pl-lada-badge');
+    if (badge) badge.textContent = '+' + codigo;
+    document.querySelectorAll('.pl-lada-fam').forEach(el => el.textContent = '+' + codigo);
+}
+
+function abrirRegistroPiloto() { document.getElementById('modal-piloto').style.display='flex'; actualizarLadaPiloto(); limpiarFormPiloto(); }
+
+function setModoEdicionPiloto(modo) {
+    const fields = document.querySelectorAll('.field-piloto');
+    const famBadges = document.querySelectorAll('.pl-lada-fam');
+    const btnGuardar = document.getElementById('pl-btn-guardar');
+    const btnEditar = document.getElementById('pl-btn-editar');
+    const btnEliminar = document.getElementById('pl-btn-eliminar');
+
+    if (modo === 'nuevo') {
+        fields.forEach(f => f.disabled = false);
+        famBadges.forEach(b => b.style.opacity = '1');
+        btnGuardar.style.display = 'inline-flex'; 
+        btnGuardar.textContent = '💾 Guardar Piloto';
+        btnEditar.style.display = 'none';
+        btnEliminar.style.display = 'none';
+        document.getElementById('pl-hint-dpi').style.display = 'none';
+    } else if (modo === 'ver') {
+        fields.forEach(f => f.disabled = true);
+        famBadges.forEach(b => b.style.opacity = '0.5');
+        btnGuardar.style.display = 'none';
+        btnEditar.style.display = 'inline-flex';
+        btnEliminar.style.display = 'inline-flex';
+        const hintEl = document.getElementById('pl-hint-dpi');
+        hintEl.textContent = '✅ Piloto existente. Presione "Editar" para modificar.';
+        hintEl.style.cssText = 'display:inline-block;font-size:.78rem;margin-top:.3rem;padding:.3rem .6rem;border-radius:6px;font-weight:600;background:rgba(0,214,143,.12);color:#00d68f;border:1px solid rgba(0,214,143,.3);';
+    } else if (modo === 'editar') {
+        fields.forEach(f => f.disabled = false);
+        famBadges.forEach(b => b.style.opacity = '1');
+        btnGuardar.style.display = 'inline-flex';
+        btnGuardar.textContent = '💾 Guardar Cambios';
+        btnEditar.style.display = 'none';
+        btnEliminar.style.display = 'inline-flex';
+        const hintEl = document.getElementById('pl-hint-dpi');
+        hintEl.textContent = '✏️ Modo edición activo. Guarde los cambios al terminar.';
+        hintEl.style.cssText = 'display:inline-block;font-size:.78rem;margin-top:.3rem;padding:.3rem .6rem;border-radius:6px;font-weight:600;background:rgba(255,165,0,.12);color:#ffa500;border:1px solid rgba(255,165,0,.3);';
+    }
+}
+
+function activarEdicionPiloto() {
+    setModoEdicionPiloto('editar');
+}
+
+function buscarPilotoRapido(q) {
+    const resDiv = document.getElementById('pl-busqueda-res');
+    q = q.trim().toLowerCase();
+    if (q.length < 2) { resDiv.style.display = 'none'; return; }
+    const matches = (todosLosPilotos || []).filter(p => 
+        (p.nombre||'').toLowerCase().includes(q) || 
+        (p.num_identificacion||'').toLowerCase().includes(q) || 
+        (p.telefono||'').includes(q) || 
+        (p.placas_vehiculo||'').toLowerCase().includes(q)
+    );
+    if (!matches.length) {
+        resDiv.innerHTML = '<div style="padding:.6rem .8rem;color:#6b7294;font-size:.8rem;">No se encontraron resultados.</div>';
+    } else {
+        resDiv.innerHTML = matches.slice(0, 10).map(p => `
+            <div style="padding:.6rem .8rem;border-bottom:1px solid #1a1f3e;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
+                 onmouseover="this.style.background='#1a1f3e'" onmouseout="this.style.background='transparent'"
+                 onclick="seleccionarPilotoDirecto('${p.num_identificacion}')">
+                <div>
+                    <div style="font-weight:700;color:#fff;font-size:.85rem;">${p.nombre || 'Sin Nombre'}</div>
+                    <div style="font-size:.7rem;color:#6b7294;">DPI: ${p.num_identificacion} | Placas: <strong style="color:#ff8c00;">${p.placas_vehiculo||'N/A'}</strong></div>
+                </div>
+            </div>
+        `).join('');
+    }
+    resDiv.style.display = 'block';
+}
+
+function seleccionarPilotoDirecto(dpi) {
+    document.getElementById('pl-busqueda-res').style.display = 'none';
+    document.getElementById('pl-busqueda-top').value = '';
+    document.getElementById('pl-dpi').value = dpi;
+    buscarPilotoPorDPI();
+}
+
+async function buscarPilotoPorDPI() {
+    const numId = document.getElementById('pl-dpi').value.trim();
+    const hintEl = document.getElementById('pl-hint-dpi');
+    if (!numId || numId.length < 2) { hintEl.style.display='none'; return; }
+    try {
+        const res = await fetch(`${API}/api/pilotos/buscar/${EMP.id_empresa}/${encodeURIComponent(numId)}`);
+        if (res.ok) {
+            const p = await res.json();
+            _pilotoEditId = p.id_piloto;
+            const lada = document.getElementById('pl-pais')?.value || '502';
+            document.getElementById('pl-nombre').value = p.nombre || '';
+            const tel = (p.telefono || '').replace(new RegExp('^' + lada), '');
+            document.getElementById('pl-tel').value = tel;
+            document.getElementById('pl-correo').value = p.correo || '';
+            document.getElementById('pl-sexo').value = p.sexo || '';
+            document.getElementById('pl-edad').value = p.edad || '';
+            document.getElementById('pl-licencia').value = p.num_licencia || '';
+            document.getElementById('pl-empresa-labora').value = p.empresa_labora || '';
+            document.getElementById('pl-placas').value = p.placas_vehiculo || '';
+            document.getElementById('pl-tipo').value = p.tipo_vehiculo || '';
+            document.getElementById('pl-color').value = p.color_vehiculo || '';
+            document.getElementById('pl-dir').value = p.direccion || '';
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`pl-c${i}n`).value = p[`fam_nombre_${i}`] || '';
+                const ct = (p[`fam_tel_${i}`] || '').replace(new RegExp('^' + lada), '');
+                document.getElementById(`pl-c${i}t`).value = ct;
+            }
+            if (p.foto_vehiculo) {
+                document.getElementById('pl-foto-img').src = p.foto_vehiculo;
+                document.getElementById('pl-foto-preview').style.display = 'block';
+            } else {
+                document.getElementById('pl-foto-preview').style.display = 'none';
+            }
+            document.getElementById('pl-codigo-box').style.display = 'block';
+            document.getElementById('pl-codigo-val').textContent = p.codigo_piloto || '';
+            setModoEdicionPiloto('ver');
+        } else {
+            _pilotoEditId = null;
+            setModoEdicionPiloto('nuevo');
+            hintEl.textContent = '🆕 Nuevo piloto — complete todos los campos';
+            hintEl.style.cssText = 'display:inline-block;font-size:.78rem;margin-top:.3rem;padding:.3rem .6rem;border-radius:6px;font-weight:600;background:rgba(77,166,255,.12);color:#4da6ff;border:1px solid rgba(77,166,255,.3);';
+        }
+    } catch { hintEl.style.display='none'; }
+}
+
+function limpiarFormPiloto() {
+    _pilotoEditId = null;
+    document.getElementById('form-piloto').reset();
+    document.getElementById('pl-busqueda-top').value = '';
+    document.getElementById('pl-codigo-box').style.display = 'none';
+    document.getElementById('pl-foto-preview').style.display = 'none';
+    actualizarLadaPiloto();
+    setModoEdicionPiloto('nuevo');
+}
+
+async function guardarOModificarPiloto(event) {
+    event.preventDefault();
+    if (_pilotoEditId) {
+        await modificarPiloto();
+    } else {
+        await guardarPilotoAux();
+    }
+}
+
+async function modificarPiloto() {
+    if (!_pilotoEditId) { showToast('Busque un piloto primero por DPI.','warning'); return; }
+    const lada = document.getElementById('pl-pais')?.value || '502';
+    const telRaw = (document.getElementById('pl-tel').value || '').replace(/\D/g,'');
+    const data = {
+        nombre: document.getElementById('pl-nombre').value.trim(),
+        telefono: telRaw ? lada + telRaw : '',
+        correo: document.getElementById('pl-correo').value.trim(),
+        sexo: document.getElementById('pl-sexo').value,
+        edad: parseInt(document.getElementById('pl-edad').value) || 0,
+        num_licencia: document.getElementById('pl-licencia').value.trim(),
+        empresa_labora: document.getElementById('pl-empresa-labora').value.trim(),
+        placas_vehiculo: document.getElementById('pl-placas').value.trim(),
+        tipo_vehiculo: document.getElementById('pl-tipo').value,
+        color_vehiculo: document.getElementById('pl-color').value.trim(),
+        direccion: document.getElementById('pl-dir').value.trim(),
+    };
+    for (let i = 1; i <= 5; i++) {
+        data[`fam_nombre_${i}`] = document.getElementById(`pl-c${i}n`).value.trim();
+        const ct = (document.getElementById(`pl-c${i}t`).value || '').replace(/\D/g,'');
+        data[`fam_tel_${i}`] = ct ? lada + ct : '';
+    }
+    // Handle photo
+    const fotoFile = document.getElementById('pl-foto').files[0];
+    if (fotoFile) {
+        data.foto_vehiculo = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = new Image();
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    const r = Math.min(800/img.width,800/img.height,1);
+                    c.width=img.width*r; c.height=img.height*r;
+                    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+                    resolve(c.toDataURL('image/jpeg',0.6));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(fotoFile);
+        });
+    }
+    try {
+        await fetch(`${API}/api/pilotos/${_pilotoEditId}`, {
+            method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)
+        });
+        cargarPilotos();
+        setModoEdicionPiloto('ver');
+        showToast('Piloto modificado correctamente.','success');
+    } catch { showToast('Error al modificar.','error'); }
+}
+
+async function eliminarPiloto() {
+    if (!_pilotoEditId) return;
+    const ok = await showConfirm('Eliminar Piloto', '¿Está seguro de eliminar este piloto permanentemente? Esta acción no se puede deshacer.', {icon:'🗑️',okText:'Sí, Eliminar',danger:true});
+    if (!ok) return;
+    try {
+        await fetch(`${API}/api/pilotos/${_pilotoEditId}`, { method:'DELETE' });
+        limpiarFormPiloto();
+        cargarPilotos();
+        showToast('Piloto eliminado.','success');
+    } catch { showToast('Error al eliminar.','error'); }
+}
+function cerrarModalPiloto(e) { if(e&&e.target!==document.getElementById('modal-piloto')) return; document.getElementById('modal-piloto').style.display='none'; }
+
+function previsualizarFoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('pl-foto-img').src = e.target.result;
+        document.getElementById('pl-foto-preview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+async function guardarPilotoAux() {
+    const lada = document.getElementById('pl-pais')?.value || '502';
+    let fotoBase64 = '';
+    const fotoFile = document.getElementById('pl-foto').files[0];
+    if (fotoFile) {
+        fotoBase64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const maxW = 800;
+                    const ratio = Math.min(maxW/img.width, maxW/img.height, 1);
+                    canvas.width = img.width*ratio;
+                    canvas.height = img.height*ratio;
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.6));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(fotoFile);
+        });
+    }
+    // Prepend lada to phones
+    const telRaw = (document.getElementById('pl-tel').value || '').replace(/\D/g,'');
+    const telefono = telRaw ? lada + telRaw : '';
+    const contactos = {};
+    for (let i = 1; i <= 5; i++) {
+        contactos[`fam_nombre_${i}`] = document.getElementById(`pl-c${i}n`).value.trim();
+        const ctel = (document.getElementById(`pl-c${i}t`).value || '').replace(/\D/g,'');
+        contactos[`fam_tel_${i}`] = ctel ? lada + ctel : '';
+    }
+    try {
+        const res = await fetch(`${API}/api/pilotos/`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                id_empresa: EMP.id_empresa,
+                nombre: document.getElementById('pl-nombre').value.trim(),
+                telefono: telefono,
+                num_identificacion: document.getElementById('pl-dpi').value.trim(),
+                num_licencia: document.getElementById('pl-licencia').value.trim(),
+                empresa_labora: document.getElementById('pl-empresa-labora').value.trim(),
+                placas_vehiculo: document.getElementById('pl-placas').value.trim(),
+                tipo_vehiculo: document.getElementById('pl-tipo').value,
+                color_vehiculo: document.getElementById('pl-color').value.trim(),
+                foto_vehiculo: fotoBase64,
+                direccion: document.getElementById('pl-dir').value.trim(),
+                sexo: document.getElementById('pl-sexo').value,
+                edad: parseInt(document.getElementById('pl-edad').value) || 0,
+                correo: document.getElementById('pl-correo').value.trim(),
+                ...contactos
+            })
+        });
+        const p = await res.json();
+        document.getElementById('pl-codigo-box').style.display = 'block';
+        document.getElementById('pl-codigo-val').textContent = p.codigo_piloto || '';
+        cargarPilotos();
+        setModoEdicionPiloto('ver');
+        showToast('Piloto guardado correctamente.','success');
+    } catch { showToast('Error al guardar piloto.','error'); }
+}
+
+async function verListaPilotos() {
+    const div = document.getElementById('pl-lista');
+    div.style.display = div.style.display==='none'?'block':'none';
+    if (div.style.display==='block') {
+        await cargarPilotos();
+        const body = document.getElementById('pl-lista-body');
+        body.innerHTML = todosLosPilotos.map(p => `
+            <div onclick="seleccionarPilotoDirecto('${p.num_identificacion}')"
+                 onmouseover="this.style.background='#1a1f3e'" onmouseout="this.style.background='#0b0d17'"
+                 style="display:flex;align-items:center;justify-content:space-between;padding:.4rem .6rem;background:#0b0d17;border:1px solid #1a1f3e;border-radius:8px;margin-bottom:.3rem;font-size:.8rem;cursor:pointer;transition:background .2s;">
+                <div>
+                    <strong>${p.nombre || 'Sin Nombre'}</strong>
+                    <span style="color:#ff8c00;margin-left:.5rem;">${p.placas_vehiculo||''}</span>
+                    <span style="color:#6b7294;margin-left:.3rem;">${p.tipo_vehiculo||''} ${p.color_vehiculo||''}</span>
+                </div>
+                <span style="font-family:monospace;color:#00d68f;font-size:.75rem;">${p.codigo_piloto||''}</span>
+            </div>
+        `).join('') || '<p style="color:#6b7294;font-size:.82rem;">No hay pilotos registrados.</p>';
+    }
+}
+
+function buscarPiloto(q) {
+    const container = document.getElementById('panel-busqueda-resultados');
+    q = q.trim().toLowerCase();
+    if (!q) { container.style.display='none'; return; }
+    const matches = todosLosPilotos.filter(p => p.nombre.toLowerCase().includes(q) || (p.placas_vehiculo||'').toLowerCase().includes(q) || (p.num_identificacion||'').includes(q));
+    if (!matches.length) { container.style.display='none'; return; }
+    container.innerHTML = matches.slice(0,10).map(p => `
+        <div style="padding:.5rem .8rem;border-bottom:1px solid #1a1f3e;cursor:pointer;font-size:.82rem;" onmouseover="this.style.background='#1a1f3e'" onmouseout="this.style.background='transparent'">
+            <strong>${p.nombre}</strong> <span style="color:#ff8c00;">${p.placas_vehiculo||''}</span> <span style="color:#6b7294;">${p.tipo_vehiculo||''}</span>
+        </div>
+    `).join('');
+    container.style.display = 'block';
+}
+
+// ── AGENTES ──────────────────
+let _agenteEditId = null;
+function abrirRegistroAgente() { document.getElementById('modal-agente').style.display='flex'; cargarAgentes(); }
+function cerrarModalAgente(e) { if(e&&e.target!==document.getElementById('modal-agente')) return; document.getElementById('modal-agente').style.display='none'; }
+
+async function buscarAgentePorDoc() {
+    const numId = document.getElementById('ag-doc').value.trim();
+    const hintEl = document.getElementById('ag-hint-doc');
+    if (!numId || numId.length < 2) { hintEl.style.display='none'; return; }
+    try {
+        await cargarAgentes();
+        const a = todosLosAgentes.find(x => x.num_identificacion === numId);
+        if (a) {
+            _agenteEditId = a.id_agente || a.num_identificacion;
+            document.getElementById('ag-nombre').value = a.nombre || '';
+            document.getElementById('ag-tel').value = a.telefono || '';
+            document.getElementById('ag-edad').value = a.edad || 0;
+            document.getElementById('ag-sexo').value = a.sexo || '';
+            document.getElementById('ag-pais').value = a.pais || 'Guatemala';
+            document.getElementById('ag-puesto').value = a.puesto || '';
+            document.getElementById('ag-jefe').value = a.jefe_inmediato || '';
+            document.getElementById('ag-codigo-box').style.display = 'block';
+            document.getElementById('ag-codigo-val').textContent = a.codigo_agente || '';
+            hintEl.textContent = '✅ Agente encontrado — datos auto-rellenados';
+            hintEl.style.cssText = 'display:inline-block;font-size:.78rem;margin-top:.3rem;padding:.3rem .6rem;border-radius:6px;font-weight:600;background:rgba(0,214,143,.12);color:#00d68f;border:1px solid rgba(0,214,143,.3);';
+            document.getElementById('ag-btn-guardar').style.display = 'none';
+            document.getElementById('ag-btn-modificar').style.display = 'inline-flex';
+        } else {
+            _agenteEditId = null;
+            hintEl.textContent = '🆕 Nuevo agente — complete todos los campos';
+            hintEl.style.cssText = 'display:inline-block;font-size:.78rem;margin-top:.3rem;padding:.3rem .6rem;border-radius:6px;font-weight:600;background:rgba(77,166,255,.12);color:#4da6ff;border:1px solid rgba(77,166,255,.3);';
+            document.getElementById('ag-btn-guardar').style.display = 'inline-flex';
+            document.getElementById('ag-btn-modificar').style.display = 'none';
+        }
+    } catch { hintEl.style.display='none'; }
+}
+
+function limpiarFormAgente() {
+    _agenteEditId = null;
+    document.getElementById('form-agente').reset();
+    document.getElementById('ag-hint-doc').style.display = 'none';
+    document.getElementById('ag-codigo-box').style.display = 'none';
+    document.getElementById('ag-btn-guardar').style.display = 'inline-flex';
+    document.getElementById('ag-btn-modificar').style.display = 'none';
+    document.getElementById('ag-pais').value = 'Guatemala';
+}
+
+async function modificarAgente() {
+    if (!_agenteEditId) { showToast('Busque un agente primero por Documento.','warning'); return; }
+    try {
+        await fetch(`${API}/api/empresa/agentes/${_agenteEditId}`, {
+            method:'PUT', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                nombre: document.getElementById('ag-nombre').value.trim(),
+                telefono: document.getElementById('ag-tel').value.trim(),
+                edad: parseInt(document.getElementById('ag-edad').value)||0,
+                sexo: document.getElementById('ag-sexo').value,
+                pais: document.getElementById('ag-pais').value.trim(),
+                puesto: document.getElementById('ag-puesto').value.trim(),
+                jefe_inmediato: document.getElementById('ag-jefe').value.trim(),
+            })
+        });
+        cargarAgentes();
+        showToast('Agente modificado correctamente.','success');
+    } catch { showToast('Error al modificar agente.','error'); }
+}
+
+async function cargarAgentes() {
+    try { todosLosAgentes = await (await fetch(`${API}/api/empresa/agentes/lista/${EMP.id_empresa}`)).json(); } catch {}
+}
+
+async function guardarAgente(event) {
+    event.preventDefault();
+    try {
+        const res = await fetch(`${API}/api/empresa/agentes/`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                id_empresa: EMP.id_empresa,
+                num_identificacion: document.getElementById('ag-doc').value.trim(),
+                nombre: document.getElementById('ag-nombre').value.trim(),
+                telefono: document.getElementById('ag-tel').value.trim(),
+                edad: parseInt(document.getElementById('ag-edad').value)||0,
+                sexo: document.getElementById('ag-sexo').value,
+                pais: document.getElementById('ag-pais').value.trim(),
+                puesto: document.getElementById('ag-puesto').value.trim(),
+                jefe_inmediato: document.getElementById('ag-jefe').value.trim(),
+            })
+        });
+        const ag = await res.json();
+        document.getElementById('ag-codigo-box').style.display = 'block';
+        document.getElementById('ag-codigo-val').textContent = ag.codigo_agente || '';
+        cargarAgentes();
+        showToast('Agente guardado.','success');
+    } catch { showToast('Error al guardar agente.','error'); }
+}
+
+async function verListaAgentes() {
+    const div = document.getElementById('ag-lista');
+    div.style.display = div.style.display==='none'?'block':'none';
+    if (div.style.display==='block') {
+        await cargarAgentes();
+        const body = document.getElementById('ag-lista-body');
+        body.innerHTML = todosLosAgentes.map(a => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem .6rem;background:#0b0d17;border:1px solid #1a1f3e;border-radius:8px;margin-bottom:.3rem;font-size:.8rem;">
+                <div><strong>${a.nombre}</strong> <span style="color:#6b7294;margin-left:.3rem;">${a.puesto||''}</span></div>
+                <span style="font-family:monospace;color:#00d68f;font-size:.75rem;">${a.codigo_agente||''}</span>
+            </div>
+        `).join('') || '<p style="color:#6b7294;font-size:.82rem;">No hay agentes registrados.</p>';
+    }
+}
+
+// ── AVISAR CONTACTOS ──────────────────
+async function avisarContactosPiloto(id_piloto, nombre, lat, lon) {
+    if (!id_piloto) { showToast('Sin ID de piloto.','warning'); return; }
+    document.getElementById('avisar-body').innerHTML = '<p style="color:#6b7294;font-size:.85rem;text-align:center;">Buscando contactos...</p>';
+    document.getElementById('modal-avisar').style.display='flex';
+    try {
+        const contactos = await (await fetch(`${API}/api/pilotos/${id_piloto}/contactos`)).json();
+        if (!contactos.length) { document.getElementById('avisar-body').innerHTML = '<p style="color:#ff3b3b;font-size:.85rem;text-align:center;">Sin contactos registrados.</p>'; return; }
+        const locUrl = lat ? `https://www.google.com/maps?q=${lat},${lon}` : '';
+        const msg = encodeURIComponent(`🛡️ ALERTA: ${nombre} ha activado el botón de alerta.${locUrl ? ' Ubicación: '+locUrl : ''}`);
+        document.getElementById('avisar-body').innerHTML = contactos.map(c => `
+            <a href="https://wa.me/${c.telefono.replace(/\D/g,'')}?text=${msg}" target="_blank" style="display:flex;align-items:center;gap:.6rem;padding:.5rem .8rem;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25);border-radius:10px;text-decoration:none;color:#fff;font-size:.85rem;transition:background .2s;" onmouseover="this.style.background='rgba(37,211,102,.18)'" onmouseout="this.style.background='rgba(37,211,102,.08)'">
+                <span style="font-size:1.3rem;">💬</span>
+                <div style="flex:1;"><strong>${c.nombre||'Contacto '+c.posicion}</strong><div style="font-size:.75rem;color:#6b7294;">${c.telefono}</div></div>
+                <span style="color:#25d366;font-weight:700;font-size:.78rem;">WhatsApp →</span>
+            </a>
+        `).join('');
+    } catch { document.getElementById('avisar-body').innerHTML = '<p style="color:#ff3b3b;font-size:.85rem;text-align:center;">Error al cargar contactos.</p>'; }
+}
+function cerrarAvisar(e) { if(e&&e.target!==document.getElementById('modal-avisar')) return; document.getElementById('modal-avisar').style.display='none'; }
+
+// ── HISTORIAL ──────────────────
+let _historialData = [];
+function abrirHistorial() { 
+    document.getElementById('modal-historial').style.display='flex'; 
+    const cerradas = todasLasAlertas.filter(a => a.estatus === 'ATENDIDA' || a.estatus === 'FALSA_ALARMA' || a.estatus === 'CANCELADA');
+    renderHistorial(cerradas); 
+}
+function cerrarHistorial(e) { if(e&&e.target!==document.getElementById('modal-historial')) return; document.getElementById('modal-historial').style.display='none'; }
+function renderHistorial(list) {
+    _historialData = list;
+    document.getElementById('historial-count').textContent = `${list.length} alertas`;
+    const tbody = document.getElementById('historial-tbody');
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#6b7294;">Sin alertas</td></tr>'; return; }
+    tbody.innerHTML = list.map(a => {
+        const badgeClass = a.estatus==='ACTIVA'?'badge-activa':a.estatus==='EN_CAMINO'?'badge-camino':a.estatus==='ATENDIDA'?'badge-atendida':'badge-falsa';
+        return `<tr onclick="verDetalle('${a.id_alerta}')" style="cursor:pointer;">
+            <td><strong>${a.numero_caso||''}</strong></td>
+            <td><span class="badge ${badgeClass}">${a.estatus}</span></td>
+            <td>${a.nombre_piloto}</td>
+            <td><strong style="color:#ff8c00;">${a.placas_vehiculo||'—'}</strong></td>
+            <td>${a.tipo_vehiculo||'—'} ${a.color_vehiculo||''}</td>
+            <td>${a.fecha_creacion ? new Date(a.fecha_creacion.endsWith('Z')?a.fecha_creacion:a.fecha_creacion+'Z').toLocaleString('es-GT', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}) : ''}</td>
+            <td><button class="btn-det" onclick="event.stopPropagation();verDetalle('${a.id_alerta}')">Ver</button></td>
+        </tr>`;
+    }).join('');
+}
+function filtrarHistorial(q) {
+    q = q.trim().toLowerCase();
+    const cerradas = todasLasAlertas.filter(a => a.estatus === 'ATENDIDA' || a.estatus === 'FALSA_ALARMA' || a.estatus === 'CANCELADA');
+    const f = q ? cerradas.filter(a => (a.nombre_piloto||'').toLowerCase().includes(q) || (a.placas_vehiculo||'').toLowerCase().includes(q) || (a.num_identificacion||'').includes(q)) : cerradas;
+    renderHistorial(f);
+}
+</script>
+<style>
+.lbl-sm { font-size:.72rem;color:#6b7294;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:.3rem; }
+.inp-sm { width:100%;background:#0b0d17;border:1px solid #2a2d45;border-radius:8px;padding:.5rem .7rem;color:#fff;font-size:.85rem;box-sizing:border-box; }
+.btn-gps { background:rgba(77,166,255,.12);color:#4da6ff;border:1px solid rgba(77,166,255,.3);padding:.2rem .5rem;border-radius:6px;cursor:pointer;font-size:.78rem; }
+.btn-det { background:rgba(255,140,0,.12);color:#ff8c00;border:1px solid rgba(255,140,0,.3);padding:.2rem .5rem;border-radius:6px;cursor:pointer;font-size:.78rem; }
+</style>
+</body>
+</html>

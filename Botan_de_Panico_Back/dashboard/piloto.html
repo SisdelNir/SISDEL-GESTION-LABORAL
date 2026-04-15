@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🛡️ Botón de Alerta — Piloto</title>
+    <meta name="theme-color" content="#0b0d17">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/vecino.css">
+    <style>
+        :root { --accent: #ff8c00; --accent-glow: rgba(255,140,0,.4); }
+        .btn-panico { background: linear-gradient(135deg, #ff8c00, #ff6600) !important; box-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(255,140,0,.15) !important; }
+        .btn-panico:active { box-shadow: 0 0 60px var(--accent-glow), 0 0 120px rgba(255,140,0,.3) !important; }
+        .v-logo h1 { color: #ff8c00 !important; }
+        .btn-clave-ok { background: linear-gradient(135deg, #ff8c00, #ff6600) !important; }
+        .vehiculo-info { background: rgba(255,140,0,.05); border: 1px solid rgba(255,140,0,.2); border-radius: 12px; padding: .75rem; margin-top: .5rem; }
+        .shake-notice { position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(255,140,0,.15);border:1px solid rgba(255,140,0,.4);border-radius:12px;padding:.5rem 1rem;color:#ff8c00;font-size:.78rem;font-weight:600;z-index:100;display:none;text-align:center; }
+        .sisdel-toast-container { position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:.5rem;pointer-events:none; }
+        .sisdel-toast { pointer-events:auto;display:flex;align-items:center;gap:.7rem;padding:.75rem 1.2rem;border-radius:14px;font-size:.85rem;font-weight:600;color:#fff;min-width:260px;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.45);backdrop-filter:blur(16px);animation:toastIn .4s cubic-bezier(.23,1,.32,1); }
+        .sisdel-toast.toast-success { background:linear-gradient(135deg,rgba(0,214,143,.92),rgba(0,168,112,.92));border:1px solid rgba(0,214,143,.5); }
+        .sisdel-toast.toast-error { background:linear-gradient(135deg,rgba(255,59,59,.92),rgba(200,30,30,.92));border:1px solid rgba(255,59,59,.5); }
+        .sisdel-toast.toast-out { animation:toastOut .3s ease forwards; }
+        @keyframes toastIn { from{opacity:0;transform:translateX(60px) scale(.9)}to{opacity:1;transform:translateX(0) scale(1)} }
+        @keyframes toastOut { from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(60px) scale(.9)} }
+    </style>
+</head>
+<body>
+<div class="sisdel-toast-container" id="toast-container"></div>
+
+<!-- ══ PASO 1: LOGIN ══════════════════ -->
+<div id="paso-clave" class="paso">
+    <div class="vcenter">
+        <div class="v-logo">
+            <div class="v-icon">
+                <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+                    <circle cx="22" cy="22" r="19" stroke="#ff8c00" stroke-width="2.5" fill="none" opacity=".4"/>
+                    <circle cx="22" cy="22" r="8" fill="#ff8c00">
+                        <animate attributeName="r" values="8;11;8" dur="2s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+            </div>
+            <h1>Botón de Alerta</h1>
+            <p id="emp-nombre-label">SISDEL Seguridad</p>
+        </div>
+        <div class="v-card">
+            <h2>Ingresar como Piloto</h2>
+            <p class="v-desc">Ingresa tu código de piloto o número de identificación</p>
+            <input type="text" id="inp-clave" placeholder="Código o DPI" maxlength="20"
+                   autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+            <button class="btn-clave-ok" onclick="loginPiloto()">Continuar →</button>
+            <div class="v-error" id="error-clave" style="display:none;"></div>
+        </div>
+        <a href="index.html" class="link-admin">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            Soy administrador
+        </a>
+    </div>
+</div>
+
+<!-- ══ PASO ACTIVAR (permisos) ══════════════════ -->
+<div id="paso-activar" class="paso" style="display:none;">
+    <div class="vcenter" style="text-align:center;">
+        <div style="font-size:4rem;margin-bottom:1rem;">🛡️</div>
+        <h1 style="color:#ff8c00;font-size:1.5rem;margin-bottom:.5rem;">¡Bienvenido, <span id="activar-nombre">Piloto</span>!</h1>
+        <p style="color:#ccd6f6;font-size:.95rem;margin-bottom:1.5rem;">Para protegerte necesitamos activar tus sensores</p>
+        <div style="background:rgba(255,140,0,.06);border:1px solid rgba(255,140,0,.2);border-radius:14px;padding:1rem;margin-bottom:1.5rem;text-align:left;">
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;"><span style="font-size:1.2rem;">📍</span><span style="color:#fff;font-size:.85rem;">Ubicación GPS en tiempo real</span></div>
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;"><span style="font-size:1.2rem;">🎙️</span><span style="color:#fff;font-size:.85rem;">Micrófono para alerta por voz</span></div>
+            <div style="display:flex;align-items:center;gap:.6rem;"><span style="font-size:1.2rem;">📳</span><span style="color:#fff;font-size:.85rem;">Sensores de movimiento (agitar)</span></div>
+        </div>
+        <button onclick="activarTodo()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#ff8c00,#cc6600);border:none;color:#fff;border-radius:14px;font-size:1.1rem;font-weight:900;cursor:pointer;letter-spacing:1px;box-shadow:0 4px 20px rgba(255,140,0,.4);">
+            🔓 ACTIVAR PROTECCIÓN
+        </button>
+        <p style="color:#6b7294;font-size:.7rem;margin-top:.8rem;">Acepta todos los permisos que aparezcan</p>
+    </div>
+</div>
+
+<!-- ══ PASO PÁNICO ══════════════════ -->
+<div id="paso-panico" class="paso paso-panico" style="display:none;">
+    <div class="vecino-info-bar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff8c00" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span id="vecino-nombre-bar" style="font-size:1.15rem;font-weight:900;color:#ffffff;letter-spacing:.5px;">Piloto</span>
+        <button class="btn-editar-datos" onclick="abrirConfiguracion()" style="background:rgba(255,140,0,.12);border:1px solid rgba(255,140,0,.3);color:#ff8c00;">⚙️ Configurar</button>
+    </div>
+
+    <div class="gps-bar" id="gps-bar">
+        <div class="gps-dot" id="gps-dot"></div>
+        <span id="gps-status">Obteniendo ubicación...</span>
+    </div>
+
+    <div class="panico-area">
+        <p class="instruccion" style="font-size:1.25rem;font-weight:900;color:#ff8c00;letter-spacing:4px;text-shadow:0 0 18px rgba(255,140,0,0.6);">EN CASO DE EMERGENCIA</p>
+        <p class="instruccion-sub" style="font-size:1rem;color:#ccd6f6;">Mantén presionado 3 segundos para enviar alerta</p>
+        <p id="panico-vehiculo" style="color:#ff8c00;font-size:.85rem;margin:.3rem 0;"></p>
+
+        <div class="panic-btn-container">
+            <div class="panic-ring ring3"></div>
+            <div class="panic-ring ring2"></div>
+            <div class="panic-ring ring1"></div>
+            <button id="btn-panico" class="btn-panico"
+                ontouchstart="iniciarPanico(event)" ontouchend="cancelarPanico(event)"
+                onmousedown="iniciarPanico(event)" onmouseup="cancelarPanico(event)"
+                onmouseleave="cancelarPanico(event)">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+                    <path d="M12 9v4M12 17h.01"/>
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                </svg>
+                <span>ALERTA</span>
+            </button>
+        </div>
+
+        <div class="hold-bar-wrap" id="hold-bar-wrap" style="display:none;">
+            <div class="hold-bar" id="hold-bar"></div>
+        </div>
+        <p class="hint-panico" id="hint-panico">Mantén presionado 3 segundos para enviar alerta</p>
+
+        <div id="voz-indicador" style="display:none; margin-top:.8rem; padding:.5rem 1rem; background:rgba(0,214,143,.1); border:1px solid rgba(0,214,143,.3); border-radius:10px; text-align:center;">
+            <span style="font-size:.82rem; color:#00d68f; font-weight:700;">🎙️ Escuchando... grita fuerte para enviar alerta</span>
+        </div>
+    </div>
+    <div class="shake-notice" id="shake-notice">📳 Agita el teléfono 4 veces para alerta rápida</div>
+</div>
+
+<!-- ══ OVERLAY CONFIRMACIÓN ════════════════════════ -->
+<div id="overlay-enviado" class="overlay-enviado" style="display:none;">
+    <div class="enviado-card">
+        <div class="enviado-icon" style="font-size:4rem; animation: checkPop .5s cubic-bezier(.175,.885,.32,1.275);">✅</div>
+        <div style="font-size:2rem; font-weight:900; color:#00d68f; letter-spacing:4px; margin-bottom:.25rem; text-shadow:0 0 20px rgba(0,214,143,.5);">ENVIADO</div>
+        <h2 style="color:#fff; font-size:1.1rem; margin:.2rem 0;">¡ALERTA ENVIADA!</h2>
+        <p id="env-alerta-num" style="color:#ff8c00; font-weight:700; font-size:1rem;"></p>
+        <p>El panel de seguridad recibió tu señal de emergencia.</p>
+        <p id="env-coords" class="enviado-coords"></p>
+        <p><strong>Mantén la calma. Ayuda está en camino.</strong></p>
+        <div id="wa-familiares" style="display:none; margin:.6rem 0; border-top:1px solid rgba(255,255,255,.1); padding-top:.7rem;">
+            <p style="font-size:.78rem; color:#6b7294; margin-bottom:.4rem;">💬 Avisar a contactos por WhatsApp:</p>
+            <div id="wa-botones" style="display:flex; flex-direction:column; gap:.4rem;"></div>
+        </div>
+        <p id="env-countdown" style="color:#6b7294; font-size:.85rem; margin-top:.25rem;"></p>
+        <div style="display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap; margin-top:.5rem;">
+            <button onclick="enviarOtraAlerta()" class="btn-ok-enviado" style="background:linear-gradient(135deg,#ff8c00,#cc6600);">🚨 Enviar otra alerta</button>
+            <button onclick="ocultarConfirmacion()" class="btn-ok-enviado" style="background:rgba(255,255,255,.08);">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL CONFIGURACIÓN ══════════════════════ -->
+<div id="modal-config" style="display:none; position:fixed; inset:0; background:rgba(6,8,20,.98); z-index:9998; overflow-y:auto; padding:1rem;">
+    <div style="max-width:500px; margin:0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; padding-bottom:.8rem; border-bottom:1px solid rgba(255,255,255,.06);">
+            <div><h2 style="color:#fff; font-size:1.25rem; margin:0;">⚙️ Configuración</h2><p style="font-size:.68rem; color:#6b7294; margin:.2rem 0 0;">Personaliza tu botón de alerta</p></div>
+            <button onclick="cerrarConfiguracion()" style="background:linear-gradient(135deg,#00d68f,#00b377); border:none; color:#fff; border-radius:10px; padding:.5rem 1rem; font-size:.82rem; font-weight:700; cursor:pointer;">💾 Guardar</button>
+        </div>
+        <!-- GPS --><div style="background:linear-gradient(135deg,rgba(17,19,37,.9),rgba(20,23,45,.9)); border:1px solid rgba(77,166,255,.15); border-left:3px solid #4da6ff; border-radius:14px; padding:.9rem 1rem; margin-bottom:.7rem;"><div style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:.6rem;"><div style="width:36px;height:36px;border-radius:10px;background:rgba(77,166,255,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">📍</div><div><div style="font-weight:700;color:#fff;font-size:.85rem;display:flex;align-items:center;gap:.4rem;">Ubicación GPS <span id="cfg-gps-estado" style="display:inline-flex;align-items:center;padding:.15rem .45rem;border-radius:6px;font-size:.65rem;font-weight:700;background:rgba(255,165,0,.12);color:#ffa500;border:1px solid rgba(255,165,0,.2);">⏳</span></div><div style="font-size:.68rem;color:#6b7294;">Comparte tu ubicación al enviar alerta</div></div></div></div><button onclick="activarGPS()" style="width:100%;margin-top:.6rem;padding:.45rem;background:rgba(77,166,255,.08);color:#4da6ff;border:1px solid rgba(77,166,255,.2);border-radius:10px;font-size:.75rem;font-weight:700;cursor:pointer;">📍 Activar Ubicación</button></div>
+        <!-- VIBRACIÓN --><div style="background:linear-gradient(135deg,rgba(17,19,37,.9),rgba(20,23,45,.9)); border:1px solid rgba(124,92,252,.15); border-left:3px solid #7c5cfc; border-radius:14px; padding:.9rem 1rem; margin-bottom:.7rem;"><div style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:.6rem;"><div style="width:36px;height:36px;border-radius:10px;background:rgba(124,92,252,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">📳</div><div><div style="font-weight:700;color:#fff;font-size:.85rem;">Vibración Fuerte</div><div style="font-size:.68rem;color:#6b7294;">Vibrar al enviar y confirmar alerta</div></div></div><label style="position:relative;display:inline-block;width:48px;height:26px;"><input type="checkbox" id="cfg-vibracion" onchange="guardarLocalConfig()" checked style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#2a2d45;border-radius:26px;transition:.3s;" class="cfg-slider"></span></label></div></div>
+        <!-- AGITAR --><div style="background:linear-gradient(135deg,rgba(17,19,37,.9),rgba(20,23,45,.9)); border:1px solid rgba(255,165,0,.15); border-left:3px solid #ffa500; border-radius:14px; padding:.9rem 1rem; margin-bottom:.7rem;"><div style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:.6rem;"><div style="width:36px;height:36px;border-radius:10px;background:rgba(255,165,0,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">📱</div><div><div style="font-weight:700;color:#fff;font-size:.85rem;">Agitar para Alertar</div><div style="font-size:.68rem;color:#6b7294;">Agita 3 veces fuerte para activar</div></div></div><label style="position:relative;display:inline-block;width:48px;height:26px;"><input type="checkbox" id="cfg-agitar" onchange="guardarLocalConfig(); toggleShakeDetection();" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#2a2d45;border-radius:26px;transition:.3s;" class="cfg-slider"></span></label></div><div style="margin-top:.5rem;padding:.35rem .6rem;background:rgba(255,165,0,.05);border-radius:8px;"><p style="font-size:.6rem;color:#6b7294;margin:0;text-align:center;">⚠️ Solo funciona con la app abierta</p></div></div>
+        <!-- ALERTA POR VOZ --><div style="background:linear-gradient(135deg,rgba(17,19,37,.9),rgba(20,23,45,.9)); border:1px solid rgba(255,59,59,.15); border-left:3px solid #ff3b3b; border-radius:14px; padding:.9rem 1rem; margin-bottom:.7rem;"><div style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:.6rem;"><div style="width:36px;height:36px;border-radius:10px;background:rgba(255,59,59,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🎙️</div><div><div style="font-weight:700;color:#fff;font-size:.85rem;">Alerta por Voz</div><div style="font-size:.68rem;color:#6b7294;">Grita fuerte para enviar alerta</div></div></div><label style="position:relative;display:inline-block;width:48px;height:26px;"><input type="checkbox" id="cfg-voz" onchange="toggleVoz()" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#2a2d45;border-radius:26px;transition:.3s;" class="cfg-slider"></span></label></div><div id="cfg-voz-extra" style="display:none;margin-top:.7rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.05);"><div id="audio-status-card" style="margin-bottom:.7rem;padding:.55rem .8rem;background:rgba(0,214,143,.06);border:1px solid rgba(0,214,143,.15);border-radius:10px;display:none;"><div style="display:flex;align-items:center;gap:.5rem;"><div style="width:8px;height:8px;border-radius:50%;background:#00d68f;"></div><span style="font-size:.75rem;color:#00d68f;font-weight:700;">Audio guardado</span><button id="btn-escuchar" onclick="escucharGrabacion()" style="margin-left:auto;padding:.3rem .7rem;background:rgba(77,166,255,.12);color:#4da6ff;border:1px solid rgba(77,166,255,.25);border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;">▶️ Escuchar</button></div></div><p style="font-size:.72rem;color:#8b8fa8;margin-bottom:.4rem;">🔑 Graba tu frase de emergencia:</p><button id="btn-grabar" onclick="toggleGrabacion()" style="width:100%;padding:.6rem;background:linear-gradient(135deg,rgba(255,59,59,.12),rgba(200,0,0,.08));color:#ff3b3b;border:1px solid rgba(255,59,59,.25);border-radius:10px;font-size:.82rem;font-weight:800;cursor:pointer;">🎤 GRABAR FRASE</button><div id="grabacion-indicador" style="display:none;margin-top:.7rem;text-align:center;padding:.8rem;background:rgba(255,59,59,.08);border:2px solid rgba(255,59,59,.3);border-radius:14px;"><div style="font-size:1rem;color:#ff3b3b;font-weight:800;margin-bottom:.4rem;">🔴 GRABANDO</div><div id="volumen-barra" style="height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;"><div id="volumen-nivel" style="height:100%;width:0;background:linear-gradient(90deg,#00d68f,#ffa500,#ff3b3b);border-radius:4px;transition:width .1s;"></div></div><div style="font-size:.66rem;color:rgba(255,255,255,.6);margin-top:.4rem;">Habla fuerte... Toca 🎤 para detener</div></div><div id="cfg-voz-estado" style="text-align:center;margin-top:.5rem;font-size:.75rem;color:#00d68f;font-weight:700;"></div></div></div>
+        <!-- EDITAR DATOS --><div style="background:linear-gradient(135deg,rgba(17,19,37,.9),rgba(20,23,45,.9)); border:1px solid rgba(255,165,0,.12); border-left:3px solid #ffa500; border-radius:14px; padding:.9rem 1rem; margin-bottom:.7rem;"><button onclick="editarDatos();cerrarConfiguracion();" style="width:100%;padding:.55rem;background:rgba(255,165,0,.08);color:#ffa500;border:1px solid rgba(255,165,0,.2);border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;">✏️ Editar Mis Datos, Vehículo y Contactos</button></div>
+        <p style="text-align:center;font-size:.58rem;color:#3a3d55;margin-top:1rem;">SISDEL Botón de Alerta v1.0</p>
+    </div>
+</div>
+
+<style>
+@keyframes pulsoRojo { from{box-shadow:0 0 5px rgba(255,59,59,.2);background:rgba(255,59,59,.05);} to{box-shadow:0 0 15px rgba(255,59,59,.4);background:rgba(255,59,59,.15);} }
+@keyframes checkPop {
+    0%   { transform: scale(0); opacity: 0; }
+    70%  { transform: scale(1.3); }
+    100% { transform: scale(1); opacity: 1; }
+}
+.cfg-slider::before { content:"";position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s; }
+input:checked + .cfg-slider { background:#00d68f; }
+input:checked + .cfg-slider::before { transform:translateX(22px); }
+</style>
+
+<!-- ══ PASO CONFIG (DATOS) ══════════════════ -->
+<div id="paso-config" class="paso" style="display:none;">
+    <div class="vcenter" style="max-width:680px;">
+        <div class="v-logo"><h2>✏️ Mis Datos</h2><p>Actualiza tu información y contactos</p></div>
+        <div class="v-card" style="padding:1.5rem 1.75rem;">
+            <div class="v-form-grid">
+                <!-- País -->
+                <div class="v-field v-field-full">
+                    <label>🌎 País <span style="color:#6b7294;font-size:.65rem;">(se añade automáticamente al teléfono)</span></label>
+                    <select id="cfg-pais" class="v-select" onchange="actualizarLadaConfig()">
+                        <option value="502">🇬🇹 Guatemala (+502)</option>
+                        <option value="52">🇲🇽 México (+52)</option>
+                        <option value="503">🇸🇻 El Salvador (+503)</option>
+                        <option value="504">🇭🇳 Honduras (+504)</option>
+                        <option value="505">🇳🇮 Nicaragua (+505)</option>
+                        <option value="506">🇨🇷 Costa Rica (+506)</option>
+                        <option value="507">🇵🇦 Panamá (+507)</option>
+                        <option value="57">🇨🇴 Colombia (+57)</option>
+                        <option value="1">🇺🇸 USA / Canadá (+1)</option>
+                        <option value="34">🇪🇸 España (+34)</option>
+                    </select>
+                </div>
+                <!-- Nombre -->
+                <div class="v-field v-field-full"><label>👤 Nombre Completo</label><input type="text" id="cfg-nombre"></div>
+                <!-- Teléfono con lada -->
+                <div class="v-field">
+                    <label>📱 Teléfono</label>
+                    <div style="display:flex;gap:.4rem;align-items:center;">
+                        <span id="cfg-lada-badge" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .7rem;font-size:.85rem;color:#ff8c00;font-weight:700;white-space:nowrap;">+502</span>
+                        <input type="tel" id="cfg-tel" placeholder="12345678" style="flex:1;">
+                    </div>
+                </div>
+                <!-- Correo -->
+                <div class="v-field"><label>📧 Correo <span style="color:#6b7294;font-size:.65rem;">(opcional)</span></label><input type="email" id="cfg-correo" placeholder="correo@ejemplo.com"></div>
+                <!-- Sexo / Edad -->
+                <div class="v-field"><label>⚥ Sexo</label>
+                    <select id="cfg-sexo"><option value="">— Seleccionar —</option><option value="M">Masculino</option><option value="F">Femenino</option></select>
+                </div>
+                <div class="v-field"><label>🎂 Edad</label><input type="number" id="cfg-edad" min="1" max="150" placeholder="Ej: 35"></div>
+                <!-- Licencia -->
+                <div class="v-field"><label>🪪 No. Licencia</label><input type="text" id="cfg-licencia"></div>
+                <!-- Placas -->
+                <div class="v-field"><label>🚗 Placas Vehículo</label><input type="text" id="cfg-placas"></div>
+                <!-- Tipo -->
+                <div class="v-field"><label>🚛 Tipo Vehículo</label>
+                    <select id="cfg-tipo">
+                        <option value="">—</option><option value="Sedan">Sedán</option><option value="Pickup">Pickup</option>
+                        <option value="Camion">Camión</option><option value="Motocicleta">Motocicleta</option>
+                        <option value="Panel">Panel</option><option value="Microbus">Microbús</option>
+                        <option value="Bus">Bus</option><option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <!-- Color -->
+                <div class="v-field"><label>🎨 Color Vehículo</label><input type="text" id="cfg-color"></div>
+                <!-- Foto -->
+                <div class="v-field v-field-full"><label>📷 Foto del Vehículo</label>
+                    <input type="file" id="cfg-foto" accept="image/*" onchange="previsualizarFotoConfig(event)">
+                    <div id="cfg-foto-preview" style="display:none;margin-top:.4rem;text-align:center;"><img id="cfg-foto-img" style="max-width:200px;max-height:120px;border-radius:8px;border:1px solid #2a2d45;"></div>
+                </div>
+                <!-- Dirección -->
+                <div class="v-field v-field-full"><label>🏠 Dirección</label><input type="text" id="cfg-dir" placeholder="Calle, Número, Zona, Ciudad"></div>
+            </div>
+            <!-- Contactos con lada -->
+            <h4 style="font-size:.78rem;color:#ff8c00;text-transform:uppercase;letter-spacing:.5px;margin:1rem 0 .5rem;font-weight:800;">🆘 CONTACTOS DE EMERGENCIA</h4>
+            <div style="display:flex;flex-direction:column;gap:.5rem;">
+                <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                    <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 1</label>
+                    <div style="display:flex;gap:.4rem;"><input type="text" id="cfg-c1n" placeholder="Nombre" style="flex:1.2;"><span class="cfg-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="cfg-c1t" placeholder="Teléfono" style="flex:1;"></div>
+                </div>
+                <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                    <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 2</label>
+                    <div style="display:flex;gap:.4rem;"><input type="text" id="cfg-c2n" placeholder="Nombre" style="flex:1.2;"><span class="cfg-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="cfg-c2t" placeholder="Teléfono" style="flex:1;"></div>
+                </div>
+                <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                    <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 3</label>
+                    <div style="display:flex;gap:.4rem;"><input type="text" id="cfg-c3n" placeholder="Nombre" style="flex:1.2;"><span class="cfg-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="cfg-c3t" placeholder="Teléfono" style="flex:1;"></div>
+                </div>
+                <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                    <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 4</label>
+                    <div style="display:flex;gap:.4rem;"><input type="text" id="cfg-c4n" placeholder="Nombre" style="flex:1.2;"><span class="cfg-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="cfg-c4t" placeholder="Teléfono" style="flex:1;"></div>
+                </div>
+                <div style="background:rgba(255,140,0,.04);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:.75rem 1rem;">
+                    <label style="font-size:.75rem;color:#ff8c00;font-weight:700;display:block;margin-bottom:.4rem;">📞 Contacto 5</label>
+                    <div style="display:flex;gap:.4rem;"><input type="text" id="cfg-c5n" placeholder="Nombre" style="flex:1.2;"><span class="cfg-lada-fam" style="background:#1a1f3e;border:1px solid #2d3366;border-radius:8px;padding:.5rem .5rem;font-size:.8rem;color:#ff8c00;font-weight:700;">+502</span><input type="tel" id="cfg-c5t" placeholder="Teléfono" style="flex:1;"></div>
+                </div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:1rem;">
+                <button class="btn-clave-ok" style="flex:1;" onclick="guardarConfig()">💾 Guardar</button>
+                <button onclick="volverPanico()" style="flex:1;background:rgba(107,114,148,.15);border:1px solid rgba(107,114,148,.3);color:#6b7294;border-radius:12px;padding:.6rem;font-weight:700;cursor:pointer;">← Volver</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = (window.location.hostname==='localhost'||window.location.protocol==='file:') ? 'http://localhost:8000' : 'https://boton-de-panico-sisdel.onrender.com';
+let PILOTO=null, ID_EMPRESA=null, gpsLat=null, gpsLon=null, gpsWatchId=null;
+let holdInterval=null, holdProgress=0;
+const HOLD_MS=3000;
+let _alertaCount=0, _countdownInterval=null, mediaRecorder=null, audioChunks=[];
+let _shakeEnabled=true, _shakeActive=false;
+let _vozCtx=null, _vozAnalyser=null, _vozStream=null, _vozActiva=false, _lastVozAlert=0;
+
+function showToast(msg,type='success',dur=3500){const i={success:'✅',error:'❌',info:'💡',warning:'⚠️'};const c=document.getElementById('toast-container');const t=document.createElement('div');t.className=`sisdel-toast toast-${type}`;t.innerHTML=`<span style="font-size:1.3rem;flex-shrink:0">${i[type]||'ℹ️'}</span><span style="flex:1">${msg}</span><span style="cursor:pointer;opacity:.7;font-size:1rem" onclick="this.parentElement.classList.add('toast-out');setTimeout(()=>this.parentElement.remove(),300)">✕</span>`;c.appendChild(t);setTimeout(()=>{t.classList.add('toast-out');setTimeout(()=>t.remove(),300);},dur);}
+
+document.addEventListener('DOMContentLoaded', async()=>{
+    // Auto-activar shake si estaba habilitado
+    const _cfgInit=JSON.parse(localStorage.getItem('sisdel_piloto_config')||'{}');
+    if(_cfgInit.agitar) setTimeout(()=>toggleShakeDetection(),300);
+    const params=new URLSearchParams(window.location.search);
+    ID_EMPRESA=params.get('emp');
+    if(!ID_EMPRESA){document.getElementById('error-clave').textContent='Error: No se especificó empresa.';document.getElementById('error-clave').style.display='block';return;}
+    const saved=sessionStorage.getItem('sisdel_piloto');
+    if(saved){PILOTO=JSON.parse(saved);mostrarPanico();}
+    else{const dpi=sessionStorage.getItem('sisdel_piloto_dpi');
+        if(dpi){sessionStorage.removeItem('sisdel_piloto_dpi');
+            try{const r=await fetch(`${API}/api/pilotos/${ID_EMPRESA}`);if(r.ok){const ps=await r.json();const p=ps.find(x=>(x.num_identificacion||'').toUpperCase()===dpi.toUpperCase()||(x.codigo_piloto||'').toUpperCase()===dpi.toUpperCase());if(p){PILOTO=p;sessionStorage.setItem('sisdel_piloto',JSON.stringify(p));mostrarPanico();}}}catch{}
+        }
+    }
+    document.getElementById('inp-clave').addEventListener('keydown',e=>{if(e.key==='Enter')loginPiloto();});
+});
+
+async function loginPiloto(){
+    const clave=document.getElementById('inp-clave').value.trim();
+    if(!clave){showErr('Ingresa tu código o DPI');return;}
+    try{const r=await fetch(`${API}/api/pilotos/${ID_EMPRESA}`);if(!r.ok){showErr('Error del servidor');return;}
+        const ps=await r.json();
+        const p=ps.find(x=>(x.num_identificacion||'').toUpperCase()===clave.toUpperCase()||(x.codigo_piloto||'').toUpperCase()===clave.toUpperCase());
+        if(!p){showErr('Código o DPI no encontrado');return;}
+        PILOTO=p;sessionStorage.setItem('sisdel_piloto',JSON.stringify(p));mostrarPanico();
+    }catch(e){showErr('Error de conexión');}
+}
+function showErr(m){const e=document.getElementById('error-clave');e.textContent=m;e.style.display='block';}
+
+let _permisosActivados = false;
+
+function mostrarPanico(){
+    document.querySelectorAll('.paso').forEach(p=>p.style.display='none');
+    // Check if permissions were already activated this session
+    if(!_permisosActivados && !sessionStorage.getItem('sisdel_permisos_ok')){
+        // Show activation screen first
+        document.getElementById('paso-activar').style.display='block';
+        document.getElementById('activar-nombre').textContent=PILOTO.nombre?.split(' ')[0]||'Piloto';
+        return;
+    }
+    // Go directly to panic
+    irAPanico();
+}
+
+function irAPanico(){
+    document.querySelectorAll('.paso').forEach(p=>p.style.display='none');
+    document.getElementById('paso-panico').style.display='block';
+    document.getElementById('vecino-nombre-bar').textContent=PILOTO.nombre?.split(' ')[0]||'Piloto';
+    const vi=[];
+    if(PILOTO.placas_vehiculo)vi.push('🚗 '+PILOTO.placas_vehiculo);
+    if(PILOTO.tipo_vehiculo)vi.push(PILOTO.tipo_vehiculo);
+    if(PILOTO.color_vehiculo)vi.push(PILOTO.color_vehiculo);
+    document.getElementById('panico-vehiculo').textContent=vi.join(' — ');
+    cargarLocalConfig();
+    // Auto-activar funciones según config guardada
+    setTimeout(() => toggleShakeDetection(), 300);
+    const cfg=JSON.parse(localStorage.getItem('sisdel_piloto_config')||'{}');
+    if(cfg.voz){
+        const ind=document.getElementById('voz-indicador');
+        if(ind) ind.style.display='block';
+        setTimeout(()=>iniciarEscuchaVoz(), 500);
+    }
+}
+
+// Called from user tap gesture — this is KEY for mobile permission requests
+async function activarTodo(){
+    const btn=event.target.closest('button');
+    btn.textContent='⏳ Activando...';btn.disabled=true;
+    let gpsOk=false, micOk=false, motionOk=false;
+    // 1. GPS
+    try{
+        await new Promise((resolve,reject)=>{
+            navigator.geolocation.getCurrentPosition(
+                pos=>{gpsLat=pos.coords.latitude;gpsLon=pos.coords.longitude;gpsOk=true;resolve();},
+                err=>{reject(err);},
+                {enableHighAccuracy:true,timeout:15000}
+            );
+        });
+    }catch(e){console.warn('GPS:',e);}
+    // 2. Micrófono
+    try{
+        const s=await navigator.mediaDevices.getUserMedia({audio:true});
+        s.getTracks().forEach(t=>t.stop());
+        micOk=true;
+    }catch(e){console.warn('Mic:',e);}
+    // 3. DeviceMotion (iOS)
+    if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){
+        try{const r=await DeviceMotionEvent.requestPermission();motionOk=(r==='granted');}catch{}
+    }else{motionOk=true;}
+    // Mark as activated
+    _permisosActivados=true;
+    sessionStorage.setItem('sisdel_permisos_ok','1');
+    // Start services
+    requestLocationPermission();
+    toggleShakeDetection();
+    const cfg=JSON.parse(localStorage.getItem('sisdel_piloto_config')||'{}');
+    if(cfg.voz!==false && micOk) iniciarEscuchaVoz();
+    // Show results briefly
+    let msg='✅ Protección activada:\n';
+    msg+=gpsOk?'📍 GPS ✅\n':'📍 GPS ❌ (activa GPS en ajustes)\n';
+    msg+=micOk?'🎙️ Micrófono ✅\n':'🎙️ Micrófono ❌\n';
+    msg+=motionOk?'📳 Movimiento ✅':'📳 Movimiento ❌';
+    showToast(msg.replace(/\n/g,'<br>'),'success',4000);
+    // Go to panic screen
+    irAPanico();
+}
+function logout(){sessionStorage.removeItem('sisdel_piloto');sessionStorage.removeItem('sisdel_tipo');PILOTO=null;window.location.href='index.html';}
+
+// GPS
+function requestLocationPermission(){
+    if(!navigator.geolocation){_errorBarraGPS('GPS no disponible');return;}
+    if(gpsWatchId!==null)navigator.geolocation.clearWatch(gpsWatchId);
+    navigator.geolocation.getCurrentPosition(
+        pos=>{gpsLat=pos.coords.latitude;gpsLon=pos.coords.longitude;_actualizarBarraGPS(gpsLat,gpsLon,pos.coords.accuracy);},
+        err=>{_errorBarraGPS('Activa GPS en configuración');},
+        {enableHighAccuracy:true,timeout:15000}
+    );
+    gpsWatchId=navigator.geolocation.watchPosition(
+        pos=>{gpsLat=pos.coords.latitude;gpsLon=pos.coords.longitude;_actualizarBarraGPS(gpsLat,gpsLon,pos.coords.accuracy);},
+        err=>{_errorBarraGPS('Sin señal GPS');},
+        {enableHighAccuracy:true,timeout:30000,maximumAge:5000}
+    );
+}
+function _actualizarBarraGPS(lat,lon,acc){
+    document.getElementById('gps-status').textContent=`✅ 📍 ${lat.toFixed(5)}, ${lon.toFixed(5)} (±${Math.round(acc||0)}m)`;
+    const d=document.getElementById('gps-dot');d.style.background='#00d68f';d.style.boxShadow='0 0 8px rgba(0,214,143,.6)';
+    document.getElementById('gps-bar').style.borderColor='rgba(0,214,143,.25)';document.getElementById('gps-bar').style.background='rgba(0,214,143,.06)';
+    const c=document.getElementById('cfg-gps-estado');
+    if(c){c.textContent='✅';c.style.background='rgba(0,214,143,.12)';c.style.color='#00d68f';c.style.borderColor='rgba(0,214,143,.2)';}
+}
+function _errorBarraGPS(msg){document.getElementById('gps-status').textContent='⚠️ '+msg;document.getElementById('gps-dot').style.background='#ffa500';const c=document.getElementById('cfg-gps-estado');if(c){c.textContent='❌';c.style.background='rgba(255,59,59,.12)';c.style.color='#ff3b3b';c.style.borderColor='rgba(255,59,59,.2)';}}
+
+function verificarEstadoGPS() {
+    const el = document.getElementById('cfg-gps-estado');
+    if (!el) return;
+    if (!navigator.geolocation) {
+        el.textContent = '❌ No soportado';
+        el.style.color = '#ff3b3b';
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        () => { el.textContent = '✅ Activo'; el.style.color = '#00d68f'; el.style.background = 'rgba(0,214,143,.15)'; el.style.borderColor = 'rgba(0,214,143,.3)'; },
+        () => { el.textContent = '⚠️ Bloqueado'; el.style.color = '#ff3b3b'; el.style.background = 'rgba(255,59,59,.15)'; el.style.borderColor = 'rgba(255,59,59,.3)'; },
+        { timeout: 5000 }
+    );
+}
+
+function activarGPS() {
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            requestLocationPermission();
+            verificarEstadoGPS();
+            alert(`✅ GPS activado\nLatitud: ${pos.coords.latitude.toFixed(6)}\nLongitud: ${pos.coords.longitude.toFixed(6)}`);
+        },
+        () => { alert('❌ No se pudo activar GPS.\n\niPhone: Ajustes → Privacidad → Servicios de Ubicación → Safari → Permitir\n\nAndroid: Ajustes → Sitios → Ubicación → Permitir'); }
+    );
+}
+
+// NO pedir permiso GPS al enviar alerta — usar lo que ya hay o continuar sin GPS
+function ensureLocation(){return Promise.resolve();}
+
+// ══ AGITAR PARA ALERTAR (SHAKE DETECTION) ══
+let _shakeListening = false;
+let _shakeTimestamps = [];
+const SHAKE_THRESHOLD = 25;       
+const SHAKE_COUNT     = 3;        
+const SHAKE_WINDOW    = 2000;     
+const SHAKE_COOLDOWN  = 10000;    
+let _lastShakeAlert   = 0;
+
+function _handleMotion(e) {
+    const acc = e.accelerationIncludingGravity || e.acceleration;
+    if (!acc) return;
+    const fuerza = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+    if (fuerza > SHAKE_THRESHOLD) {
+        const now = Date.now();
+        _shakeTimestamps.push(now);
+        _shakeTimestamps = _shakeTimestamps.filter(t => now - t < SHAKE_WINDOW);
+        if (_shakeTimestamps.length >= SHAKE_COUNT) {
+            _shakeTimestamps = [];
+            if (now - _lastShakeAlert < SHAKE_COOLDOWN) return;
+            _lastShakeAlert = now;
+            const panicVisible = document.getElementById('paso-panico')?.style.display !== 'none';
+            if (panicVisible && typeof enviarAlerta === 'function') {
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                console.log('🚨 Shake detected! Enviando alerta...');
+                enviarAlerta('shake');
+            }
+        }
+    }
+}
+
+function toggleShakeDetection() {
+    const cfg = JSON.parse(localStorage.getItem('sisdel_piloto_config') || '{}');
+    if (cfg.agitar && !_shakeListening) {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission()
+                .then(state => {
+                    if (state === 'granted') {
+                        window.addEventListener('devicemotion', _handleMotion);
+                        _shakeListening = true;
+                    } else {
+                        alert('⚠️ Permiso de movimiento denegado. Actívalo en Ajustes → Safari → Movimiento y orientación.');
+                    }
+                })
+                .catch(() => {
+                    alert('⚠️ No se pudo solicitar permiso de movimiento.');
+                });
+        } else if ('DeviceMotionEvent' in window) {
+            window.addEventListener('devicemotion', _handleMotion);
+            _shakeListening = true;
+        }
+    } else if (!cfg.agitar && _shakeListening) {
+        window.removeEventListener('devicemotion', _handleMotion);
+        _shakeListening = false;
+    }
+}
+
+// HOLD-TO-SEND
+function iniciarPanico(e){e.preventDefault();document.getElementById('btn-panico').classList.add('pressing');document.getElementById('hold-bar-wrap').style.display='block';document.getElementById('hint-panico').textContent='¡Mantén presionado!';holdProgress=0;const s=Date.now();holdInterval=setInterval(()=>{holdProgress=Math.min(((Date.now()-s)/HOLD_MS)*100,100);document.getElementById('hold-bar').style.width=holdProgress+'%';if(holdProgress>=100){clearInterval(holdInterval);holdInterval=null;enviarAlerta();}},50);}
+function cancelarPanico(e){e.preventDefault();document.getElementById('btn-panico').classList.remove('pressing');if(holdInterval){clearInterval(holdInterval);holdInterval=null;}if(holdProgress<100){document.getElementById('hold-bar-wrap').style.display='none';document.getElementById('hold-bar').style.width='0%';document.getElementById('hint-panico').textContent='Mantén presionado 3 segundos para enviar alerta';}}
+
+async function enviarAlerta(fuente){
+    if(!PILOTO)return;
+    if(_alertaCount>=10){showToast('10 alertas enviadas','warning');return;}
+    try{await ensureLocation();}catch{}
+    _alertaCount++;
+    const cfg=JSON.parse(localStorage.getItem('sisdel_piloto_config')||'{}');
+    if(cfg.vibracion!==false&&navigator.vibrate)navigator.vibrate([200,100,200,100,500]);
+
+    // NO reproducir audio grabado si la alerta fue disparada por voz
+    if(fuente!=='voz' && cfg.audioGrabado){
+        try{const a=new Audio(cfg.audioGrabado);a.volume=1;let r=0;a.onended=()=>{r++;if(r<3)a.play().catch(()=>{});};a.play().catch(()=>{});}catch{}
+    }
+    document.getElementById('env-alerta-num').textContent=`Alerta #${_alertaCount} de 10`;
+    document.getElementById('env-coords').textContent=gpsLat?`📍 ${gpsLat.toFixed(6)}, ${gpsLon.toFixed(6)}`:'📍 Sin coordenadas';
+    document.getElementById('overlay-enviado').style.display='flex';
+    // WhatsApp
+    const cts=[];for(let i=1;i<=5;i++){const n=PILOTO[`fam_nombre_${i}`];const t=PILOTO[`fam_tel_${i}`];if(t)cts.push({nombre:n||`Contacto ${i}`,telefono:t});}
+    const wd=document.getElementById('wa-botones'),wf=document.getElementById('wa-familiares');
+    if(cts.length){const m=encodeURIComponent(`🚨 ALERTA\n${PILOTO.nombre} activó alerta.\n${gpsLat?'📍 https://maps.google.com/?q='+gpsLat+','+gpsLon:'Sin GPS'}`);wd.innerHTML=cts.map(c=>`<a href="https://wa.me/${c.telefono}?text=${m}" target="_blank" style="display:flex;align-items:center;gap:.5rem;padding:.5rem .8rem;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);border-radius:10px;color:#25d366;text-decoration:none;font-size:.82rem;font-weight:700;">💬 ${c.nombre}</a>`).join('');wf.style.display='block';}else{wf.style.display='none';}
+    let sec=45;document.getElementById('env-countdown').textContent=`Se cierra en ${sec}s`;
+    if(_countdownInterval)clearInterval(_countdownInterval);
+    _countdownInterval=setInterval(()=>{sec--;document.getElementById('env-countdown').textContent=`Se cierra en ${sec}s`;if(sec<=0){clearInterval(_countdownInterval);ocultarConfirmacion();}},1000);
+    try{await fetch(`${API}/api/empresa/alertas`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_empresa:ID_EMPRESA,id_piloto:PILOTO.id_piloto,nombre_piloto:PILOTO.nombre,telefono_piloto:PILOTO.telefono,num_identificacion:PILOTO.num_identificacion,placas_vehiculo:PILOTO.placas_vehiculo||'',tipo_vehiculo:PILOTO.tipo_vehiculo||'',color_vehiculo:PILOTO.color_vehiculo||'',direccion_piloto:PILOTO.direccion||'',gps_latitud:gpsLat,gps_longitud:gpsLon,direccion_aproximada:gpsLat?`${gpsLat.toFixed(6)}, ${gpsLon.toFixed(6)}`:'Sin coordenadas'})});}catch{showToast('Error al enviar','error');}
+    document.getElementById('btn-panico').classList.remove('pressing');document.getElementById('hold-bar-wrap').style.display='none';document.getElementById('hold-bar').style.width='0%';document.getElementById('hint-panico').textContent='Mantén presionado 3 segundos para enviar alerta';
+}
+function enviarOtraAlerta(){ocultarConfirmacion();}
+function ocultarConfirmacion(){document.getElementById('overlay-enviado').style.display='none';if(_countdownInterval){clearInterval(_countdownInterval);_countdownInterval=null;}}
+
+// CONFIG MODAL
+function abrirConfiguracion(){document.getElementById('modal-config').style.display='block';cargarLocalConfig();verificarEstadoGPS();}
+function cerrarConfiguracion(){
+    guardarLocalConfig();
+    document.getElementById('modal-config').style.display='none';
+    const cfg=JSON.parse(localStorage.getItem('sisdel_piloto_config')||'{}');
+    toggleShakeDetection();
+    if(cfg.voz) iniciarEscuchaVoz();
+}
+function guardarLocalConfig(){const c=JSON.parse(localStorage.getItem('sisdel_piloto_config')||'{}');c.vibracion=document.getElementById('cfg-vibracion').checked;c.agitar=document.getElementById('cfg-agitar').checked;c.voz=document.getElementById('cfg-voz').checked;localStorage.setItem('sisdel_piloto_config',JSON.stringify(c));}
+function cargarLocalConfig(){
+    const c=JSON.parse(localStorage.getItem('sisdel_piloto_config')||'{}');
+    document.getElementById('cfg-vibracion').checked=c.vibracion!==false;
+    document.getElementById('cfg-agitar').checked=c.agitar!==false;
+    document.getElementById('cfg-voz').checked=c.voz!==false;
+    if(c.voz!==false)document.getElementById('cfg-voz-extra').style.display='block';
+    
+    if(c.audioGrabado){
+        const asc=document.getElementById('audio-status-card');
+        if(asc) asc.style.display='block';
+        const vs=document.getElementById('cfg-voz-estado');
+        if(vs) vs.textContent='✅ Audio guardado';
+    }
+}
+function verificarEstadoGPS(){
+    const c=document.getElementById('cfg-gps-estado');
+    if(!c)return;
+    if(gpsLat!==null){
+        c.textContent='✅';c.style.background='rgba(0,214,143,.12)';c.style.color='#00d68f';c.style.borderColor='rgba(0,214,143,.2)';
+    }else{
+        c.textContent='❌';c.style.background='rgba(255,59,59,.12)';c.style.color='#ff3b3b';c.style.borderColor='rgba(255,59,59,.2)';
+    }
+}
+// ══ ESCUCHA DE VOZ (detección por volumen) ══
+let _escuchaStream = null;
+let _escuchaAnalyser = null;
+let _escuchaActiva = false;
+let _escuchaAnimFrame = null;
+let _gritoConsecutivo = 0;
+const UMBRAL_VOLUMEN = 55;
+const GRITOS_NECESARIOS = 15;
+
+function toggleVoz() {
+    const activo = document.getElementById('cfg-voz').checked;
+    document.getElementById('cfg-voz-extra').style.display = activo ? 'block' : 'none';
+    guardarLocalConfig();
+    if (!activo) detenerEscuchaVoz();
+}
+
+async function iniciarEscuchaVoz() {
+    if (_escuchaActiva) return;
+    const cfg = JSON.parse(localStorage.getItem('sisdel_piloto_config') || '{}');
+    if (!cfg.voz) return;
+
+    try {
+        _escuchaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaStreamSource(_escuchaStream);
+        _escuchaAnalyser = audioCtx.createAnalyser();
+        _escuchaAnalyser.fftSize = 256;
+        source.connect(_escuchaAnalyser);
+
+        _escuchaActiva = true;
+        _gritoConsecutivo = 0;
+        monitorearVolumen();
+
+        const ind = document.getElementById('voz-indicador');
+        if (ind) ind.style.display = 'block';
+    } catch (err) {}
+}
+
+function monitorearVolumen() {
+    if (!_escuchaActiva || !_escuchaAnalyser) return;
+    const data = new Uint8Array(_escuchaAnalyser.frequencyBinCount);
+    _escuchaAnalyser.getByteFrequencyData(data);
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
+
+    if (avg > UMBRAL_VOLUMEN) {
+        _gritoConsecutivo++;
+        if (_gritoConsecutivo >= GRITOS_NECESARIOS) {
+            _gritoConsecutivo = 0;
+            detenerEscuchaVoz();
+            if (typeof enviarAlerta === 'function') {
+                console.log('🎙️ ¡Grito detectado! Enviando alerta...');
+                enviarAlerta('voz');
+            }
+            setTimeout(() => {
+                const c = JSON.parse(localStorage.getItem('sisdel_piloto_config') || '{}');
+                if (c.voz) iniciarEscuchaVoz();
+            }, 15000);
+            return;
+        }
+    } else {
+        _gritoConsecutivo = Math.max(0, _gritoConsecutivo - 1);
+    }
+    _escuchaAnimFrame = requestAnimationFrame(monitorearVolumen);
+}
+
+function detenerEscuchaVoz() {
+    _escuchaActiva = false;
+    if (_escuchaAnimFrame) cancelAnimationFrame(_escuchaAnimFrame);
+    if (_escuchaStream) {
+        _escuchaStream.getTracks().forEach(t => t.stop());
+        _escuchaStream = null;
+    }
+    const ind = document.getElementById('voz-indicador');
+    if (ind) ind.style.display = 'none';
+}
+
+// ══ GRABACIÓN DE FRASE CLAVE ══
+let _mediaRecorder = null;
+let _audioChunks = [];
+let _grabando = false;
+let _audioStream = null;
+let _analyser = null;
+let _animFrame = null;
+
+async function solicitarPermisoMic() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+        const btn = document.getElementById('btn-permiso-mic');
+        if (btn) {
+            btn.innerHTML = '✅ Micrófono Permitido';
+            btn.style.background = 'rgba(0,214,143,.15)';
+            btn.style.color = '#00d68f';
+            btn.style.borderColor = 'rgba(0,214,143,.3)';
+            btn.disabled = true;
+        }
+        alert('Permiso de micrófono concedido.\n\nIMPORTANTE: Apple iOS prohíbe grabar audio en segundo plano a las páginas web. La alerta por voz SOLO funcionará si mantienes esta app ABIERTA Y VISIBLE en tu pantalla.');
+    } catch (err) {
+        alert('❌ Permiso denegado. Debes habilitarlo en: Ajustes → Safari → Micrófono → Permitir.');
+    }
+}
+
+async function toggleGrabacion() {
+    if (_grabando) {
+        await detenerGrabacion();
+    } else {
+        await iniciarGrabacion();
+    }
+}
+
+async function iniciarGrabacion() {
+    const estado = document.getElementById('cfg-voz-estado');
+    const btn = document.getElementById('btn-grabar');
+    estado.innerHTML = '';
+    
+    try {
+        _audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        _mediaRecorder = new MediaRecorder(_audioStream);
+        _audioChunks = [];
+
+        _mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) _audioChunks.push(e.data);
+        };
+
+        _mediaRecorder.onstop = () => {
+            const mime = _mediaRecorder.mimeType || '';
+            const blob = new Blob(_audioChunks, { type: mime });
+            
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const base64 = reader.result;
+                const cfg = JSON.parse(localStorage.getItem('sisdel_piloto_config') || '{}');
+                cfg.audioGrabado = base64;
+                localStorage.setItem('sisdel_piloto_config', JSON.stringify(cfg));
+                estado.innerHTML = '✅ Frase grabada — reemplaza la anterior';
+                const card = document.getElementById('audio-status-card');
+                if (card) card.style.display = 'block';
+                
+                // Pilot sync with backend 
+                if (typeof PILOTO !== 'undefined' && PILOTO && PILOTO.id_piloto) {
+                    try {
+                        const res = await fetch(`${API}/api/pilotos/${PILOTO.id_piloto}`, {
+                            method: 'PUT', 
+                            headers: {'Content-Type':'application/json'},
+                            body: JSON.stringify({ voz_alerta: base64 })
+                        });
+                        if (res.ok) {
+                            estado.innerHTML = '✅ Grabación guardada en la nube';
+                        }
+                    } catch (err) { console.error('Error sync voz:', err); }
+                }
+
+            };
+            reader.readAsDataURL(blob);
+            _audioStream.getTracks().forEach(t => t.stop());
+        };
+
+        _mediaRecorder.start();
+        _grabando = true;
+        btn.innerHTML = '⏹️ DETENER GRABACIÓN';
+        btn.style.background = 'rgba(255,59,59,.4)';
+        btn.style.borderColor = '#ff3b3b';
+        document.getElementById('grabacion-indicador').style.display = 'block';
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaStreamSource(_audioStream);
+        _analyser = audioCtx.createAnalyser();
+        _analyser.fftSize = 256;
+        source.connect(_analyser);
+        animarVolumen();
+
+    } catch (err) {
+        estado.innerHTML = '<span style="color:#ff3b3b;">❌ No se pudo acceder al micrófono. Permite el acceso en los ajustes del navegador.</span>';
+        console.error('Error micrófono:', err);
+    }
+}
+
+function detenerGrabacion() {
+    if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
+        _mediaRecorder.stop();
+    }
+    _grabando = false;
+    const btn = document.getElementById('btn-grabar');
+    btn.innerHTML = '🎤 GRABAR FRASE';
+    btn.style.background = 'linear-gradient(135deg,rgba(255,59,59,.12),rgba(200,0,0,.08))';
+    btn.style.borderColor = 'rgba(255,59,59,.25)';
+    document.getElementById('grabacion-indicador').style.display = 'none';
+    if (_animFrame) cancelAnimationFrame(_animFrame);
+}
+
+function animarVolumen() {
+    if (!_analyser || !_grabando) return;
+    const data = new Uint8Array(_analyser.frequencyBinCount);
+    _analyser.getByteFrequencyData(data);
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
+    const pct = Math.min(100, (avg / 128) * 100);
+    const nivel = document.getElementById('volumen-nivel');
+    if (nivel) nivel.style.width = pct + '%';
+    _animFrame = requestAnimationFrame(animarVolumen);
+}
+
+function escucharGrabacion() {
+    const cfg = JSON.parse(localStorage.getItem('sisdel_piloto_config') || '{}');
+    if (!cfg.audioGrabado) {
+        alert('No hay frase grabada. Graba primero.');
+        return;
+    }
+    const audio = new Audio(cfg.audioGrabado);
+    audio.play().catch(() => alert('Error al reproducir'));
+}
+
+// EDITAR DATOS
+function editarDatos(){document.querySelectorAll('.paso').forEach(p=>p.style.display='none');document.getElementById('paso-config').style.display='block';llenarFormConfig();}
+function actualizarLadaConfig(){const c=document.getElementById('cfg-pais')?.value||'502';const b=document.getElementById('cfg-lada-badge');if(b)b.textContent='+'+c;document.querySelectorAll('.cfg-lada-fam').forEach(el=>el.textContent='+'+c);}
+function llenarFormConfig(){
+    document.getElementById('cfg-nombre').value=PILOTO.nombre||'';
+    const l=document.getElementById('cfg-pais')?.value||'502';
+    document.getElementById('cfg-tel').value=(PILOTO.telefono||'').replace(new RegExp('^'+l),'');
+    document.getElementById('cfg-correo').value=PILOTO.correo||'';
+    document.getElementById('cfg-sexo').value=PILOTO.sexo||'';
+    document.getElementById('cfg-edad').value=PILOTO.edad||'';
+    document.getElementById('cfg-licencia').value=PILOTO.num_licencia||'';
+    document.getElementById('cfg-placas').value=PILOTO.placas_vehiculo||'';
+    document.getElementById('cfg-tipo').value=PILOTO.tipo_vehiculo||'';
+    document.getElementById('cfg-color').value=PILOTO.color_vehiculo||'';
+    document.getElementById('cfg-dir').value=PILOTO.direccion||'';
+    for(let i=1;i<=5;i++){document.getElementById(`cfg-c${i}n`).value=PILOTO[`fam_nombre_${i}`]||'';document.getElementById(`cfg-c${i}t`).value=(PILOTO[`fam_tel_${i}`]||'').replace(new RegExp('^'+l),'');}
+    if(PILOTO.foto_vehiculo){document.getElementById('cfg-foto-img').src=PILOTO.foto_vehiculo;document.getElementById('cfg-foto-preview').style.display='block';}
+    actualizarLadaConfig();
+}
+function previsualizarFotoConfig(event){const f=event.target.files[0];if(!f)return;const r=new FileReader();r.onload=(e)=>{document.getElementById('cfg-foto-img').src=e.target.result;document.getElementById('cfg-foto-preview').style.display='block';};r.readAsDataURL(f);}
+async function guardarConfig(){
+    const l=document.getElementById('cfg-pais')?.value||'502';let foto=null;
+    const ff=document.getElementById('cfg-foto').files[0];
+    if(ff){foto=await new Promise(res=>{const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const ratio=Math.min(800/img.width,800/img.height,1);c.width=img.width*ratio;c.height=img.height*ratio;c.getContext('2d').drawImage(img,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.6));};img.src=e.target.result;};r.readAsDataURL(ff);});}
+    const t=(document.getElementById('cfg-tel').value||'').replace(/\D/g,'');
+    const data={nombre:document.getElementById('cfg-nombre').value.trim(),telefono:t?l+t:'',correo:document.getElementById('cfg-correo').value.trim(),sexo:document.getElementById('cfg-sexo').value,edad:parseInt(document.getElementById('cfg-edad').value)||0,num_licencia:document.getElementById('cfg-licencia').value.trim(),placas_vehiculo:document.getElementById('cfg-placas').value.trim(),tipo_vehiculo:document.getElementById('cfg-tipo').value,color_vehiculo:document.getElementById('cfg-color').value.trim(),direccion:document.getElementById('cfg-dir').value.trim()};
+    if(foto)data.foto_vehiculo=foto;
+    for(let i=1;i<=5;i++){data[`fam_nombre_${i}`]=document.getElementById(`cfg-c${i}n`).value.trim();const ct=(document.getElementById(`cfg-c${i}t`).value||'').replace(/\D/g,'');data[`fam_tel_${i}`]=ct?l+ct:'';}
+    try{const r=await fetch(`${API}/api/pilotos/${PILOTO.id_piloto}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});PILOTO=await r.json();sessionStorage.setItem('sisdel_piloto',JSON.stringify(PILOTO));showToast('Datos actualizados ✅','success');volverPanico();}catch{showToast('Error al guardar','error');}
+}
+function volverPanico(){document.getElementById('paso-config').style.display='none';irAPanico();}
+function mostrarConfig(){llenarFormConfig();}
+</script>
+</body>
+</html>

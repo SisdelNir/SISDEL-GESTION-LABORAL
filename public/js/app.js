@@ -2483,23 +2483,31 @@ async function cargarTareasEmpleado() {
             const reqEv = t.requiere_evidencia === 1 || t.requiere_evidencia === '1' || t.requiere_evidencia === true;
             if (reqEv && enProcesoActivo) {
                 const cantEv = t.total_evidencias || 0;
+                const faltanFotos = cantEv === 0;
                 evidenciaBtns = `
-                    <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:8px;">
-                        <button onclick="event.stopPropagation(); tomarSubirFotoDirecto('${t.id_tarea}')" style="background:#3b82f6;color:white;font-weight:700;padding:6px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer;border:none;display:inline-flex;align-items:center;transition:all 0.2s;">
-                            📸 Tomar / Subir Foto
-                        </button>
-                        <span style="font-size:0.75rem;color:${cantEv > 0 ? '#10b981' : '#ef4444'};font-weight:700;">
-                            ${cantEv > 0
-                                ? `<span style="display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap;">${Array.from({length:Math.min(cantEv,10)}).map(()=>'<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#10b981;border-radius:50%;font-size:8px;color:white;font-weight:900;line-height:1;">✓</span>').join('')}${cantEv>10?`<span style="font-size:0.7rem;color:#10b981;font-weight:700;">+${cantEv-10}</span>`:''}</span>`
-                                : '⚠️ Faltan fotos (obligatorio)'}
-                        </span>
+                    <div style="margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid ${faltanFotos ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.3)'};background:${faltanFotos ? 'linear-gradient(135deg,rgba(239,68,68,0.08),rgba(239,68,68,0.03))' : 'linear-gradient(135deg,rgba(16,185,129,0.08),rgba(16,185,129,0.03))'};">
+                        ${faltanFotos ? `<div style="padding:8px 14px;background:rgba(239,68,68,0.12);border-bottom:1px solid rgba(239,68,68,0.2);display:flex;align-items:center;gap:6px;">
+                            <span style="font-size:0.82rem;">⚠️</span>
+                            <span style="font-size:0.78rem;font-weight:700;color:#ef4444;">Se requieren fotos de evidencia para completar esta tarea</span>
+                        </div>` : ''}
+                        <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <button class="evidencia-mobile-btn" onclick="event.stopPropagation(); tomarSubirFotoDirecto('${t.id_tarea}')"
+                                style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-weight:700;padding:10px 18px;border-radius:10px;font-size:0.82rem;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s;box-shadow:0 3px 12px rgba(59,130,246,0.3);">
+                                📸 Tomar / Subir Foto
+                            </button>
+                            <span style="font-size:0.78rem;color:${cantEv > 0 ? '#10b981' : '#94a3b8'};font-weight:600;display:flex;align-items:center;gap:4px;">
+                                ${cantEv > 0
+                                    ? `<span style="display:inline-flex;align-items:center;gap:3px;">${Array.from({length:Math.min(cantEv,10)}).map(()=>'<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#10b981;border-radius:50%;font-size:9px;color:white;font-weight:900;">✓</span>').join('')}${cantEv>10?`<span style="font-size:0.72rem;color:#10b981;font-weight:700;">+${cantEv-10}</span>`:''} <span style="color:#10b981;">${cantEv} foto${cantEv>1?'s':''}</span></span>`
+                                    : '<span style="color:#94a3b8;">Sin fotos aún</span>'}
+                            </span>
+                        </div>
                     </div>
                 `;
             } else if (reqEv && esPendiente) {
                 const cantEv = t.total_evidencias || 0;
                 evidenciaBtns = `
-                    <div style="margin-top:6px;font-size:0.75rem;font-weight:600;display:flex;align-items:center;gap:6px;color:${cantEv > 0 ? '#10b981' : '#f59e0b'};">
-                        ${cantEv > 0 ? '✅ ' + cantEv + ' foto(s) capturadas preventivamente' : '📸 Esta tarea requerirá fotos de constancia'}
+                    <div style="margin-top:8px;padding:10px 14px;font-size:0.78rem;font-weight:600;display:flex;align-items:center;gap:8px;color:${cantEv > 0 ? '#10b981' : '#f59e0b'};background:${cantEv > 0 ? 'rgba(16,185,129,0.06)' : 'rgba(245,158,11,0.06)'};border:1px solid ${cantEv > 0 ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'};border-radius:10px;">
+                        ${cantEv > 0 ? '✅ ' + cantEv + ' foto(s) capturadas' : '📸 Esta tarea requerirá fotos de evidencia'}
                     </div>
                 `;
             }
@@ -2510,15 +2518,17 @@ async function cargarTareasEmpleado() {
             if (tieneCliente) {
                 const concluido = t.cliente_concluido === 1 || t.cliente_concluido === '1';
                 clienteBtn = `
-                    <div style="margin-top:8px;">
-                        <button onclick="event.stopPropagation(); abrirModalCliente('${t.id_tarea}')"
-                            style="width:100%;padding:8px 14px;border-radius:9px;border:none;cursor:pointer;font-size:0.8rem;font-weight:700;
-                                   background:${concluido ? 'linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.08))' : 'linear-gradient(135deg,rgba(16,185,129,0.2),rgba(16,185,129,0.1))'};
-                                   color:${concluido ? '#10b981' : '#34d399'};
-                                   border:1px solid ${concluido ? 'rgba(16,185,129,0.3)' : 'rgba(52,211,153,0.4)'};
-                                   display:flex;align-items:center;justify-content:center;gap:6px;">
-                            ${concluido ? '✅ Cliente Atendido' : '👤 Datos del Cliente'}
-                            ${t.nombre_cliente ? `<span style="font-weight:400;font-size:0.72rem;opacity:0.8;">· ${t.nombre_cliente}</span>` : '<span style="font-weight:400;font-size:0.72rem;opacity:0.7;">· Pendiente de registro</span>'}
+                    <div style="margin-top:10px;">
+                        <button class="cliente-mobile-btn" onclick="event.stopPropagation(); abrirModalCliente('${t.id_tarea}')"
+                            style="width:100%;padding:12px 16px;border-radius:12px;border:none;cursor:pointer;font-size:0.84rem;font-weight:700;
+                                   background:${concluido ? 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.06))' : 'linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.08))'};
+                                   color:${concluido ? '#10b981' : '#a78bfa'};
+                                   border:1px solid ${concluido ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.35)'};
+                                   display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;
+                                   ${!concluido ? 'box-shadow:0 2px 10px rgba(139,92,246,0.15);' : ''}">
+                            <span style="font-size:1.1rem;">${concluido ? '✅' : '👤'}</span>
+                            ${concluido ? 'Cliente Atendido' : 'Registrar Visita al Cliente'}
+                            ${t.nombre_cliente ? `<span style="font-weight:500;font-size:0.75rem;opacity:0.8;margin-left:4px;">· ${t.nombre_cliente}</span>` : !concluido ? '<span style="font-weight:500;font-size:0.72rem;opacity:0.7;margin-left:4px;">· Pendiente</span>' : ''}
                         </button>
                     </div>`;
             }

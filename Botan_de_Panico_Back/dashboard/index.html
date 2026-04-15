@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 Botón de Pánico SISDEL</title>
+    <meta name="description" content="Sistema de Emergencia Ciudadana Multi-Institucional">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<div class="login-screen" id="login-screen">
+    <div class="login-bg">
+        <div class="orb orb1"></div>
+        <div class="orb orb2"></div>
+        <div class="orb orb3"></div>
+    </div>
+    <div class="login-card">
+        <div class="login-logo">
+            <div class="logo-icon">
+                <svg width="40" height="40" viewBox="0 0 44 44" fill="none">
+                    <circle cx="22" cy="22" r="19" stroke="url(#lg)" stroke-width="2.5" fill="none"/>
+                    <circle cx="22" cy="22" r="8" fill="url(#lg)">
+                        <animate attributeName="r" values="8;11;8" dur="2s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="1;.6;1" dur="2s" repeatCount="indefinite"/>
+                    </circle>
+                    <defs>
+                        <linearGradient id="lg" x1="0" y1="0" x2="44" y2="44">
+                            <stop offset="0%" stop-color="#ff3b3b"/>
+                            <stop offset="100%" stop-color="#ff6b35"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h1>Botón de Pánico SISDEL</h1>
+            <p>Sistema de Emergencia Ciudadana</p>
+        </div>
+
+        <label class="login-label" for="inp-clave">Clave de Acceso</label>
+        <input class="login-input" type="text" id="inp-clave"
+               placeholder="Código o DPI" maxlength="20" autocomplete="off"
+               oninput="this.value=this.value.toUpperCase()">
+        <p class="login-hint">Ingrese su clave de acceso</p>
+
+        <button class="btn-ingresar" id="btn-login" onclick="doLogin()">
+            <span>Ingresar</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+        </button>
+        <div class="login-error" id="login-error" style="display:none;"></div>
+
+        <div class="login-footer" style="margin-top:1.5rem;">
+            <a href="vecino.html" class="login-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                Soy vecino — ingresar con mi clave
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = (window.location.hostname === 'localhost' || window.location.protocol === 'file:') ? 'http://localhost:8000' : 'https://boton-de-panico-sisdel.onrender.com';  // Local o Render
+
+async function doLogin() {
+    const clave = document.getElementById('inp-clave').value.trim();
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+
+    if (!clave) { showErr('Ingrese su clave'); return; }
+
+    // ── BYPASS PROGRAMADOR (sin necesidad del servidor) ────
+    if (clave === '1122') {
+        sessionStorage.setItem('sisdel_tipo', 'programador');
+        window.location.href = 'programador.html';
+        return;
+    }
+
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true;
+    btn.querySelector('span').textContent = 'Verificando...';
+
+    try {
+        const res  = await fetch(`${API}/api/programador/login`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ clave })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            if (data.tipo === 'programador') {
+                sessionStorage.setItem('sisdel_tipo', 'programador');
+                window.location.href = 'programador.html';
+            } else if (data.tipo === 'agente') {
+                sessionStorage.setItem('sisdel_tipo', 'agente');
+                sessionStorage.setItem('sisdel_agente_id', data.num_identificacion);
+                window.location.href = 'agente.html';
+            } else if (data.tipo === 'vecino') {
+                sessionStorage.setItem('sisdel_clave_vecino', clave);
+                const numId = data.num_identificacion ? `&numid=${encodeURIComponent(data.num_identificacion)}` : '';
+                window.location.href = `vecino.html?inst=${data.id_institucion}&vecino=1${numId}`;
+            } else if (data.tipo === 'empresa') {
+                sessionStorage.setItem('sisdel_tipo', 'empresa');
+                sessionStorage.setItem('sisdel_empresa', JSON.stringify({id_empresa: data.id_institucion}));
+                window.location.href = 'empresa_panel.html';
+            } else if (data.tipo === 'agente_empresa') {
+                sessionStorage.setItem('sisdel_tipo', 'agente_empresa');
+                sessionStorage.setItem('sisdel_agente_emp_id', data.num_identificacion);
+                sessionStorage.setItem('sisdel_agente_emp_empresa', data.id_institucion);
+                window.location.href = 'agente_empresa.html';
+            } else if (data.tipo === 'piloto') {
+                sessionStorage.setItem('sisdel_tipo', 'piloto');
+                sessionStorage.setItem('sisdel_piloto_empresa', data.id_institucion);
+                sessionStorage.setItem('sisdel_piloto_dpi', data.num_identificacion);
+                window.location.href = `piloto.html?emp=${data.id_institucion}`;
+            } else {
+                sessionStorage.setItem('sisdel_tipo', 'institucion');
+                sessionStorage.setItem('sisdel_inst', JSON.stringify(data.institucion));
+                window.location.href = 'panel.html';
+            }
+        } else {
+            showErr(data.message || 'Clave inválida');
+        }
+    } catch {
+        showErr('Clave de institución válida pero sin conexión al servidor. Inicie el backend.');
+    } finally {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Ingresar';
+    }
+}
+
+function showErr(msg) {
+    const el = document.getElementById('login-error');
+    el.textContent = msg; el.style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const tipo = sessionStorage.getItem('sisdel_tipo');
+    if (tipo === 'programador') { window.location.href = 'programador.html'; return; }
+    if (tipo === 'institucion')  { window.location.href = 'panel.html'; return; }
+    if (tipo === 'empresa')      { window.location.href = 'empresa_panel.html'; return; }
+
+    document.getElementById('inp-clave').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doLogin();
+    });
+});
+</script>
+</body>
+</html>
