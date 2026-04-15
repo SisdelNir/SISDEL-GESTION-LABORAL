@@ -1458,61 +1458,46 @@ select {
         min-width: 0 !important;
     }
 
-    /* ═══ STATS GRID MOBILE — 4 EN UNA FILA COMPACTA ═══ */
+    /* ═══ STATS — BARRA COMPACTA EN UNA FILA ═══ */
     #pantalla-empleado .stats-grid,
     #pantalla-supervisor .stats-grid {
-        grid-template-columns: repeat(4, 1fr) !important;
-        gap: 6px;
-        margin-bottom: 12px !important;
+        display: flex !important;
+        gap: 0 !important;
+        margin-bottom: 10px !important;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
     }
     #pantalla-empleado .stat-card,
     #pantalla-supervisor .stat-card {
-        padding: 8px 6px;
-        gap: 6px;
-        flex-direction: column;
-        align-items: center;
+        flex: 1;
+        padding: 8px 4px;
+        gap: 5px;
+        border-radius: 0 !important;
         justify-content: center;
-        text-align: center;
-        position: relative;
+        align-items: center;
+        border-right: 1px solid rgba(255,255,255,0.06);
         min-height: 0;
+    }
+    #pantalla-empleado .stat-card:last-child,
+    #pantalla-supervisor .stat-card:last-child {
+        border-right: none;
     }
     #pantalla-empleado .stat-icon,
     #pantalla-supervisor .stat-icon {
-        width: 26px;
-        height: 26px;
-        font-size: 0.8rem;
-        border-radius: 8px;
+        width: 22px;
+        height: 22px;
+        font-size: 0.72rem;
+        border-radius: 6px;
     }
     #pantalla-empleado .stat-number,
     #pantalla-supervisor .stat-number {
-        font-size: 1.2rem;
+        font-size: 1.05rem;
         font-weight: 800;
     }
-    /* Ocultar texto, mostrar como tooltip al tocar */
     #pantalla-empleado .stat-label,
     #pantalla-supervisor .stat-label {
-        position: absolute;
-        bottom: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(15, 15, 35, 0.95);
-        color: white;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        white-space: nowrap;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s;
-        z-index: 10;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    #pantalla-empleado .stat-card:hover .stat-label,
-    #pantalla-supervisor .stat-card:hover .stat-label,
-    #pantalla-empleado .stat-card:active .stat-label,
-    #pantalla-supervisor .stat-card:active .stat-label {
-        opacity: 1;
+        display: none;
     }
 
     /* ═══ EVIDENCE THUMBNAILS — BIGGER ON MOBILE ═══ */
