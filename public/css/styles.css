@@ -1458,31 +1458,61 @@ select {
         min-width: 0 !important;
     }
 
-    /* ═══ STATS GRID MOBILE — 2x2 COMPACTO ═══ */
+    /* ═══ STATS GRID MOBILE — 4 EN UNA FILA COMPACTA ═══ */
     #pantalla-empleado .stats-grid,
     #pantalla-supervisor .stats-grid {
-        grid-template-columns: 1fr 1fr !important;
-        gap: 8px;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 6px;
         margin-bottom: 12px !important;
     }
     #pantalla-empleado .stat-card,
     #pantalla-supervisor .stat-card {
-        padding: 10px 10px;
-        gap: 8px;
+        padding: 8px 6px;
+        gap: 6px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        position: relative;
+        min-height: 0;
     }
     #pantalla-empleado .stat-icon,
     #pantalla-supervisor .stat-icon {
-        width: 30px;
-        height: 30px;
-        font-size: 0.9rem;
+        width: 26px;
+        height: 26px;
+        font-size: 0.8rem;
+        border-radius: 8px;
     }
     #pantalla-empleado .stat-number,
     #pantalla-supervisor .stat-number {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
+        font-weight: 800;
     }
+    /* Ocultar texto, mostrar como tooltip al tocar */
     #pantalla-empleado .stat-label,
     #pantalla-supervisor .stat-label {
-        font-size: 0.68rem;
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(15, 15, 35, 0.95);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    #pantalla-empleado .stat-card:hover .stat-label,
+    #pantalla-supervisor .stat-card:hover .stat-label,
+    #pantalla-empleado .stat-card:active .stat-label,
+    #pantalla-supervisor .stat-card:active .stat-label {
+        opacity: 1;
     }
 
     /* ═══ EVIDENCE THUMBNAILS — BIGGER ON MOBILE ═══ */
