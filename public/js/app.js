@@ -1180,7 +1180,7 @@ async function editarEmpresa(id) {
         document.getElementById('emp-correo').value = empresa.correo || '';
 
         // Director General
-        const dirGenInput = document.getElementById('emp-director-general');
+        const dirGenInput = document.getElementById('dg-nombre');
         if (dirGenInput) dirGenInput.value = empresa.nombre_director_general || empresa.nombre_administrador || '';
 
         // Dirección estructurada
@@ -1238,12 +1238,15 @@ async function editarEmpresa(id) {
         const monedaSel = document.getElementById('emp-moneda');
         if (monedaSel && empresa.moneda) monedaSel.value = empresa.moneda;
 
-        // Pre-llenar datos del admin
-        document.getElementById('admin-nombre').value = empresa.nombre_administrador || '';
-        if (document.getElementById('admin-identificacion'))
-            document.getElementById('admin-identificacion').value = '';
-        if (document.getElementById('admin-correo'))
-            document.getElementById('admin-correo').value = '';
+        // Pre-llenar datos del admin (si es que la info viene diferente)
+        const dgNombreInput = document.getElementById('dg-nombre');
+        if (dgNombreInput && !dgNombreInput.value) {
+            dgNombreInput.value = empresa.nombre_administrador || '';
+        }
+        if (document.getElementById('dg-identificacion'))
+            document.getElementById('dg-identificacion').value = '';
+        if (document.getElementById('dg-correo'))
+            document.getElementById('dg-correo').value = '';
 
         // Cargar gerencias existentes
         try {
@@ -1292,13 +1295,13 @@ async function editarEmpresa(id) {
                 zona_horaria: document.getElementById('emp-zona-horaria').value,
                 telefono: tel ? `${lada} ${tel}` : '',
                 correo: document.getElementById('emp-correo').value.trim(),
-                nombre_director_general: document.getElementById('emp-director-general')?.value.trim() || '',
+                nombre_director_general: document.getElementById('dg-nombre')?.value.trim() || '',
                 direccion_departamento: document.getElementById('emp-dir-depto')?.value || '',
                 direccion_municipio: document.getElementById('emp-dir-muni')?.value || '',
                 direccion_zona: document.getElementById('emp-dir-zona')?.value.trim() || '',
                 direccion_exacta: document.getElementById('emp-dir-exacta')?.value.trim() || '',
                 direccion: [document.getElementById('emp-dir-exacta')?.value, document.getElementById('emp-dir-zona')?.value, document.getElementById('emp-dir-muni')?.value, document.getElementById('emp-dir-depto')?.value].filter(Boolean).join(', '),
-                nombre_administrador: document.getElementById('admin-nombre').value.trim()
+                nombre_administrador: document.getElementById('dg-nombre')?.value.trim() || ''
             };
 
             // Logo: si se seleccionó uno nuevo, convertir a base64
@@ -1368,8 +1371,13 @@ async function eliminarEmpresa(id, nombre) {
     m.id = 'modal-confirmar-eliminar';
     m.className = 'modal-overlay';
     m.onclick = function(ev) { if(ev.target===this) this.remove(); };
+    m.style.display = 'flex';
+    m.style.alignItems = 'center';
+    m.style.justifyContent = 'center';
+    m.style.position = 'fixed';
+    m.style.zIndex = '10000';
     m.innerHTML = `
-        <div class="modal glass" style="max-width:400px;padding:2rem;text-align:center">
+        <div class="modal-content glass" style="max-width:400px;padding:2rem;text-align:center;background:var(--bg-card);border:1px solid var(--border-color);">
             <h3 style="color:#ff5252">⚠️ Eliminar Empresa</h3>
             <p style="margin:1rem 0">¿Estás seguro de eliminar <strong>"${nombre}"</strong>?</p>
             <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">Se desactivarán todos los usuarios y grupos asociados.</p>
